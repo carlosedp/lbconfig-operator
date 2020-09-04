@@ -1,0 +1,24 @@
+# permissions for end users to edit infraloadbalancers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: infraloadbalancer-editor-role
+rules:
+- apiGroups:
+  - lb.lbconfig.io
+  resources:
+  - infraloadbalancers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - lb.lbconfig.io
+  resources:
+  - infraloadbalancers/status
+  verbs:
+  - get

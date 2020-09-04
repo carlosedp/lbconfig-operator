@@ -1,0 +1,15 @@
+apiVersion: lb.lbconfig.io/v1
+kind: InfraLoadBalancer
+metadata:
+  name: infraloadbalancer-infra-sample
+  namespace: lbconfig
+spec:
+  vip: "10.0.0.6"
+  type: "infra"
+  backend: "backend-f5"
+  ports:
+    - 80
+    - 443
+  monitor:
+    path: "/healthz"
+    port: 1936

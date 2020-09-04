@@ -2,6 +2,13 @@ domain: lbconfig.io
 layout: go.kubebuilder.io/v2
 projectName: lbconfig-operator
 repo: github.com/carlosedp/lbconfig-operator
+resources:
+- group: lb
+  kind: InfraLoadBalancer
+  version: v1
+- group: lb
+  kind: LoadBalancerBackend
+  version: v1
 version: 3-alpha
 plugins:
   go.sdk.operatorframework.io/v2-alpha: {}

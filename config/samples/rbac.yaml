@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lbconfig
+  namespace: lbconfig
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: lbconfig-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - ""
+    verbs:
+      - ""
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: lbconfig-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: lbconfig-role
+subjects:
+  - kind: ServiceAccount
+    name: lbconfig
+    namespace: lbconfig

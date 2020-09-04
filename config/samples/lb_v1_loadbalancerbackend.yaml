@@ -1,0 +1,13 @@
+apiVersion: lb.lbconfig.io/v1
+kind: LoadBalancerBackend
+metadata:
+  name: backend-f5-sample
+  namespace: lbconfig
+spec:
+  provider:
+    vendor: F5
+    host: "10.0.0.1"
+    host_port: 443
+    creds: "f5-creds"
+    partition: "Common"
+    validate_certs: no
