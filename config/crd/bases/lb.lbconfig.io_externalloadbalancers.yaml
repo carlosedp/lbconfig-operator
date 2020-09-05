@@ -60,11 +60,12 @@ spec:
               items:
                 type: integer
               type: array
-            shard:
-              description: 'Shard is the Infra node label used for route sharding
-                in json format. Ex. `shard: "{"node-role.kubernetes.io/region": "production"}"`
-                Optional.'
-              type: string
+            shardlabels:
+              additionalProperties:
+                type: string
+              description: ShardLabels are the Infra node labels used for router sharding.
+                Optional.
+              type: object
             type:
               description: Type is the node role type (master or infra) for the LoadBalancer
                 instance

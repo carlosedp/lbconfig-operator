@@ -10,9 +10,8 @@ type ExternalLoadBalancerSpec struct {
 	Vip string `json:"vip"`
 	// Type is the node role type (master or infra) for the LoadBalancer instance
 	Type string `json:"type"`
-	// Shard is the Infra node label used for route sharding in json format.
-	// Ex. `shard: "{"node-role.kubernetes.io/region": "production"}"` Optional.
-	Shard string `json:"shard,omitempty"`
+	// ShardLabels are the Infra node labels used for router sharding. Optional.
+	ShardLabels map[string]string `json:"shardlabels,omitempty"`
 	// Backend is the LoadBalancer used
 	Backend string `json:"backend"`
 	// Ports are the list of ports used for this Vip

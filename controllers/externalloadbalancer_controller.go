@@ -49,14 +49,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 
-	// log.Info("ExternalLoadBalancer", "name", lb.Name, "backend", lb.Spec.Backend)
+	// Get Load Balancer backend
 	backend := &lbv1.LoadBalancerBackend{}
 	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, backend)
 
 	if err != nil && errors.IsNotFound(err) {
 		log.Info("Could not find backend", "backend", lb.Spec.Backend)
 
-		// return ctrl.Result{}, nil // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< REVERT
+		return ctrl.Result{}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get LoadBalancerBackend")
 		return ctrl.Result{}, err
@@ -68,9 +68,10 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	labels := make(map[string]string)
 	labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
-	if lb.Spec.Shard != "" {
-
-		labels[lb.Spec.Shard] = ""
+	if lb.Spec.ShardLabels != nil {
+		for k, v := range lb.Spec.ShardLabels {
+			labels[k] = v
+		}
 	}
 
 	if err := r.List(ctx, &nodeList, client.MatchingLabels(labels)); err != nil {

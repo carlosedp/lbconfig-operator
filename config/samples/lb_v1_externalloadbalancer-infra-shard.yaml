@@ -1,0 +1,17 @@
+apiVersion: lb.lbconfig.io/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-infra-sample-shard
+  namespace: lbconfig
+spec:
+  vip: "10.0.0.6"
+  type: "infra"
+  backend: "backend-f5-sample"
+  shardlabels:
+    "node.kubernetes.io/region": "production"
+  ports:
+    - 80
+    - 443
+  monitor:
+    path: "/healthz"
+    port: 1936
