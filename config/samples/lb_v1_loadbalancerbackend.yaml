@@ -7,7 +7,7 @@ spec:
   provider:
     vendor: F5
     host: "10.0.0.1"
-    host_port: 443
+    hostport: 443
     creds: "f5-creds"
     partition: "Common"
-    validate_certs: no
+    validatecerts: no

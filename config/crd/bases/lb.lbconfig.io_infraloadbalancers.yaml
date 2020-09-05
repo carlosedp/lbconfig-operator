@@ -49,7 +49,6 @@ spec:
                 port:
                   description: Port is the port this monitor should check the pool
                     members
-                  format: int32
                   type: integer
               required:
               - path
@@ -58,9 +57,13 @@ spec:
             ports:
               description: Ports are the list of ports used for this Vip
               items:
-                format: int32
                 type: integer
               type: array
+            shard:
+              description: 'Shard is the Infra node label used for route sharding
+                in json format. Ex. `shard: "{"node-role.kubernetes.io/region": "production"}"`
+                Optional.'
+              type: string
             type:
               description: Type is the node role type (master or infra) for the LoadBalancer
                 instance

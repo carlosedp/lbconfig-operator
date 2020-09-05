@@ -21,12 +21,12 @@ type F5Provider struct {
 	// Host is the Load Balancer API IP or Hostname.
 	Host string `json:"host"`
 	// Port is the Load Balancer API Port.
-	Port int32 `json:"host_port"`
+	Port int `json:"hostport"`
 	// Partition is the F5 partition to create the Load Balancer instances.
 	Partition string `json:"partition"`
 	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
 	// +optional
-	ValidateCerts *bool `json:"validate_certs,omitempty"`
+	ValidateCerts *bool `json:"validatecerts,omitempty"`
 }
 
 // LoadBalancerBackendStatus defines the observed state of LoadBalancerBackend

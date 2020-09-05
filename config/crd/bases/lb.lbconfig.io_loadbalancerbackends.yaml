@@ -44,15 +44,14 @@ spec:
                 host:
                   description: Host is the Load Balancer API IP or Hostname.
                   type: string
-                host_port:
+                hostport:
                   description: Port is the Load Balancer API Port.
-                  format: int32
                   type: integer
                 partition:
                   description: Partition is the F5 partition to create the Load Balancer
                     instances.
                   type: string
-                validate_certs:
+                validatecerts:
                   description: ValidateCerts is a flag to validate or not the Load
                     Balancer API certificate. Defaults to false.
                   type: boolean
@@ -61,7 +60,7 @@ spec:
                   type: string
               required:
               - host
-              - host_port
+              - hostport
               - partition
               - vendor
               type: object
@@ -77,15 +76,14 @@ spec:
                 host:
                   description: Host is the Load Balancer API IP or Hostname.
                   type: string
-                host_port:
+                hostport:
                   description: Port is the Load Balancer API Port.
-                  format: int32
                   type: integer
                 partition:
                   description: Partition is the F5 partition to create the Load Balancer
                     instances.
                   type: string
-                validate_certs:
+                validatecerts:
                   description: ValidateCerts is a flag to validate or not the Load
                     Balancer API certificate. Defaults to false.
                   type: boolean
@@ -94,7 +92,7 @@ spec:
                   type: string
               required:
               - host
-              - host_port
+              - hostport
               - partition
               - vendor
               type: object

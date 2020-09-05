@@ -92,7 +92,7 @@ func (in *InfraLoadBalancerSpec) DeepCopyInto(out *InfraLoadBalancerSpec) {
 	*out = *in
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports
-		*out = make([]int32, len(*in))
+		*out = make([]int, len(*in))
 		copy(*out, *in)
 	}
 	out.Monitor = in.Monitor

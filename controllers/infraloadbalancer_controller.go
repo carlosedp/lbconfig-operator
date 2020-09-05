@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -21,16 +23,18 @@ type InfraLoadBalancerReconciler struct {
 
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=infraloadbalancers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=infraloadbalancers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=nodes,verbs=get;list
 
 // Reconcile our InfraLoadBalancer object
 func (r *InfraLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("infraloadbalancer", req.NamespacedName)
 
+	// Get the LoadBalancer instance
 	lb := &lbv1.InfraLoadBalancer{}
-
 	err := r.Get(ctx, req.NamespacedName, lb)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -45,6 +49,39 @@ func (r *InfraLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, 
 		return ctrl.Result{}, err
 	}
 
+	// log.Info("InfraLoadBalancer", "name", lb.Name, "backend", lb.Spec.Backend)
+	backend := &lbv1.LoadBalancerBackend{}
+	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, backend)
+
+	if err != nil && errors.IsNotFound(err) {
+		log.Info("Could not find backend", "backend", lb.Spec.Backend)
+
+		// return ctrl.Result{}, nil // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< REVERT
+	} else if err != nil {
+		log.Error(err, "Failed to get LoadBalancerBackend")
+		return ctrl.Result{}, err
+	}
+	log.Info("Found backend", "backend", backend.Name)
+
+	// Get Nodes by role and label for infra router sharding
+	var nodeList corev1.NodeList
+
+	labels := make(map[string]string)
+	labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
+	if lb.Spec.Shard != "" {
+
+		labels[lb.Spec.Shard] = ""
+	}
+
+	if err := r.List(ctx, &nodeList, client.MatchingLabels(labels)); err != nil {
+		log.Error(err, "unable to list Nodes")
+		return ctrl.Result{}, err
+	}
+	for _, node := range nodeList.Items {
+		log.Info("Node matches", "node", node.Name, "role", labels)
+	}
+
+	// return ctrl.Result{Requeue: true}, nil // This is used to requeue the reconciliation
 	return ctrl.Result{}, nil
 }
 

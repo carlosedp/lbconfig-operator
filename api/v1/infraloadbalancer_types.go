@@ -9,37 +9,31 @@ type InfraLoadBalancerSpec struct {
 	// Vip is the Virtual IP configured in  this LoadBalancer instance
 	Vip string `json:"vip"`
 	// Type is the node role type (master or infra) for the LoadBalancer instance
-	Type LoadBalancerType `json:"type"`
+	Type string `json:"type"`
+	// Shard is the Infra node label used for route sharding in json format.
+	// Ex. `shard: "{"node-role.kubernetes.io/region": "production"}"` Optional.
+	Shard string `json:"shard,omitempty"`
 	// Backend is the LoadBalancer used
 	Backend string `json:"backend"`
 	// Ports are the list of ports used for this Vip
-	Ports []int32 `json:"ports"`
+	Ports []int `json:"ports"`
 	// Monitor is the path and port to monitor the LoadBalancer members
 	Monitor Monitor `json:"monitor"`
 }
-
-// LoadBalancerType is the type of the Load Balancer based on node role
-type LoadBalancerType string
-
-const (
-	// MasterLB is the Load Balancer that is created for Master nodes
-	MasterLB LoadBalancerType = "master"
-	// InfraLB is the Load Balancer that is created for Infra nodes
-	InfraLB LoadBalancerType = "infra"
-)
 
 // Monitor defines a monitor object in the LoadBalancer.
 type Monitor struct {
 	// Path is the path URL to check for the pool members
 	Path string `json:"path"`
 	// Port is the port this monitor should check the pool members
-	Port int32 `json:"port"`
+	Port int `json:"port"`
 }
 
 // InfraLoadBalancerStatus defines the observed state of InfraLoadBalancer
 type InfraLoadBalancerStatus struct {
 	Vip         string   `json:"vip"`
-	Monitor     string   `json:"monitor"`
+	Ports       int      `json:"ports"`
+	Monitor     Monitor  `json:"monitor"`
 	PoolMembers []string `json:"poolmembers"`
 }
 

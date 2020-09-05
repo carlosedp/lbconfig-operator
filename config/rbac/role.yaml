@@ -29,11 +29,26 @@ rules:
 - apiGroups:
   - lb.lbconfig.io
   resources:
+  - loadbalancerbackends
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - lb.lbconfig.io
+  resources:
   - loadbalancerbackends/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - lb.lbconfig.io
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
 - apiGroups:
   - lb.lbconfig.io
   resources:
