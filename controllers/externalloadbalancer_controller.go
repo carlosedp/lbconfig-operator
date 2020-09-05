@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -105,9 +106,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 
 	// Handle IP Pools
-	if err := backend.HandlePool(nodeIPs); err != nil {
-		log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
-		return ctrl.Result{}, err
+	for _, p := range lb.Spec.Ports {
+		poolName := lb.Name + "-" + strconv.Itoa(p)
+		if err := backend.HandlePool(poolName, nodeIPs, p); err != nil {
+			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Handle VIPs
