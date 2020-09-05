@@ -11,6 +11,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/carlosedp/lbconfig-operator/controllers/backend"
+
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 )
 
@@ -50,8 +52,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 
 	// Get Load Balancer backend
-	backend := &lbv1.LoadBalancerBackend{}
-	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, backend)
+	lbBackend := &lbv1.LoadBalancerBackend{}
+	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, lbBackend)
 
 	if err != nil && errors.IsNotFound(err) {
 		log.Info("Could not find backend", "backend", lb.Spec.Backend)
@@ -61,11 +63,10 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		log.Error(err, "Failed to get LoadBalancerBackend")
 		return ctrl.Result{}, err
 	}
-	log.Info("Found backend", "backend", backend.Name)
+	log.Info("Found backend", "backend", lbBackend.Name)
 
 	// Get Nodes by role and label for infra router sharding
 	var nodeList corev1.NodeList
-
 	labels := make(map[string]string)
 	labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
 	if lb.Spec.ShardLabels != nil {
@@ -79,7 +80,46 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 	for _, node := range nodeList.Items {
-		log.Info("Node matches", "node", node.Name, "role", labels)
+		log.Info("Node matches", "node", node.Name, "labels", labels)
+	}
+
+	// Get the nodes external IPs
+	nodeIPs := make(map[string]string)
+	for _, n := range nodeList.Items {
+		nodeAddrs := n.Status.Addresses
+		for _, addr := range nodeAddrs {
+			if addr.Type == "ExternalIP" {
+				nodeIPs[n.Name] = addr.Address
+			}
+		}
+	}
+
+	// Handle Backend Provider
+	// - Get Provider info
+	// - Create connection?
+
+	// Handle Monitors
+	if err := backend.HandleMonitors(); err != nil {
+		log.Error(err, "unable to handle ExternalLoadBalancer monitors")
+		return ctrl.Result{}, err
+	}
+
+	// Handle IP Pools
+	if err := backend.HandlePool(nodeIPs); err != nil {
+		log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
+		return ctrl.Result{}, err
+	}
+
+	// Handle VIPs
+	if err := backend.HandleVIP(); err != nil {
+		log.Error(err, "unable to handle ExternalLoadBalancer VIP")
+		return ctrl.Result{}, err
+	}
+
+	// Update ExternalLoadBalancer Status
+	if err := r.Status().Update(ctx, lb); err != nil {
+		log.Error(err, "unable to update ExternalLoadBalancer status")
+		return ctrl.Result{}, err
 	}
 
 	// return ctrl.Result{Requeue: true}, nil // This is used to requeue the reconciliation
