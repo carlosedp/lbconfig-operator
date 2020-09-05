@@ -2,20 +2,20 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/lb.lbconfig.io_infraloadbalancers.yaml
+- bases/lb.lbconfig.io_externalloadbalancers.yaml
 - bases/lb.lbconfig.io_loadbalancerbackends.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
-#- patches/webhook_in_infraloadbalancers.yaml
+#- patches/webhook_in_externalloadbalancers.yaml
 #- patches/webhook_in_loadbalancerbackends.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
-#- patches/cainjection_in_infraloadbalancers.yaml
+#- patches/cainjection_in_externalloadbalancers.yaml
 #- patches/cainjection_in_loadbalancerbackends.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 

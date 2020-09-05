@@ -14,42 +14,42 @@ import (
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 )
 
-// InfraLoadBalancerReconciler reconciles a InfraLoadBalancer object
-type InfraLoadBalancerReconciler struct {
+// ExternalLoadBalancerReconciler reconciles a ExternalLoadBalancer object
+type ExternalLoadBalancerReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=infraloadbalancers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=infraloadbalancers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=secrets,verbs=get;list
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=nodes,verbs=get;list
 
-// Reconcile our InfraLoadBalancer object
-func (r *InfraLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+// Reconcile our ExternalLoadBalancer object
+func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("infraloadbalancer", req.NamespacedName)
+	log := r.Log.WithValues("externalloadbalancer", req.NamespacedName)
 
 	// Get the LoadBalancer instance
-	lb := &lbv1.InfraLoadBalancer{}
+	lb := &lbv1.ExternalLoadBalancer{}
 	err := r.Get(ctx, req.NamespacedName, lb)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			log.Info("InfraLoadBalancer resource not found. Ignoring since object must be deleted")
+			log.Info("ExternalLoadBalancer resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get InfraLoadBalancer")
+		log.Error(err, "Failed to get ExternalLoadBalancer")
 		return ctrl.Result{}, err
 	}
 
-	// log.Info("InfraLoadBalancer", "name", lb.Name, "backend", lb.Spec.Backend)
+	// log.Info("ExternalLoadBalancer", "name", lb.Name, "backend", lb.Spec.Backend)
 	backend := &lbv1.LoadBalancerBackend{}
 	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, backend)
 
@@ -86,8 +86,8 @@ func (r *InfraLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, 
 }
 
 // SetupWithManager adds the reconciler in the Manager
-func (r *InfraLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&lbv1.InfraLoadBalancer{}).
+		For(&lbv1.ExternalLoadBalancer{}).
 		Complete(r)
 }

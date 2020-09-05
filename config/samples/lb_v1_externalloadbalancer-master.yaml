@@ -1,7 +1,7 @@
 apiVersion: lb.lbconfig.io/v1
-kind: InfraLoadBalancer
+kind: ExternalLoadBalancer
 metadata:
-  name: infraloadbalancer-master-sample
+  name: externalloadbalancer-master-sample
   namespace: lbconfig
 spec:
   vip: "10.0.0.5"

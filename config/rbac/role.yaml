@@ -9,7 +9,7 @@ rules:
 - apiGroups:
   - lb.lbconfig.io
   resources:
-  - infraloadbalancers
+  - externalloadbalancers
   verbs:
   - create
   - delete
@@ -21,7 +21,7 @@ rules:
 - apiGroups:
   - lb.lbconfig.io
   resources:
-  - infraloadbalancers/status
+  - externalloadbalancers/status
   verbs:
   - get
   - patch

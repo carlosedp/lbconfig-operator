@@ -51,12 +51,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.InfraLoadBalancerReconciler{
+	if err = (&controllers.ExternalLoadBalancerReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("InfraLoadBalancer"),
+		Log:    ctrl.Log.WithName("controllers").WithName("ExternalLoadBalancer"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "InfraLoadBalancer")
+		setupLog.Error(err, "unable to create controller", "controller", "ExternalLoadBalancer")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

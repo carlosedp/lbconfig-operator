@@ -4,7 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// LoadBalancerBackendSpec defines the backend used by the InfraLoadBalancer instance
+// LoadBalancerBackendSpec defines the backend used by the ExternalLoadBalancer instance
 type LoadBalancerBackendSpec struct {
 	// Type is the backend provider like F5, NetScaler, NSX
 	Provider F5Provider `json:"provider"`

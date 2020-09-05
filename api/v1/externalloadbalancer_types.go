@@ -4,8 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InfraLoadBalancerSpec is the spec of a LoadBalancer instance.
-type InfraLoadBalancerSpec struct {
+// ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
+type ExternalLoadBalancerSpec struct {
 	// Vip is the Virtual IP configured in  this LoadBalancer instance
 	Vip string `json:"vip"`
 	// Type is the node role type (master or infra) for the LoadBalancer instance
@@ -29,8 +29,8 @@ type Monitor struct {
 	Port int `json:"port"`
 }
 
-// InfraLoadBalancerStatus defines the observed state of InfraLoadBalancer
-type InfraLoadBalancerStatus struct {
+// ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
+type ExternalLoadBalancerStatus struct {
 	Vip         string   `json:"vip"`
 	Ports       int      `json:"ports"`
 	Monitor     Monitor  `json:"monitor"`
@@ -40,25 +40,25 @@ type InfraLoadBalancerStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// InfraLoadBalancer is the Schema for the infraloadbalancers API
+// ExternalLoadBalancer is the Schema for the externalloadbalancers API
 // +kubebuilder:subresource:status
-type InfraLoadBalancer struct {
+type ExternalLoadBalancer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InfraLoadBalancerSpec   `json:"spec,omitempty"`
-	Status InfraLoadBalancerStatus `json:"status,omitempty"`
+	Spec   ExternalLoadBalancerSpec   `json:"spec,omitempty"`
+	Status ExternalLoadBalancerStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// InfraLoadBalancerList contains a list of InfraLoadBalancer
-type InfraLoadBalancerList struct {
+// ExternalLoadBalancerList contains a list of ExternalLoadBalancer
+type ExternalLoadBalancerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []InfraLoadBalancer `json:"items"`
+	Items           []ExternalLoadBalancer `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&InfraLoadBalancer{}, &InfraLoadBalancerList{})
+	SchemeBuilder.Register(&ExternalLoadBalancer{}, &ExternalLoadBalancerList{})
 }

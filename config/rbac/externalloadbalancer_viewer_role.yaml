@@ -1,24 +1,20 @@
-# permissions for end users to edit infraloadbalancers.
+# permissions for end users to view externalloadbalancers.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: infraloadbalancer-editor-role
+  name: externalloadbalancer-viewer-role
 rules:
 - apiGroups:
   - lb.lbconfig.io
   resources:
-  - infraloadbalancers
+  - externalloadbalancers
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - lb.lbconfig.io
   resources:
-  - infraloadbalancers/status
+  - externalloadbalancers/status
   verbs:
   - get

@@ -6,20 +6,21 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: infraloadbalancers.lb.lbconfig.io
+  name: externalloadbalancers.lb.lbconfig.io
 spec:
   group: lb.lbconfig.io
   names:
-    kind: InfraLoadBalancer
-    listKind: InfraLoadBalancerList
-    plural: infraloadbalancers
-    singular: infraloadbalancer
+    kind: ExternalLoadBalancer
+    listKind: ExternalLoadBalancerList
+    plural: externalloadbalancers
+    singular: externalloadbalancer
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: InfraLoadBalancer is the Schema for the infraloadbalancers API
+      description: ExternalLoadBalancer is the Schema for the externalloadbalancers
+        API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +35,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: InfraLoadBalancerSpec is the spec of a LoadBalancer instance.
+          description: ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
           properties:
             backend:
               description: Backend is the LoadBalancer used
@@ -80,19 +81,34 @@ spec:
           - vip
           type: object
         status:
-          description: InfraLoadBalancerStatus defines the observed state of InfraLoadBalancer
+          description: ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
           properties:
             monitor:
-              type: string
+              description: Monitor defines a monitor object in the LoadBalancer.
+              properties:
+                path:
+                  description: Path is the path URL to check for the pool members
+                  type: string
+                port:
+                  description: Port is the port this monitor should check the pool
+                    members
+                  type: integer
+              required:
+              - path
+              - port
+              type: object
             poolmembers:
               items:
                 type: string
               type: array
+            ports:
+              type: integer
             vip:
               type: string
           required:
           - monitor
           - poolmembers
+          - ports
           - vip
           type: object
       type: object
