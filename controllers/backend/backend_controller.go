@@ -1,53 +1,93 @@
 package backend
 
-import "context"
+import (
+	"fmt"
+
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	corev1 "k8s.io/api/core/v1"
+)
 
 // Provider interface method signatures
 type Provider interface {
 	Connect() error
-	GetMonitor()
-	GetPool()
-	GetVIP()
+	GetMonitor(name string, monitor lbv1.Monitor) (lbv1.Monitor, error)
+	GetPool(name string) (string, error)
+	GetVIP(name string) (string, error)
 
-	CreateMonitor(ctx context.Context, name string, url string, port int) (string, error)
-	EditMonitor(ctx context.Context, name string, url string, port int) (string, error)
-	DeleteMonitor(ctx context.Context, name string, url string, port int) (string, error)
+	CreateMonitor(name string, url string, port int) (string, error)
+	EditMonitor(name string, url string, port int) (string, error)
+	DeleteMonitor(name string, url string, port int) (string, error)
 
-	CreateMember(ctx context.Context, node string, IP string) (string, error)
-	EditPoolMember(ctx context.Context, name string, member string, port int, status string) (string, error)
-	DeletePoolMember(ctx context.Context, name string, member string, port int, status string) (string, error)
+	CreateMember(node string, IP string) (string, error)
+	EditPoolMember(name string, member string, port int, status string) (string, error)
+	DeletePoolMember(name string, member string, port int, status string) (string, error)
 
-	CreatePool(ctx context.Context, name string, monitor string, members []string, port int) (string, error)
-	EditPool(ctx context.Context, name string, monitor string, members []string, port int) (string, error)
-	DeletePool(ctx context.Context, name string, monitor string, members []string, port int) (string, error)
+	CreatePool(name string, monitor string, members []string, port int) (string, error)
+	EditPool(name string, monitor string, members []string, port int) (string, error)
+	DeletePool(name string, monitor string, members []string, port int) (string, error)
 
-	CreateVIP(ctx context.Context, name string, VIP string, pool string, port int) (string, error)
-	EditVIP(ctx context.Context, name string, VIP string, pool string, port int) (string, error)
-	DeleteVIP(ctx context.Context, name string, VIP string, pool string, port int) (string, error)
+	CreateVIP(name string, VIP string, pool string, port int) (string, error)
+	EditVIP(name string, VIP string, pool string, port int) (string, error)
+	DeleteVIP(name string, VIP string, pool string, port int) (string, error)
 }
 
-// ProviderOptions contains the connection parameters for the Provider
-type ProviderOptions struct {
-	host          string
-	hostport      int
-	username      string
-	password      string
-	partition     string
-	validatecerts bool
+// CreateProvider creates a new backend provider
+func CreateProvider(lbBackend *lbv1.LoadBalancerBackend) (Provider, error) {
+
+	// Get provider username and password
+	userSecret := &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: lbBackend.Spec.Provider.Creds},
+			Key: "username"},
+	}
+	passwordSecret := &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: lbBackend.Spec.Provider.Creds},
+			Key: "password"},
+	}
+
+	var provider Provider
+	// Create backend provider based on backend type
+	switch lbBackend.Spec.Provider.Vendor {
+	case "F5":
+		provider = F5Provider{
+			host:          lbBackend.Spec.Provider.Host,
+			hostport:      lbBackend.Spec.Provider.Port,
+			partition:     "Common",
+			validatecerts: false,
+			username:      userSecret.String(),
+			password:      passwordSecret.String(),
+		}
+		provider.Connect()
+
+	default:
+		return nil, fmt.Errorf("Provider not implemented")
+
+	}
+
+	return provider, nil
 }
 
 //HandleMonitors manages the Monitor validation, update and creation
-func HandleMonitors() error {
+func HandleMonitors(p Provider, name string, monitor lbv1.Monitor) (lbv1.Monitor, error) {
 	// Check if monitor exists
 
+	_, err := p.GetMonitor(name, monitor)
+
+	if err != nil {
+		return lbv1.Monitor{}, nil
+
+	}
 	// Create Monitor
 
 	// or Update Monitor ports and parameters
-	return nil
+	return lbv1.Monitor{}, nil
 }
 
 //HandlePool manages the Pool validation, update and creation
-func HandlePool(name string, nodeIPs map[string]string, port int) error {
+func HandlePool(name string, nodeIPs map[string]string, port int) (members []string, err error) {
 	// Check if pool exists
 
 	// if doesn't exist, create pool
@@ -58,11 +98,11 @@ func HandlePool(name string, nodeIPs map[string]string, port int) error {
 
 	// update pool adding new members and removing not used ones
 
-	return nil
+	return nil, nil
 }
 
 //HandleVIP manages the VIP validation, update and creation
-func HandleVIP() error {
+func HandleVIP(name string, VIP string, pool string, port int) (vip string, err error) {
 	// Check if VIP exists
 
 	// if doesn't exist, create VIP
@@ -71,7 +111,7 @@ func HandleVIP() error {
 
 	// update VIP ports and parameters
 
-	return nil
+	return "", nil
 }
 
 func createMember(members map[string]string) error {

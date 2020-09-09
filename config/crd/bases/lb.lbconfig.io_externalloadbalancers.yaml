@@ -44,6 +44,11 @@ spec:
               description: Monitor is the path and port to monitor the LoadBalancer
                 members
               properties:
+                monitortype:
+                  description: MonitorType is the monitor parent type. <monitorType>
+                    must be one of "http", "https", "icmp", "gateway icmp", "inband",
+                    "postgresql", "mysql", "udp" or "tcp".
+                  type: string
                 path:
                   description: Path is the path URL to check for the pool members
                   type: string
@@ -52,6 +57,7 @@ spec:
                     members
                   type: integer
               required:
+              - monitortype
               - path
               - port
               type: object
@@ -87,6 +93,11 @@ spec:
             monitor:
               description: Monitor defines a monitor object in the LoadBalancer.
               properties:
+                monitortype:
+                  description: MonitorType is the monitor parent type. <monitorType>
+                    must be one of "http", "https", "icmp", "gateway icmp", "inband",
+                    "postgresql", "mysql", "udp" or "tcp".
+                  type: string
                 path:
                   description: Path is the path URL to check for the pool members
                   type: string
@@ -95,6 +106,7 @@ spec:
                     members
                   type: integer
               required:
+              - monitortype
               - path
               - port
               type: object
@@ -103,7 +115,9 @@ spec:
                 type: string
               type: array
             ports:
-              type: integer
+              items:
+                type: integer
+              type: array
             vip:
               type: string
           required:

@@ -12,3 +12,4 @@ spec:
   monitor:
     path: "/healthz"
     port: 6443
+    type: "https"

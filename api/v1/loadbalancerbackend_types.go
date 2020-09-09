@@ -7,23 +7,25 @@ import (
 // LoadBalancerBackendSpec defines the backend used by the ExternalLoadBalancer instance
 type LoadBalancerBackendSpec struct {
 	// Type is the backend provider like F5, NetScaler, NSX
-	Provider F5Provider `json:"provider"`
+	Provider Provider `json:"provider"`
 }
 
 // Provider is the interface to different backend providers (F5, NetScaler, NSX, etc)
 // type Provider struct {
 // }
 
-// F5Provider is a backend provider for F5 Big IP Load Balancers
-type F5Provider struct {
+// Provider is a backend provider for F5 Big IP Load Balancers
+type Provider struct {
 	// Vendor is the backend provider vendor (F5, NSX, Nerscaler)
 	Vendor string `json:"vendor"`
 	// Host is the Load Balancer API IP or Hostname.
 	Host string `json:"host"`
 	// Port is the Load Balancer API Port.
-	Port int `json:"hostport"`
+	Port int `json:"port"`
+	// Creds credentials secret holding the username and password keys.
+	Creds string `json:"creds"`
 	// Partition is the F5 partition to create the Load Balancer instances.
-	Partition string `json:"partition"`
+	Partition string `json:"partition,omitempty"`
 	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
 	// +optional
 	ValidateCerts *bool `json:"validatecerts,omitempty"`
@@ -31,7 +33,7 @@ type F5Provider struct {
 
 // LoadBalancerBackendStatus defines the observed state of LoadBalancerBackend
 type LoadBalancerBackendStatus struct {
-	Type F5Provider `json:"provider"`
+	Type Provider `json:"provider"`
 }
 
 // +kubebuilder:object:root=true

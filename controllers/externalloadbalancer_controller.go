@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/carlosedp/lbconfig-operator/controllers/backend"
 
@@ -24,6 +25,8 @@ type ExternalLoadBalancerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+const ExternalLoadBalancerFinalizer = "finalizer.lb.lbconfig.io"
+
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;update;patch
@@ -36,7 +39,9 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	ctx := context.Background()
 	log := r.Log.WithValues("externalloadbalancer", req.NamespacedName)
 
+	// ----------------------------------------
 	// Get the LoadBalancer instance
+	// ----------------------------------------
 	lb := &lbv1.ExternalLoadBalancer{}
 	err := r.Get(ctx, req.NamespacedName, lb)
 	if err != nil {
@@ -52,7 +57,9 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 
+	// ----------------------------------------
 	// Get Load Balancer backend
+	// ----------------------------------------
 	lbBackend := &lbv1.LoadBalancerBackend{}
 	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, lbBackend)
 
@@ -66,7 +73,9 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 	log.Info("Found backend", "backend", lbBackend.Name)
 
+	// ----------------------------------------
 	// Get Nodes by role and label for infra router sharding
+	// ----------------------------------------
 	var nodeList corev1.NodeList
 	labels := make(map[string]string)
 	labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
@@ -84,7 +93,9 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		log.Info("Node matches", "node", node.Name, "labels", labels)
 	}
 
+	// ----------------------------------------
 	// Get the nodes external IPs
+	// ----------------------------------------
 	nodeIPs := make(map[string]string)
 	for _, n := range nodeList.Items {
 		nodeAddrs := n.Status.Addresses
@@ -95,35 +106,91 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		}
 	}
 
+	// ----------------------------------------
 	// Handle Backend Provider
 	// - Get Provider info
 	// - Create connection?
+	// ----------------------------------------
+	provider, err := backend.CreateProvider(lbBackend)
 
-	// Handle Monitors
-	if err := backend.HandleMonitors(); err != nil {
+	// ----------------------------------------
+	// Handle Monitor
+	// ----------------------------------------
+	monitorName := "Monitor-" + lb.Name
+	monitor, err := backend.HandleMonitors(provider, monitorName, lb.Spec.Monitor)
+	if err != nil {
 		log.Error(err, "unable to handle ExternalLoadBalancer monitors")
 		return ctrl.Result{}, err
 	}
+	lb.Status.Monitor = monitor
 
+	// ----------------------------------------
 	// Handle IP Pools
+	// ----------------------------------------
+	var pools map[int]string
 	for _, p := range lb.Spec.Ports {
-		poolName := lb.Name + "-" + strconv.Itoa(p)
-		if err := backend.HandlePool(poolName, nodeIPs, p); err != nil {
+		poolName := "Pool-" + lb.Name + "-" + strconv.Itoa(p)
+		m, err := backend.HandlePool(poolName, nodeIPs, p)
+		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
 		}
+		pools[p] = poolName
+		lb.Status.PoolMembers = m
 	}
+	lb.Status.Ports = lb.Spec.Ports
 
+	// ----------------------------------------
 	// Handle VIPs
-	if err := backend.HandleVIP(); err != nil {
-		log.Error(err, "unable to handle ExternalLoadBalancer VIP")
-		return ctrl.Result{}, err
+	// ----------------------------------------
+	for _, p := range lb.Spec.Ports {
+		VIPName := "VIP-" + lb.Name + "-" + strconv.Itoa(p)
+		vip, err := backend.HandleVIP(VIPName, lb.Spec.Vip, pools[p], p)
+		if err != nil {
+			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
+			return ctrl.Result{}, err
+		}
+		lb.Status.Vip = vip
 	}
 
+	// ----------------------------------------
 	// Update ExternalLoadBalancer Status
+	// ----------------------------------------
 	if err := r.Status().Update(ctx, lb); err != nil {
 		log.Error(err, "unable to update ExternalLoadBalancer status")
 		return ctrl.Result{}, err
+	}
+
+	// ----------------------------------------
+	// Check if the Memcached instance is marked to be deleted, which is
+	// indicated by the deletion timestamp being set.
+	// ----------------------------------------
+	isLoadBalancerMarkedToBeDeleted := lb.GetDeletionTimestamp() != nil
+	if isLoadBalancerMarkedToBeDeleted {
+		if contains(lb.GetFinalizers(), ExternalLoadBalancerFinalizer) {
+			// Run finalization logic for ExternalLoadBalancerFinalizer. If the
+			// finalization logic fails, don't remove the finalizer so
+			// that we can retry during the next reconciliation.
+			if err := r.finalizeLoadBalancer(log, lb); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			// Remove ExternalLoadBalancerFinalizer. Once all finalizers have been
+			// removed, the object will be deleted.
+			controllerutil.RemoveFinalizer(lb, ExternalLoadBalancerFinalizer)
+			err := r.Update(ctx, lb)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Add finalizer for this CR
+	if !contains(lb.GetFinalizers(), ExternalLoadBalancerFinalizer) {
+		if err := r.addFinalizer(log, lb); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// return ctrl.Result{Requeue: true}, nil // This is used to requeue the reconciliation
@@ -135,4 +202,35 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&lbv1.ExternalLoadBalancer{}).
 		Complete(r)
+}
+
+func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Logger, m *lbv1.ExternalLoadBalancer) error {
+	// TODO(user): Add the cleanup steps that the operator
+	// needs to do before the CR can be deleted. Examples
+	// of finalizers include performing backups and deleting
+	// resources that are not owned by this CR, like a PVC.
+	reqLogger.Info("Successfully finalized ExternalLoadBalancer")
+	return nil
+}
+
+func (r *ExternalLoadBalancerReconciler) addFinalizer(reqLogger logr.Logger, m *lbv1.ExternalLoadBalancer) error {
+	reqLogger.Info("Adding Finalizer for the ExternalLoadBalancer")
+	controllerutil.AddFinalizer(m, ExternalLoadBalancerFinalizer)
+
+	// Update CR
+	err := r.Update(context.TODO(), m)
+	if err != nil {
+		reqLogger.Error(err, "Failed to update ExternalLoadBalancer with finalizer")
+		return err
+	}
+	return nil
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }

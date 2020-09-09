@@ -41,16 +41,20 @@ spec:
             provider:
               description: Type is the backend provider like F5, NetScaler, NSX
               properties:
+                creds:
+                  description: Creds credentials secret holding the username and password
+                    keys.
+                  type: string
                 host:
                   description: Host is the Load Balancer API IP or Hostname.
                   type: string
-                hostport:
-                  description: Port is the Load Balancer API Port.
-                  type: integer
                 partition:
                   description: Partition is the F5 partition to create the Load Balancer
                     instances.
                   type: string
+                port:
+                  description: Port is the Load Balancer API Port.
+                  type: integer
                 validatecerts:
                   description: ValidateCerts is a flag to validate or not the Load
                     Balancer API certificate. Defaults to false.
@@ -59,9 +63,9 @@ spec:
                   description: Vendor is the backend provider vendor (F5, NSX, Nerscaler)
                   type: string
               required:
+              - creds
               - host
-              - hostport
-              - partition
+              - port
               - vendor
               type: object
           required:
@@ -71,18 +75,22 @@ spec:
           description: LoadBalancerBackendStatus defines the observed state of LoadBalancerBackend
           properties:
             provider:
-              description: F5Provider is a backend provider for F5 Big IP Load Balancers
+              description: Provider is a backend provider for F5 Big IP Load Balancers
               properties:
+                creds:
+                  description: Creds credentials secret holding the username and password
+                    keys.
+                  type: string
                 host:
                   description: Host is the Load Balancer API IP or Hostname.
                   type: string
-                hostport:
-                  description: Port is the Load Balancer API Port.
-                  type: integer
                 partition:
                   description: Partition is the F5 partition to create the Load Balancer
                     instances.
                   type: string
+                port:
+                  description: Port is the Load Balancer API Port.
+                  type: integer
                 validatecerts:
                   description: ValidateCerts is a flag to validate or not the Load
                     Balancer API certificate. Defaults to false.
@@ -91,9 +99,9 @@ spec:
                   description: Vendor is the backend provider vendor (F5, NSX, Nerscaler)
                   type: string
               required:
+              - creds
               - host
-              - hostport
-              - partition
+              - port
               - vendor
               type: object
           required:

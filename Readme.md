@@ -36,6 +36,19 @@ spec:
     validatecerts: no
 ```
 
+And the secret holding the Load Balancer API user and password:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: f5-creds
+  namespace: lbconfig
+data:
+  username: "admin"
+  password: "admin123"
+```
+
 Then create the instances for each Load Balancer you need (for example one for Master Nodes and another for the Infra Nodes):
 
 Master Nodes:

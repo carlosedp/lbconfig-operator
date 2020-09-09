@@ -26,12 +26,15 @@ type Monitor struct {
 	Path string `json:"path"`
 	// Port is the port this monitor should check the pool members
 	Port int `json:"port"`
+	// MonitorType is the monitor parent type. <monitorType> must be one of "http", "https",
+	// "icmp", "gateway icmp", "inband", "postgresql", "mysql", "udp" or "tcp".
+	MonitorType string `json:"monitortype"`
 }
 
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
 	Vip         string   `json:"vip"`
-	Ports       int      `json:"ports"`
+	Ports       []int    `json:"ports"`
 	Monitor     Monitor  `json:"monitor"`
 	PoolMembers []string `json:"poolmembers"`
 }
