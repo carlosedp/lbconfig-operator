@@ -22,6 +22,8 @@ type ExternalLoadBalancerSpec struct {
 
 // Monitor defines a monitor object in the LoadBalancer.
 type Monitor struct {
+	// Name is the monitor name, it is set by the controller
+	Name string `json:"name,omitempty"`
 	// Path is the path URL to check for the pool members
 	Path string `json:"path"`
 	// Port is the port this monitor should check the pool members

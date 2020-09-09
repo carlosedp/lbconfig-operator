@@ -117,7 +117,9 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// Handle Monitor
 	// ----------------------------------------
 	monitorName := "Monitor-" + lb.Name
-	monitor, err := backend.HandleMonitors(provider, monitorName, lb.Spec.Monitor)
+	lb.Spec.Monitor.Name = monitorName
+
+	monitor, err := backend.HandleMonitors(*provider, lb.Spec.Monitor)
 	if err != nil {
 		log.Error(err, "unable to handle ExternalLoadBalancer monitors")
 		return ctrl.Result{}, err
@@ -130,7 +132,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	var pools map[int]string
 	for _, p := range lb.Spec.Ports {
 		poolName := "Pool-" + lb.Name + "-" + strconv.Itoa(p)
-		m, err := backend.HandlePool(poolName, nodeIPs, p)
+		m, err := backend.HandlePool(*provider, poolName, nodeIPs, p)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
@@ -145,7 +147,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	for _, p := range lb.Spec.Ports {
 		VIPName := "VIP-" + lb.Name + "-" + strconv.Itoa(p)
-		vip, err := backend.HandleVIP(VIPName, lb.Spec.Vip, pools[p], p)
+		vip, err := backend.HandleVIP(*provider, VIPName, lb.Spec.Vip, pools[p], p)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			return ctrl.Result{}, err
