@@ -14,7 +14,7 @@ type Provider interface {
 	GetMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
 	CreateMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
 	EditMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
-	DeleteMonitor(name string, url string, port int) (lbv1.Monitor, error)
+	DeleteMonitor(m *lbv1.Monitor) error
 
 	GetPool(name string) (string, error)
 	CreatePool(name string, monitor string, members []string, port int) (string, error)

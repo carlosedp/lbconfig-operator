@@ -101,7 +101,7 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	return m, nil
 }
 
-// EditMonitor creates a monitor in the IP Load Balancer
+// EditMonitor edits a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	config := &bigip.Monitor{
@@ -124,10 +124,14 @@ func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	return m, nil
 }
 
-// DeleteMonitor creates a monitor in the IP Load Balancer
+// DeleteMonitor deletes a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *F5Provider) DeleteMonitor(name string, url string, port int) (lbv1.Monitor, error) {
-	return lbv1.Monitor{}, nil
+func (p *F5Provider) DeleteMonitor(m *lbv1.Monitor) error {
+	err := p.f5.DeleteMonitor(m.Name, m.MonitorType)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetPool gets a server pool in the IP Load Balancer
