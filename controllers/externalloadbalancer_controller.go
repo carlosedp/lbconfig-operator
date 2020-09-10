@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -65,13 +66,21 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	if err != nil && errors.IsNotFound(err) {
 		log.Info("Could not find backend", "backend", lb.Spec.Backend)
-
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		log.Error(err, "Failed to get LoadBalancerBackend")
+		log.Error(err, "failed to get LoadBalancerBackend")
 		return ctrl.Result{}, err
 	}
 	log.Info("Found backend", "backend", lbBackend.Name)
+
+	credsSecret := &corev1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Spec.Provider.Creds, Namespace: lbBackend.Namespace}, credsSecret)
+
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("provider credentials Secret not found %v", err)
+	}
+	username := string(credsSecret.Data["username"])
+	password := string(credsSecret.Data["password"])
 
 	// ----------------------------------------
 	// Get Nodes by role and label for infra router sharding
@@ -89,19 +98,22 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		log.Error(err, "unable to list Nodes")
 		return ctrl.Result{}, err
 	}
-	for _, node := range nodeList.Items {
-		log.Info("Node matches", "node", node.Name, "labels", labels)
-	}
 
 	// ----------------------------------------
 	// Get the nodes external IPs
 	// ----------------------------------------
-	nodeIPs := make(map[string]string)
+	var members []lbv1.PoolMember
 	for _, n := range nodeList.Items {
 		nodeAddrs := n.Status.Addresses
 		for _, addr := range nodeAddrs {
 			if addr.Type == "ExternalIP" {
-				nodeIPs[n.Name] = addr.Address
+				m := &lbv1.PoolMember{
+					Name:   n.Name,
+					Host:   addr.Address,
+					Labels: labels,
+				}
+				log.Info("Node matches", "node", n.Name, "labels", labels, "ip", addr.Address)
+				members = append(members, *m)
 			}
 		}
 	}
@@ -111,7 +123,10 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// - Get Provider info
 	// - Create connection?
 	// ----------------------------------------
-	provider, err := backend.CreateProvider(lbBackend)
+	provider, err := backend.CreateProvider(log, lbBackend, username, password)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// ----------------------------------------
 	// Handle Monitor
@@ -119,26 +134,30 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	monitorName := "Monitor-" + lb.Name
 	lb.Spec.Monitor.Name = monitorName
 
-	monitor, err := backend.HandleMonitors(*provider, lb.Spec.Monitor)
+	monitor, err := backend.HandleMonitors(log, provider, lb.Spec.Monitor)
 	if err != nil {
-		log.Error(err, "unable to handle ExternalLoadBalancer monitors")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
 	}
-	lb.Status.Monitor = monitor
+	lb.Status.Monitor = *monitor
 
 	// ----------------------------------------
 	// Handle IP Pools
 	// ----------------------------------------
-	var pools map[int]string
+	var pools map[int]*lbv1.Pool
 	for _, p := range lb.Spec.Ports {
-		poolName := "Pool-" + lb.Name + "-" + strconv.Itoa(p)
-		m, err := backend.HandlePool(*provider, poolName, nodeIPs, p)
+		var pool lbv1.Pool
+		pool.Name = "Pool-" + lb.Name + "-" + strconv.Itoa(p)
+		pool.Port = p
+		pool.Monitor = monitor.Name
+		pool.Members = members
+
+		newPool, err := backend.HandlePool(log, provider, &pool)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
 		}
-		pools[p] = poolName
-		lb.Status.PoolMembers = m
+		pools[p] = newPool
+		lb.Status.PoolMembers = members
 	}
 	lb.Status.Ports = lb.Spec.Ports
 
@@ -147,7 +166,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	for _, p := range lb.Spec.Ports {
 		VIPName := "VIP-" + lb.Name + "-" + strconv.Itoa(p)
-		vip, err := backend.HandleVIP(*provider, VIPName, lb.Spec.Vip, pools[p], p)
+		vip, err := backend.HandleVIP(log, provider, VIPName, lb.Spec.Vip, *pools[p], p)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			return ctrl.Result{}, err

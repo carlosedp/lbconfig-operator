@@ -9,7 +9,7 @@ import (
 	"github.com/scottdware/go-bigip"
 )
 
-//F5Provider is the object for the F5 Big IP Provider
+// F5Provider is the object for the F5 Big IP Provider
 type F5Provider struct {
 	f5            *bigip.BigIP
 	host          string
@@ -64,10 +64,12 @@ func (p *F5Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error converting F5 monitor port: %v", err)
 	}
+
+	parent := strings.Split(m.ParentMonitor, "/")[2]
 	mon := &lbv1.Monitor{
 		Name:        m.Name,
-		MonitorType: m.MonitorType,
-		Path:        m.FullPath,
+		MonitorType: parent,
+		Path:        strings.TrimLeft(m.SendString, "GET "),
 		Port:        port,
 	}
 
@@ -80,11 +82,11 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 	config := &bigip.Monitor{
 		Name:          m.Name,
-		ParentMonitor: m.MonitorType,
+		ParentMonitor: "/" + p.partition + "/" + m.MonitorType,
 		Interval:      5,
 		Timeout:       16,
-		SendString:    "GET " + m.Path + "\r\n",
-		ReceiveString: "200 OK",
+		SendString:    "GET " + m.Path,
+		ReceiveString: "",
 	}
 
 	if m.Port != 0 {
@@ -102,6 +104,23 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 // EditMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+	config := &bigip.Monitor{
+		Name:          m.Name,
+		ParentMonitor: "/" + p.partition + "/" + m.MonitorType,
+		Interval:      5,
+		Timeout:       16,
+		SendString:    "GET " + m.Path,
+		ReceiveString: "",
+	}
+
+	if m.Port != 0 {
+		destination := "*." + strconv.Itoa(m.Port)
+		config.Destination = destination
+	}
+	err := p.f5.PatchMonitor(m.Name, m.MonitorType, config)
+	if err != nil {
+		return nil, err
+	}
 	return m, nil
 }
 

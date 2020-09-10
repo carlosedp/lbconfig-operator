@@ -13,3 +13,4 @@ spec:
   monitor:
     path: "/healthz"
     port: 1936
+    monitortype: http

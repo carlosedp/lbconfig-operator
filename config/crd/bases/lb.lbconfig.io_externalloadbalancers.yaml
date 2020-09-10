@@ -49,6 +49,9 @@ spec:
                     must be one of "http", "https", "icmp", "gateway icmp", "inband",
                     "postgresql", "mysql", "udp" or "tcp".
                   type: string
+                name:
+                  description: Name is the monitor name, it is set by the controller
+                  type: string
                 path:
                   description: Path is the path URL to check for the pool members
                   type: string
@@ -98,6 +101,9 @@ spec:
                     must be one of "http", "https", "icmp", "gateway icmp", "inband",
                     "postgresql", "mysql", "udp" or "tcp".
                   type: string
+                name:
+                  description: Name is the monitor name, it is set by the controller
+                  type: string
                 path:
                   description: Path is the path URL to check for the pool members
                   type: string
@@ -112,7 +118,22 @@ spec:
               type: object
             poolmembers:
               items:
-                type: string
+                description: PoolMember defines a host object in the LoadBalancer.
+                properties:
+                  host:
+                    description: Host is the host IP set dynamically by the controller
+                    type: string
+                  label:
+                    additionalProperties:
+                      type: string
+                    description: Label is the node labels this node has
+                    type: object
+                  name:
+                    description: Name is the host name set dynamically by the controller
+                    type: string
+                required:
+                - host
+                type: object
               type: array
             ports:
               items:

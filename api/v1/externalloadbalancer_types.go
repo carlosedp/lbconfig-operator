@@ -33,12 +33,34 @@ type Monitor struct {
 	MonitorType string `json:"monitortype"`
 }
 
+// Pool defines a pool object in the LoadBalancer.
+type Pool struct {
+	// Name is the Pool name, it is set by the controller
+	Name string `json:"name,omitempty"`
+	// Members is the host members of this pool
+	Members []PoolMember `json:"members"`
+	// Port is the port for this pool
+	Port int `json:"port"`
+	// Monitor is the monitor used on this pool
+	Monitor string `json:"monitor"`
+}
+
+// PoolMember defines a host object in the LoadBalancer.
+type PoolMember struct {
+	// Name is the host name set dynamically by the controller
+	Name string `json:"name,omitempty"`
+	// Host is the host IP set dynamically by the controller
+	Host string `json:"host"`
+	// Label is the node labels this node has
+	Labels map[string]string `json:"label,omitempty"`
+}
+
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
-	Vip         string   `json:"vip"`
-	Ports       []int    `json:"ports"`
-	Monitor     Monitor  `json:"monitor"`
-	PoolMembers []string `json:"poolmembers"`
+	Vip         string       `json:"vip"`
+	Ports       []int        `json:"ports"`
+	Monitor     Monitor      `json:"monitor"`
+	PoolMembers []PoolMember `json:"poolmembers"`
 }
 
 // +kubebuilder:object:root=true
