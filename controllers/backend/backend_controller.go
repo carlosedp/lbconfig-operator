@@ -16,7 +16,7 @@ type Provider interface {
 	EditMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
 	DeleteMonitor(m *lbv1.Monitor) error
 
-	GetPool(name string) (string, error)
+	GetPool(pool *lbv1.Pool) (*lbv1.Pool, error)
 	CreatePool(name string, monitor string, members []string, port int) (string, error)
 	EditPool(name string, monitor string, members []string, port int) (string, error)
 	DeletePool(name string, monitor string, members []string, port int) (string, error)
@@ -42,8 +42,8 @@ func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, userna
 		provider, err = Create(*lbBackend, username, password)
 
 	default:
-		err = fmt.Errorf("Provider not implemented")
-
+		err := fmt.Errorf("Provider not implemented")
+		log.Error(err, "the configured provider is not  implemented", "provider", lbBackend.Spec.Provider.Vendor)
 	}
 
 	if err != nil {
@@ -56,7 +56,6 @@ func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, userna
 
 // HandleMonitors manages the Monitor validation, update and creation
 func HandleMonitors(log logr.Logger, p Provider, monitor lbv1.Monitor) (*lbv1.Monitor, error) {
-
 	// Check if monitor exists
 	m, err := p.GetMonitor(&monitor)
 
@@ -95,29 +94,33 @@ func HandleMonitors(log logr.Logger, p Provider, monitor lbv1.Monitor) (*lbv1.Mo
 }
 
 // HandlePool manages the Pool validation, update and creation
-func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool) (*lbv1.Pool, error) {
+func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Monitor) (*lbv1.Pool, error) {
 	// Check if pool exists
 
-	// if doesn't exist, create pool
+	// pool exists, update if necessary
 
-	// Check pool members
+	//// Check pool members
 
-	// Create pool members that do not exist
+	//// Create pool members that do not exist
 
-	// update pool adding new members and removing not used ones
+	//// Update pool adding new members and removing not used ones
+
+	// if pool doesn't exist, create
 
 	return nil, nil
 }
 
 //HandleVIP manages the VIP validation, update and creation
-func HandleVIP(log logr.Logger, p Provider, name string, VIP string, pool lbv1.Pool, port int) (vip string, err error) {
+func HandleVIP(log logr.Logger, p Provider, VIP *lbv1.VIP) (vip *lbv1.VIP, err error) {
 	// Check if VIP exists
 
-	// if doesn't exist, create VIP
+	// VIP exists, update if necessary
 
-	// attach pool
+	//// attach pool
 
-	// update VIP ports and parameters
+	//// update VIP ports and parameters
 
-	return "", nil
+	// if VIP doesn't exist, create
+
+	return nil, nil
 }

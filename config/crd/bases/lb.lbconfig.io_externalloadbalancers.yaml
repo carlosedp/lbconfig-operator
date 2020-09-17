@@ -131,8 +131,12 @@ spec:
                   name:
                     description: Name is the host name set dynamically by the controller
                     type: string
+                  port:
+                    description: Port is the port for this pool member
+                    type: integer
                 required:
                 - host
+                - port
                 type: object
               type: array
             ports:
@@ -140,7 +144,27 @@ spec:
                 type: integer
               type: array
             vip:
-              type: string
+              description: VIP defines VIP instance in the LoadBalancer with a pool
+                and port
+              properties:
+                ip:
+                  description: IP is the IP address this VIP instance listens to
+                  type: string
+                name:
+                  description: Name is the VIP instance name
+                  type: string
+                pool:
+                  description: Pool is the associated pool with this VIP
+                  type: string
+                port:
+                  description: Port is the port this VIP listens to
+                  type: integer
+              required:
+              - ip
+              - name
+              - pool
+              - port
+              type: object
           required:
           - monitor
           - poolmembers

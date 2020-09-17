@@ -39,9 +39,7 @@ type Pool struct {
 	Name string `json:"name,omitempty"`
 	// Members is the host members of this pool
 	Members []PoolMember `json:"members"`
-	// Port is the port for this pool
-	Port int `json:"port"`
-	// Monitor is the monitor used on this pool
+	// Monitor is the monitor name used on this pool
 	Monitor string `json:"monitor"`
 }
 
@@ -51,13 +49,27 @@ type PoolMember struct {
 	Name string `json:"name,omitempty"`
 	// Host is the host IP set dynamically by the controller
 	Host string `json:"host"`
+	// Port is the port for this pool member
+	Port int `json:"port"`
 	// Label is the node labels this node has
 	Labels map[string]string `json:"label,omitempty"`
 }
 
+// VIP defines VIP instance in the LoadBalancer with a pool and port
+type VIP struct {
+	// Name is the VIP instance name
+	Name string `json:"name"`
+	// Pool is the associated pool with this VIP
+	Pool string `json:"pool"`
+	// IP is the IP address this VIP instance listens to
+	IP string `json:"ip"`
+	// Port is the port this VIP listens to
+	Port int `json:"port"`
+}
+
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
-	Vip         string       `json:"vip"`
+	VIP         VIP          `json:"vip"`
 	Ports       []int        `json:"ports"`
 	Monitor     Monitor      `json:"monitor"`
 	PoolMembers []PoolMember `json:"poolmembers"`

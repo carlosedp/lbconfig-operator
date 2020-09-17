@@ -6,11 +6,13 @@ import (
 	"strings"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	"github.com/go-logr/logr"
 	"github.com/scottdware/go-bigip"
 )
 
 // F5Provider is the object for the F5 Big IP Provider
 type F5Provider struct {
+	log           logr.Logger
 	f5            *bigip.BigIP
 	host          string
 	hostport      int
@@ -30,6 +32,7 @@ func Create(lbBackend lbv1.LoadBalancerBackend, username string, password string
 		username:      username,
 		password:      password,
 	}
+	p.log = p.log.WithValues("backend", lbBackend.Name, "provider", "F5")
 	err := p.Connect()
 	if err != nil {
 		return nil, err
@@ -82,7 +85,7 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 	config := &bigip.Monitor{
 		Name:          m.Name,
-		ParentMonitor: "/" + p.partition + "/" + m.MonitorType,
+		ParentMonitor: "/Common/" + m.MonitorType,
 		Interval:      5,
 		Timeout:       16,
 		SendString:    "GET " + m.Path,
@@ -106,7 +109,7 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	config := &bigip.Monitor{
 		Name:          m.Name,
-		ParentMonitor: "/" + p.partition + "/" + m.MonitorType,
+		ParentMonitor: "/Common/" + m.MonitorType,
 		Interval:      5,
 		Timeout:       16,
 		SendString:    "GET " + m.Path,
@@ -125,7 +128,6 @@ func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 }
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
-// if port argument is 0, no port override is configured
 func (p *F5Provider) DeleteMonitor(m *lbv1.Monitor) error {
 	err := p.f5.DeleteMonitor(m.Name, m.MonitorType)
 	if err != nil {
@@ -134,14 +136,41 @@ func (p *F5Provider) DeleteMonitor(m *lbv1.Monitor) error {
 	return nil
 }
 
-// GetPool gets a server pool in the IP Load Balancer
-func (p *F5Provider) GetPool(name string) (string, error) {
-	_, err := p.f5.GetPool(name)
+// GetPool gets a server pool from the Load Balancer
+func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+
+	newPool, err := p.f5.GetPool(pool.Name)
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return nil, fmt.Errorf("error getting F5 pool: %v", err)
 	}
-	return name, nil
+
+	// Return in case pool does not exist
+	if newPool == nil {
+		return nil, nil
+	}
+
+	// Get pool members
+	var members []lbv1.PoolMember
+	poolMembers, _ := p.f5.PoolMembers(pool.Name)
+	for _, member := range poolMembers.PoolMembers {
+		fmt.Printf("Member: %+v", member)
+		ip := strings.Split(member.Address, ":")[0]
+		port, _ := strconv.Atoi(strings.Split(member.Address, ":")[1])
+		mem := &lbv1.PoolMember{
+			Name: member.Name,
+			Host: ip,
+			Port: port,
+		}
+		members = append(members, *mem)
+	}
+
+	retPool := &lbv1.Pool{
+		Name:    newPool.Name,
+		Monitor: newPool.Monitor,
+		Members: members,
+	}
+
+	return retPool, nil
 }
 
 // CreatePool creates a server pool in the Load Balancer

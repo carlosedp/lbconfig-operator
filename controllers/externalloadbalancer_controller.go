@@ -147,11 +147,10 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	for _, p := range lb.Spec.Ports {
 		var pool lbv1.Pool
 		pool.Name = "Pool-" + lb.Name + "-" + strconv.Itoa(p)
-		pool.Port = p
 		pool.Monitor = monitor.Name
 		pool.Members = members
 
-		newPool, err := backend.HandlePool(log, provider, &pool)
+		newPool, err := backend.HandlePool(log, provider, &pool, monitor)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
@@ -159,19 +158,25 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		pools[p] = newPool
 		lb.Status.PoolMembers = members
 	}
+	lb.Status.PoolMembers = members
 	lb.Status.Ports = lb.Spec.Ports
 
 	// ----------------------------------------
 	// Handle VIPs
 	// ----------------------------------------
 	for _, p := range lb.Spec.Ports {
-		VIPName := "VIP-" + lb.Name + "-" + strconv.Itoa(p)
-		vip, err := backend.HandleVIP(log, provider, VIPName, lb.Spec.Vip, *pools[p], p)
+		var vip lbv1.VIP
+		vip.Name = "VIP-" + lb.Name + "-" + strconv.Itoa(p)
+		vip.Port = p
+		vip.Pool = "Pool-" + lb.Name + "-" + strconv.Itoa(p)
+		vip.IP = lb.Spec.Vip
+
+		newVIP, err := backend.HandleVIP(log, provider, &vip)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			return ctrl.Result{}, err
 		}
-		lb.Status.Vip = vip
+		lb.Status.VIP = *newVIP
 	}
 
 	// ----------------------------------------
@@ -183,7 +188,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 
 	// ----------------------------------------
-	// Check if the Memcached instance is marked to be deleted, which is
+	// Check if the ExternalLoadBalancer instance is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
 	// ----------------------------------------
 	isLoadBalancerMarkedToBeDeleted := lb.GetDeletionTimestamp() != nil
