@@ -118,7 +118,7 @@ spec:
               type: object
             poolmembers:
               items:
-                description: PoolMember defines a host object in the LoadBalancer.
+                description: Node defines a host object in the LoadBalancer.
                 properties:
                   host:
                     description: Host is the host IP set dynamically by the controller
@@ -131,45 +131,43 @@ spec:
                   name:
                     description: Name is the host name set dynamically by the controller
                     type: string
-                  port:
-                    description: Port is the port for this pool member
-                    type: integer
                 required:
                 - host
-                - port
                 type: object
               type: array
             ports:
               items:
                 type: integer
               type: array
-            vip:
-              description: VIP defines VIP instance in the LoadBalancer with a pool
-                and port
-              properties:
-                ip:
-                  description: IP is the IP address this VIP instance listens to
-                  type: string
-                name:
-                  description: Name is the VIP instance name
-                  type: string
-                pool:
-                  description: Pool is the associated pool with this VIP
-                  type: string
-                port:
-                  description: Port is the port this VIP listens to
-                  type: integer
-              required:
-              - ip
-              - name
-              - pool
-              - port
-              type: object
+            vips:
+              items:
+                description: VIP defines VIP instance in the LoadBalancer with a pool
+                  and port
+                properties:
+                  ip:
+                    description: IP is the IP address this VIP instance listens to
+                    type: string
+                  name:
+                    description: Name is the VIP instance name
+                    type: string
+                  pool:
+                    description: Pool is the associated pool with this VIP
+                    type: string
+                  port:
+                    description: Port is the port this VIP listens to
+                    type: integer
+                required:
+                - ip
+                - name
+                - pool
+                - port
+                type: object
+              type: array
           required:
           - monitor
           - poolmembers
           - ports
-          - vip
+          - vips
           type: object
       type: object
   version: v1

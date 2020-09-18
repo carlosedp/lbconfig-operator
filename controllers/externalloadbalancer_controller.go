@@ -103,26 +103,24 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Get the nodes external IPs
 	// ----------------------------------------
-	var members []lbv1.PoolMember
+	var nodes []lbv1.Node
 	for _, n := range nodeList.Items {
 		nodeAddrs := n.Status.Addresses
 		for _, addr := range nodeAddrs {
 			if addr.Type == "ExternalIP" {
-				m := &lbv1.PoolMember{
+				node := &lbv1.Node{
 					Name:   n.Name,
 					Host:   addr.Address,
 					Labels: labels,
 				}
-				log.Info("Node matches", "node", n.Name, "labels", labels, "ip", addr.Address)
-				members = append(members, *m)
+				log.Info("Node matches", "node", node.Name, "labels", node.Labels, "ip", node.Host)
+				nodes = append(nodes, *node)
 			}
 		}
 	}
 
 	// ----------------------------------------
-	// Handle Backend Provider
-	// - Get Provider info
-	// - Create connection?
+	// Create Backend Provider
 	// ----------------------------------------
 	provider, err := backend.CreateProvider(log, lbBackend, username, password)
 	if err != nil {
@@ -139,32 +137,38 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
 	}
-	lb.Status.Monitor = *monitor
 
 	// ----------------------------------------
 	// Handle IP Pools
 	// ----------------------------------------
-	var pools map[int]*lbv1.Pool
 	for _, p := range lb.Spec.Ports {
+
+		// Create the pool object
 		var pool lbv1.Pool
 		pool.Name = "Pool-" + lb.Name + "-" + strconv.Itoa(p)
 		pool.Monitor = monitor.Name
-		pool.Members = members
+		var poolMembers []lbv1.PoolMember
+		for _, n := range nodes {
+			poolMember := &lbv1.PoolMember{
+				Node: n,
+				Port: p,
+			}
+			poolMembers = append(poolMembers, *poolMember)
+		}
 
-		newPool, err := backend.HandlePool(log, provider, &pool, monitor)
+		pool.Members = poolMembers
+
+		err := backend.HandlePool(log, provider, &pool, monitor)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
 		}
-		pools[p] = newPool
-		lb.Status.PoolMembers = members
 	}
-	lb.Status.PoolMembers = members
-	lb.Status.Ports = lb.Spec.Ports
 
 	// ----------------------------------------
 	// Handle VIPs
 	// ----------------------------------------
+	var vips []lbv1.VIP
 	for _, p := range lb.Spec.Ports {
 		var vip lbv1.VIP
 		vip.Name = "VIP-" + lb.Name + "-" + strconv.Itoa(p)
@@ -177,8 +181,13 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			return ctrl.Result{}, err
 		}
-		lb.Status.VIP = *newVIP
+		vips = append(vips, *newVIP)
 	}
+
+	lb.Status.VIPs = vips
+	lb.Status.Monitor = *monitor
+	lb.Status.PoolMembers = nodes
+	lb.Status.Ports = lb.Spec.Ports
 
 	// ----------------------------------------
 	// Update ExternalLoadBalancer Status
@@ -198,7 +207,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			// Run finalization logic for ExternalLoadBalancerFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := r.finalizeLoadBalancer(log, lb); err != nil {
+			if err := r.finalizeLoadBalancer(log, provider, lb); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -231,11 +240,17 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Logger, m *lbv1.ExternalLoadBalancer) error {
+func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Logger, p backend.Provider, lb *lbv1.ExternalLoadBalancer) error {
 	// TODO(user): Add the cleanup steps that the operator
 	// needs to do before the CR can be deleted. Examples
 	// of finalizers include performing backups and deleting
 	// resources that are not owned by this CR, like a PVC.
+
+	err := backend.HandleCleanup(reqLogger, p, lb)
+	if err != nil {
+		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
+		return err
+	}
 	reqLogger.Info("Successfully finalized ExternalLoadBalancer")
 	return nil
 }

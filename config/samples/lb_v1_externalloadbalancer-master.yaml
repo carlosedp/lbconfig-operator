@@ -4,7 +4,7 @@ metadata:
   name: externalloadbalancer-master-sample
   namespace: lbconfig
 spec:
-  vip: "10.0.0.5"
+  vip: "192.168.1.40"
   type: "master"
   backend: "backend-f5-sample"
   ports:

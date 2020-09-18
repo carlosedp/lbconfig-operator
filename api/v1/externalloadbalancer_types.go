@@ -43,16 +43,22 @@ type Pool struct {
 	Monitor string `json:"monitor"`
 }
 
-// PoolMember defines a host object in the LoadBalancer.
-type PoolMember struct {
+// Node defines a host object in the LoadBalancer.
+type Node struct {
 	// Name is the host name set dynamically by the controller
 	Name string `json:"name,omitempty"`
 	// Host is the host IP set dynamically by the controller
 	Host string `json:"host"`
-	// Port is the port for this pool member
-	Port int `json:"port"`
 	// Label is the node labels this node has
 	Labels map[string]string `json:"label,omitempty"`
+}
+
+// PoolMember defines a host object in the LoadBalancer.
+type PoolMember struct {
+	// Node is the node part of a pool
+	Node Node `json:"node"`
+	// Port is the port for this pool member
+	Port int `json:"port"`
 }
 
 // VIP defines VIP instance in the LoadBalancer with a pool and port
@@ -69,10 +75,10 @@ type VIP struct {
 
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
-	VIP         VIP          `json:"vip"`
-	Ports       []int        `json:"ports"`
-	Monitor     Monitor      `json:"monitor"`
-	PoolMembers []PoolMember `json:"poolmembers"`
+	VIPs        []VIP   `json:"vips"`
+	Ports       []int   `json:"ports"`
+	Monitor     Monitor `json:"monitor"`
+	PoolMembers []Node  `json:"poolmembers"`
 }
 
 // +kubebuilder:object:root=true
