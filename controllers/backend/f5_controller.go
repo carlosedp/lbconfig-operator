@@ -10,7 +10,11 @@ import (
 	"github.com/scottdware/go-bigip"
 )
 
-// F5Provider is the object for the F5 Big IP Provider
+// ----------------------------------------
+// Provider creation and connection
+// ----------------------------------------
+
+// F5Provider is the object for the F5 Big IP Provider implementing the Provider interface
 type F5Provider struct {
 	log           logr.Logger
 	f5            *bigip.BigIP
@@ -48,12 +52,15 @@ func (p *F5Provider) Connect() error {
 	return nil
 }
 
+// ----------------------------------------
+// Monitor Management
+// ----------------------------------------
+
 // GetMonitor gets a monitor in the IP Load Balancer
 func (p *F5Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 	m, err := p.f5.GetMonitor(monitor.Name, monitor.MonitorType)
 	if err != nil {
-		fmt.Println(err)
-		return nil, fmt.Errorf("error getting F5 Monitor: %v", err)
+		return nil, fmt.Errorf("error getting F5 Monitor %s: %v", monitor.Name, err)
 	}
 
 	// Return in case monitor does not exist
@@ -98,7 +105,7 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	}
 	err := p.f5.AddMonitor(config, m.MonitorType)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating F5 monitor %s: %v", m.Name, err)
 	}
 
 	return m, nil
@@ -122,7 +129,7 @@ func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	}
 	err := p.f5.PatchMonitor(m.Name, m.MonitorType, config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error patching F5 monitor  %s: %v", m.Name, err)
 	}
 	return m, nil
 }
@@ -131,10 +138,14 @@ func (p *F5Provider) EditMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 func (p *F5Provider) DeleteMonitor(m *lbv1.Monitor) error {
 	err := p.f5.DeleteMonitor(m.Name, m.MonitorType)
 	if err != nil {
-		return err
+		return fmt.Errorf("error deleting F5 monitor %s: %v", m.Name, err)
 	}
 	return nil
 }
+
+// ----------------------------------------
+// Pool Management
+// ----------------------------------------
 
 // GetPool gets a server pool from the Load Balancer
 func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
@@ -174,76 +185,95 @@ func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // CreatePool creates a server pool in the Load Balancer
-func (p *F5Provider) CreatePool(name string, monitor string, members []string, port int) (string, error) {
+func (p *F5Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	// Create Pool
-	err := p.f5.CreatePool(name)
+	err := p.f5.CreatePool(pool.Name)
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return nil, fmt.Errorf("error creating pool %s: %v", pool.Name, err)
 	}
 
 	// Add members to Pool
-	for _, m := range members {
-		p.f5.AddPoolMember(name, m+":"+strconv.Itoa(port))
+	for _, m := range pool.Members {
+		err = p.f5.AddPoolMember(pool.Name, m.Host+":"+strconv.Itoa(m.Port))
+		if err != nil {
+			return nil, fmt.Errorf("error adding member %s to pool %s: %v", m.Host, pool.Name, err)
+		}
 	}
 
 	// Add monitor to Pool
-	err = p.f5.AddMonitorToPool(monitor, name)
+	err = p.f5.AddMonitorToPool(pool.Name, pool.Monitor)
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return nil, fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
 	}
-	return name, nil
+	return pool, nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
-func (p *F5Provider) EditPool(name string, monitor string, members []string, port int) (string, error) {
-	return name, nil
+func (p *F5Provider) EditPool(pool *lbv1.Pool) error {
+	newPool := &bigip.Pool{
+		Name:    pool.Name,
+		Monitor: pool.Monitor,
+	}
+
+	err := p.f5.ModifyPool(pool.Name, newPool)
+	if err != nil {
+		return fmt.Errorf("error editing pool %s: %v", pool.Name, err)
+	}
+	return nil
 }
 
 // DeletePool removes a server pool in the Load Balancer
-func (p *F5Provider) DeletePool(name string, monitor string, members []string, port int) (string, error) {
-	return name, nil
+func (p *F5Provider) DeletePool(pool *lbv1.Pool) error {
+	return nil
 }
 
-// CreateMember creates a member to be added to pool in the Load Balancer
-func (p *F5Provider) CreateMember(node string, IP string) (string, error) {
-	err := p.f5.CreateNode(node, IP)
+// ----------------------------------------
+// Pool Member Management
+// ----------------------------------------
+
+// CreatePoolMember creates a member to be added to pool in the Load Balancer
+func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+	err := p.f5.CreateNode(m.Name, m.Host)
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return fmt.Errorf("error creating node %s: %v", m.Host, err)
 	}
-	return node, nil
+	err = p.f5.AddPoolMember(pool.Name, m.Host+":"+strconv.Itoa(m.Port))
+	if err != nil {
+		return fmt.Errorf("error adding member %s to pool %s: %v", m.Host, pool.Name, err)
+	}
+
+	return nil
 }
 
 // EditPoolMember modifies a server pool member in the Load Balancer
 // status could be "enable" or "disable"
-func (p *F5Provider) EditPoolMember(name string, member string, port int, status string) (string, error) {
-	err := p.f5.PoolMemberStatus(name, member+":"+strconv.Itoa(port), status)
+func (p *F5Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
+	err := p.f5.PoolMemberStatus(pool.Name, m.Name+":"+strconv.Itoa(m.Port), status)
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return fmt.Errorf("error editing member %s in pool %s: %v", m.Host, pool.Name, err)
 	}
-	return name, nil
+	return nil
 }
 
 // DeletePoolMember deletes a member in the Load Balancer
-func (p *F5Provider) DeletePoolMember(name string, member string, port int, status string) (string, error) {
+func (p *F5Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	// First delete member from pool
-	err := p.f5.DeletePoolMember(name, member+":"+strconv.Itoa(port))
+	err := p.f5.DeletePoolMember(pool.Name, m.Host+":"+strconv.Itoa(m.Port))
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return fmt.Errorf("error removing member %s from pool %s: %v", m.Host, pool.Name, err)
 	}
 	// Then delete node (TEST)
-	err = p.f5.DeleteNode(member)
+	err = p.f5.DeleteNode(m.Name)
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return fmt.Errorf("error deleting member %s: %v", m.Host, err)
 	}
-	return name, nil
+	return nil
 }
+
+// ----------------------------------------
+// VIP Management
+// ----------------------------------------
 
 // GetVIP gets a VIP in the IP Load Balancer
 func (p *F5Provider) GetVIP(name string) (string, error) {

@@ -17,13 +17,13 @@ type Provider interface {
 	DeleteMonitor(m *lbv1.Monitor) error
 
 	GetPool(pool *lbv1.Pool) (*lbv1.Pool, error)
-	CreatePool(name string, monitor string, members []string, port int) (string, error)
-	EditPool(name string, monitor string, members []string, port int) (string, error)
-	DeletePool(name string, monitor string, members []string, port int) (string, error)
+	CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error)
+	EditPool(pool *lbv1.Pool) error
+	DeletePool(pool *lbv1.Pool) error
 
-	CreateMember(node string, IP string) (string, error)
-	EditPoolMember(name string, member string, port int, status string) (string, error)
-	DeletePoolMember(name string, member string, port int, status string) (string, error)
+	CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
+	EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error
+	DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 
 	GetVIP(name string) (string, error)
 	CreateVIP(name string, VIP string, pool string, port int) (string, error)
@@ -96,18 +96,88 @@ func HandleMonitors(log logr.Logger, p Provider, monitor lbv1.Monitor) (*lbv1.Mo
 // HandlePool manages the Pool validation, update and creation
 func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Monitor) (*lbv1.Pool, error) {
 	// Check if pool exists
+	configuredPool, err := p.GetPool(pool)
 
-	// pool exists, update if necessary
+	// Error getting pool
+	if err != nil {
+		return nil, err
+	}
 
-	//// Check pool members
+	// Pool is not empty so update it's data if needed
+	if configuredPool != nil {
+		// Exists, so check to Update pool parameters and members
 
-	//// Create pool members that do not exist
+		log.Info("Pool exists, check if needs update", "name", configuredPool.Name)
+		var addMembers []lbv1.PoolMember
+		var delMembers []lbv1.PoolMember
 
-	//// Update pool adding new members and removing not used ones
+		// Check members that need to be added
+		for _, m := range pool.Members {
+			if !containsMember(configuredPool.Members, m) {
+				// Add member to configuration
+				addMembers = append(addMembers, m)
+			}
+		}
+		// Check members that need to be removed
+		for _, m := range configuredPool.Members {
+			if !containsMember(pool.Members, m) {
+				// Remove member from configuration
+				delMembers = append(delMembers, m)
+			}
+		}
 
-	// if pool doesn't exist, create
+		if pool.Monitor != configuredPool.Monitor || addMembers != nil || delMembers != nil {
+			log.Info("Pool requires update", "name", pool.Name)
+			err := p.EditPool(pool)
+			if err != nil {
+				return nil, err
+			}
 
-	return nil, nil
+			// Add members
+			if addMembers != nil {
+				log.Info("Add nodes", "nodes", addMembers)
+				for _, m := range addMembers {
+					err = p.CreatePoolMember(&m, pool)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			// Remove members
+			if delMembers != nil {
+				log.Info("Remove nodes", "nodes", delMembers)
+				for _, m := range addMembers {
+					err = p.DeletePoolMember(&m, pool)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			log.Info("Pool updated successfully", "name", pool.Name)
+			return pool, nil
+		}
+		log.Info("Monitor does not need update", "name", pool.Name)
+		return pool, nil
+	}
+
+	// Creating pool
+	log.Info("Pool does not exist. Creating...", "name", pool.Name)
+	newPool, err := p.CreatePool(pool)
+	if err != nil {
+		return nil, err
+	}
+	// Adding members to pool
+	log.Info("Created pool", "name", pool.Name)
+	for _, m := range pool.Members {
+		log.Info("Adding node to pool", "node", m, "pool", pool)
+		err = p.CreatePoolMember(&m, pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return newPool, nil
 }
 
 //HandleVIP manages the VIP validation, update and creation
@@ -123,4 +193,13 @@ func HandleVIP(log logr.Logger, p Provider, VIP *lbv1.VIP) (vip *lbv1.VIP, err e
 	// if VIP doesn't exist, create
 
 	return nil, nil
+}
+
+func containsMember(arr []lbv1.PoolMember, m lbv1.PoolMember) bool {
+	for _, a := range arr {
+		if a.Host == m.Host && a.Port == m.Port {
+			return true
+		}
+	}
+	return false
 }

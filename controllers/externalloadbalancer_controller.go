@@ -26,6 +26,7 @@ type ExternalLoadBalancerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// ExternalLoadBalancerFinalizer is the finalizer object
 const ExternalLoadBalancerFinalizer = "finalizer.lb.lbconfig.io"
 
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
