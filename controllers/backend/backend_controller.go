@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	"github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
 	"github.com/go-logr/logr"
 )
 
@@ -39,7 +40,7 @@ func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, userna
 	var err error
 	switch lbBackend.Spec.Provider.Vendor {
 	case "F5":
-		provider, err = Create(log, *lbBackend, username, password)
+		provider, err = f5.Create(log, *lbBackend, username, password)
 
 	default:
 		err := fmt.Errorf("Provider not implemented")

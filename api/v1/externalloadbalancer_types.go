@@ -9,9 +9,9 @@ type ExternalLoadBalancerSpec struct {
 	// Vip is the Virtual IP configured in  this LoadBalancer instance
 	Vip string `json:"vip"`
 	// Type is the node role type (master or infra) for the LoadBalancer instance
-	Type string `json:"type"`
-	// ShardLabels are the Infra node labels used for router sharding. Optional.
-	ShardLabels map[string]string `json:"shardlabels,omitempty"`
+	Type string `json:"type,omitempty"`
+	// NodeLabels are the node labels used for router sharding or exposed service. Optional.
+	NodeLabels map[string]string `json:"nodelabels,omitempty"`
 	// Backend is the LoadBalancer used
 	Backend string `json:"backend"`
 	// Ports are the list of ports used for this Vip

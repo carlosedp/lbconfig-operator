@@ -1,24 +1,37 @@
 # External Load Balancer Operator
 
-**This is still a work-in-progress project in non-functional state.**
+**This is still a work-in-progress project.**
 
-This operator manages external Load Balancer instances and creates VIPs and IP Pools with monitoring for the Master and Infra nodes based on it's roles.
+This operator manages external Load Balancer instances and creates VIPs and IP Pools with Monitors for the Master and Infra nodes based on it's roles and/or labels.
 
 The IPs are updated automatically based on the Node IPs for each role. The objective is to have a modular architecture to allow plugging additional backends for different providers.
 
-Supported Load Balancer backends:
+## Who is it for
 
-* F5 Big IP
+The main users for this project is enterprise deployments or high-available clusters composed of multiple nodes having an external load-balancer providing the balancing and high-availability to access the cluster in both API and Application levels.
+
+## High level architecture
+
+> ascii art
+
+## Planned Features
+
+* [ ] Multiple backends (not in priority order)
+  * [ ] F5 BigIP
+  * [ ] Citrix Netscaler
+  * [ ] NGINX
+  * [ ] NSX
+* [ ] Dynamic port configuration from NodePort services
 
 ## Install
 
-Deploy the Operator to your cluster
+### Deploy the Operator to your cluster
 
-**TBD**
+> TBD
 
-## Create ExternalLoadBalancer instances
+### Create ExternalLoadBalancer instances
 
-First create a backend:
+First create a Load Balancer backend:
 
 ```yaml
 apiVersion: lb.lbconfig.io/v1
@@ -38,18 +51,13 @@ spec:
 
 And the secret holding the Load Balancer API user and password:
 
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: f5-creds
-  namespace: lbconfig
-data:
-  username: "admin"
-  password: "admin123"
+```sh
+oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig
 ```
 
 Then create the instances for each Load Balancer you need (for example one for Master Nodes and another for the Infra Nodes):
+
+The yaml field `type: "master"` or `type: "infra"` selects nodes with the label `"node-role.kubernetes.io/master" = ""` and `"node-role.kubernetes.io/infra" = ""` respectively. If the field is ommited, the nodes will be selected only by the `shardlabels` labels.
 
 Master Nodes:
 
@@ -90,11 +98,11 @@ spec:
     port: 1936
 ```
 
-Infra Nodes with sharded routers are also supported. Create the YAML adding the `shardlabels` field with your node labels.
+Infra Nodes with sharded routers are also supported. Create the YAML adding the `nodelabels` field with your node labels.
 
 ```yaml
 spec:
   ...
-  shardlabels:
+  nodelabels:
     "node.kubernetes.io/region": "production"
 ```

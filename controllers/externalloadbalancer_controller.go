@@ -84,13 +84,21 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	password := string(credsSecret.Data["password"])
 
 	// ----------------------------------------
-	// Get Nodes by role and label for infra router sharding
+	// Get Nodes by role and label for infra router sharding or service exposure
 	// ----------------------------------------
+
+	if lb.Spec.Type == "" && lb.Spec.NodeLabels == nil {
+		log.Error(err, "undefined loadbalancer type or no nodelabels defined")
+		return ctrl.Result{}, err
+	}
+
 	var nodeList corev1.NodeList
 	labels := make(map[string]string)
-	labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
-	if lb.Spec.ShardLabels != nil {
-		for k, v := range lb.Spec.ShardLabels {
+	if lb.Spec.Type != "" {
+		labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
+	}
+	if lb.Spec.NodeLabels != nil {
+		for k, v := range lb.Spec.NodeLabels {
 			labels[k] = v
 		}
 	}
@@ -184,14 +192,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		vips = append(vips, *newVIP)
 	}
 
+	// ----------------------------------------
+	// Update ExternalLoadBalancer Status
+	// ----------------------------------------
 	lb.Status.VIPs = vips
 	lb.Status.Monitor = *monitor
 	lb.Status.PoolMembers = nodes
 	lb.Status.Ports = lb.Spec.Ports
 
-	// ----------------------------------------
-	// Update ExternalLoadBalancer Status
-	// ----------------------------------------
 	if err := r.Status().Update(ctx, lb); err != nil {
 		log.Error(err, "unable to update ExternalLoadBalancer status")
 		return ctrl.Result{}, err

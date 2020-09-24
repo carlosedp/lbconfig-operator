@@ -1,4 +1,4 @@
-package backend
+package f5
 
 import (
 	"fmt"
@@ -126,7 +126,8 @@ func (p *F5Provider) EditMonitor(m *lbv1.Monitor) error {
 		ReceiveString: "",
 	}
 
-	// Cannot update monitor port
+	// Cannot update monitor port.
+	// TODO: Return error to be treated by the controller
 	// if m.Port != 0 {
 	// 	destination := "*." + strconv.Itoa(m.Port)
 	// 	config.Destination = destination

@@ -64,17 +64,17 @@ spec:
               - path
               - port
               type: object
+            nodelabels:
+              additionalProperties:
+                type: string
+              description: NodeLabels are the node labels used for router sharding
+                or exposed service. Optional.
+              type: object
             ports:
               description: Ports are the list of ports used for this Vip
               items:
                 type: integer
               type: array
-            shardlabels:
-              additionalProperties:
-                type: string
-              description: ShardLabels are the Infra node labels used for router sharding.
-                Optional.
-              type: object
             type:
               description: Type is the node role type (master or infra) for the LoadBalancer
                 instance
@@ -87,7 +87,6 @@ spec:
           - backend
           - monitor
           - ports
-          - type
           - vip
           type: object
         status:
