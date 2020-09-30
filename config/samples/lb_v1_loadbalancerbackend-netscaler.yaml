@@ -1,0 +1,13 @@
+apiVersion: lb.lbconfig.io/v1
+kind: LoadBalancerBackend
+metadata:
+  name: backend-netscaler-sample
+  namespace: lbconfig
+spec:
+  provider:
+    vendor: netscaler
+    host: "192.168.1.36"
+    port: 443
+    creds: netscaler-creds
+    partition: "Common"
+    validatecerts: no
