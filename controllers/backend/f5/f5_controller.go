@@ -16,8 +16,8 @@ import (
 
 const partition = "/Common/"
 
-// F5Provider is the object for the F5 Big IP Provider implementing the Provider interface
-type F5Provider struct {
+// Provider is the object for the F5 Big IP Provider implementing the Provider interface
+type Provider struct {
 	log           logr.Logger
 	f5            *bigip.BigIP
 	host          string
@@ -29,8 +29,8 @@ type F5Provider struct {
 }
 
 // Create creates a new Load Balancer backend provider
-func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*F5Provider, error) {
-	var p = &F5Provider{
+func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+	var p = &Provider{
 		log:           log,
 		host:          lbBackend.Spec.Provider.Host,
 		hostport:      lbBackend.Spec.Provider.Port,
@@ -48,7 +48,7 @@ func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string
 }
 
 // Connect creates a connection to the IP Load Balancer
-func (p *F5Provider) Connect() error {
+func (p *Provider) Connect() error {
 	host := p.host + ":" + strconv.Itoa(p.hostport)
 	p.f5 = bigip.NewSession(host, p.username, p.password, nil)
 
@@ -60,7 +60,7 @@ func (p *F5Provider) Connect() error {
 // ----------------------------------------
 
 // GetMonitor gets a monitor in the IP Load Balancer
-func (p *F5Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 	m, err := p.f5.GetMonitor(monitor.Name, monitor.MonitorType)
 	if err != nil {
 		return nil, fmt.Errorf("error getting F5 Monitor %s: %v", monitor.Name, err)
@@ -91,7 +91,7 @@ func (p *F5Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 	config := &bigip.Monitor{
 		Name:          m.Name,
@@ -116,7 +116,7 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 // EditMonitor edits a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *F5Provider) EditMonitor(m *lbv1.Monitor) error {
+func (p *Provider) EditMonitor(m *lbv1.Monitor) error {
 	config := &bigip.Monitor{
 		Name:          m.Name,
 		ParentMonitor: partition + m.MonitorType,
@@ -140,7 +140,7 @@ func (p *F5Provider) EditMonitor(m *lbv1.Monitor) error {
 }
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
-func (p *F5Provider) DeleteMonitor(m *lbv1.Monitor) error {
+func (p *Provider) DeleteMonitor(m *lbv1.Monitor) error {
 	err := p.f5.DeleteMonitor(m.Name, m.MonitorType)
 	if err != nil {
 		return fmt.Errorf("error deleting F5 monitor %s: %v", m.Name, err)
@@ -153,7 +153,7 @@ func (p *F5Provider) DeleteMonitor(m *lbv1.Monitor) error {
 // ----------------------------------------
 
 // GetPool gets a server pool from the Load Balancer
-func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	newPool, err := p.f5.GetPool(pool.Name)
 	if err != nil {
@@ -193,20 +193,12 @@ func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // CreatePool creates a server pool in the Load Balancer
-func (p *F5Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	// Create Pool
 	err := p.f5.CreatePool(pool.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pool %s: %v", pool.Name, err)
-	}
-
-	// Add members to Pool
-	for _, m := range pool.Members {
-		err = p.f5.AddPoolMember(pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
-		if err != nil {
-			return nil, fmt.Errorf("error adding member %s to pool %s: %v", m.Node.Host, pool.Name, err)
-		}
 	}
 
 	// Add monitor to Pool
@@ -218,7 +210,7 @@ func (p *F5Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // EditPool modifies a server pool in the Load Balancer
-func (p *F5Provider) EditPool(pool *lbv1.Pool) error {
+func (p *Provider) EditPool(pool *lbv1.Pool) error {
 	newPool := &bigip.Pool{
 		Name:    pool.Name,
 		Monitor: pool.Monitor,
@@ -232,7 +224,7 @@ func (p *F5Provider) EditPool(pool *lbv1.Pool) error {
 }
 
 // DeletePool removes a server pool in the Load Balancer
-func (p *F5Provider) DeletePool(pool *lbv1.Pool) error {
+func (p *Provider) DeletePool(pool *lbv1.Pool) error {
 	return nil
 }
 
@@ -241,7 +233,7 @@ func (p *F5Provider) DeletePool(pool *lbv1.Pool) error {
 // ----------------------------------------
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
-func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+func (p *Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
 	config := bigip.Node{
 		Name:    m.Node.Host + ":" + strconv.Itoa(m.Port),
@@ -270,7 +262,7 @@ func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 
 // EditPoolMember modifies a server pool member in the Load Balancer
 // status could be "enable" or "disable"
-func (p *F5Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
+func (p *Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
 	err := p.f5.PoolMemberStatus(pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port), status)
 	if err != nil {
 		return fmt.Errorf("error editing member %s in pool %s: %v", m.Node.Host, pool.Name, err)
@@ -279,7 +271,7 @@ func (p *F5Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status 
 }
 
 // DeletePoolMember deletes a member in the Load Balancer
-func (p *F5Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+func (p *Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	// First delete member from pool
 	err := p.f5.DeletePoolMember(partition+pool.Name, m.Node.Host)
 	if err != nil {
@@ -298,7 +290,7 @@ func (p *F5Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 // ----------------------------------------
 
 // GetVIP gets a VIP in the IP Load Balancer
-func (p *F5Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	vs, err := p.f5.GetVirtualServer(v.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting F5 virtualserver %s: %v", v.Name, err)
@@ -328,7 +320,7 @@ func (p *F5Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // CreateVIP creates a Virtual Server in the Load Balancer
-func (p *F5Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	// The second parameter is our destination, and the third is the mask. You can use CIDR notation if you wish (as shown here)
 
 	config := &bigip.VirtualServer{
@@ -360,7 +352,7 @@ func (p *F5Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // EditVIP modifies a Virtual Server in the Load Balancer
-func (p *F5Provider) EditVIP(v *lbv1.VIP) error {
+func (p *Provider) EditVIP(v *lbv1.VIP) error {
 	config := &bigip.VirtualServer{
 		Name:        v.Name,
 		Partition:   partition,
@@ -390,6 +382,6 @@ func (p *F5Provider) EditVIP(v *lbv1.VIP) error {
 }
 
 // DeleteVIP deletes a Virtual Server in the Load Balancer
-func (p *F5Provider) DeleteVIP(v *lbv1.VIP) error {
+func (p *Provider) DeleteVIP(v *lbv1.VIP) error {
 	return nil
 }
