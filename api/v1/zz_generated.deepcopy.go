@@ -109,9 +109,16 @@ func (in *ExternalLoadBalancerStatus) DeepCopyInto(out *ExternalLoadBalancerStat
 		copy(*out, *in)
 	}
 	out.Monitor = in.Monitor
-	if in.PoolMembers != nil {
-		in, out := &in.PoolMembers, &out.PoolMembers
+	if in.Nodes != nil {
+		in, out := &in.Nodes, &out.Nodes
 		*out = make([]Node, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Pools != nil {
+		in, out := &in.Pools, &out.Pools
+		*out = make([]Pool, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

@@ -5,6 +5,7 @@ import (
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	"github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
+	"github.com/carlosedp/lbconfig-operator/controllers/backend/netscaler"
 	"github.com/go-logr/logr"
 )
 
@@ -41,7 +42,8 @@ func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, userna
 	switch lbBackend.Spec.Provider.Vendor {
 	case "F5":
 		provider, err = f5.Create(log, *lbBackend, username, password)
-
+	case "netscaler":
+		provider, err = netscaler.Create(log, *lbBackend, username, password)
 	default:
 		err := fmt.Errorf("Provider not implemented")
 		log.Error(err, "the configured provider is not  implemented", "provider", lbBackend.Spec.Provider.Vendor)
@@ -127,7 +129,7 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 			}
 		}
 
-		if pool.Monitor != configuredPool.Monitor || addMembers != nil || delMembers != nil {
+		if pool.Monitor != configuredPool.Monitor {
 			log.Info("Pool requires update", "name", pool.Name)
 			log.Info("Need", "params", pool)
 			log.Info("Have", "params", configuredPool)
@@ -135,7 +137,12 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 			if err != nil {
 				return err
 			}
+		}
 
+		if addMembers != nil || delMembers != nil {
+			log.Info("Pool members requires update", "name", pool.Name)
+			log.Info("Need", "params", pool)
+			log.Info("Have", "params", configuredPool)
 			// Add members
 			if addMembers != nil {
 				log.Info("Add nodes", "nodes", addMembers)
@@ -146,11 +153,10 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 					}
 				}
 			}
-
 			// Remove members
 			if delMembers != nil {
 				log.Info("Remove nodes", "nodes", delMembers)
-				for _, m := range addMembers {
+				for _, m := range delMembers {
 					err = p.DeletePoolMember(&m, pool)
 					if err != nil {
 						return err
@@ -225,13 +231,37 @@ func HandleVIP(log logr.Logger, p Provider, v *lbv1.VIP) (vip *lbv1.VIP, err err
 // HandleCleanup removes all elements when ExternalLoadBalancer is deleted
 func HandleCleanup(log logr.Logger, p Provider, lb *lbv1.ExternalLoadBalancer) error {
 	log.Info("Cleanup started", "ExternalLoadBalancer", lb.Name)
-	// Delete nodes
-
-	// Delete Pool
-
-	// Delete Monitor
 
 	// Delete VIP
+	if len(lb.Status.VIPs) != 0 {
+		for _, v := range lb.Status.VIPs {
+			log.Info("Cleaning VIP", "VIP", v.Name)
+			err := p.DeleteVIP(&v)
+			if err != nil {
+				return fmt.Errorf("error in VIP cleanup %s: %v", v.Name, err)
+			}
+		}
+	}
+	// Delete Pool
+	if len(lb.Status.Pools) != 0 {
+		for _, pool := range lb.Status.Pools {
+			log.Info("Cleaning pool", "pool", pool.Name)
+			err := p.DeletePool(&pool)
+			if err != nil {
+				return fmt.Errorf("error in pool cleanup %s: %v", pool.Name, err)
+			}
+		}
+	}
+
+	// Delete Monitor
+	log.Info("Cleaning Monitor", "Monitor", lb.Status.Monitor)
+	if &lb.Status.Monitor != nil {
+		err := p.DeleteMonitor(&lb.Status.Monitor)
+		if err != nil {
+			return fmt.Errorf("error in Monitor cleanup %s: %v", lb.Status.Monitor.Name, err)
+		}
+	}
+
 	return nil
 }
 

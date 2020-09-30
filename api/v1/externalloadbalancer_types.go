@@ -38,7 +38,7 @@ type Pool struct {
 	// Name is the Pool name, it is set by the controller
 	Name string `json:"name,omitempty"`
 	// Members is the host members of this pool
-	Members []PoolMember `json:"members"`
+	Members []PoolMember `json:"members,omitempty"`
 	// Monitor is the monitor name used on this pool
 	Monitor string `json:"monitor"`
 }
@@ -75,10 +75,11 @@ type VIP struct {
 
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
-	VIPs        []VIP   `json:"vips"`
-	Ports       []int   `json:"ports"`
-	Monitor     Monitor `json:"monitor"`
-	PoolMembers []Node  `json:"poolmembers"`
+	VIPs    []VIP   `json:"vips"`
+	Ports   []int   `json:"ports"`
+	Monitor Monitor `json:"monitor"`
+	Nodes   []Node  `json:"nodes,omitempty"`
+	Pools   []Pool  `json:"pools,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -115,7 +115,7 @@ spec:
               - path
               - port
               type: object
-            poolmembers:
+            nodes:
               items:
                 description: Node defines a host object in the LoadBalancer.
                 properties:
@@ -132,6 +132,52 @@ spec:
                     type: string
                 required:
                 - host
+                type: object
+              type: array
+            pools:
+              items:
+                description: Pool defines a pool object in the LoadBalancer.
+                properties:
+                  members:
+                    description: Members is the host members of this pool
+                    items:
+                      description: PoolMember defines a host object in the LoadBalancer.
+                      properties:
+                        node:
+                          description: Node is the node part of a pool
+                          properties:
+                            host:
+                              description: Host is the host IP set dynamically by
+                                the controller
+                              type: string
+                            label:
+                              additionalProperties:
+                                type: string
+                              description: Label is the node labels this node has
+                              type: object
+                            name:
+                              description: Name is the host name set dynamically by
+                                the controller
+                              type: string
+                          required:
+                          - host
+                          type: object
+                        port:
+                          description: Port is the port for this pool member
+                          type: integer
+                      required:
+                      - node
+                      - port
+                      type: object
+                    type: array
+                  monitor:
+                    description: Monitor is the monitor name used on this pool
+                    type: string
+                  name:
+                    description: Name is the Pool name, it is set by the controller
+                    type: string
+                required:
+                - monitor
                 type: object
               type: array
             ports:
@@ -164,7 +210,6 @@ spec:
               type: array
           required:
           - monitor
-          - poolmembers
           - ports
           - vips
           type: object

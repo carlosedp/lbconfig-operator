@@ -3,7 +3,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
+
+	plog "log"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +32,15 @@ type ExternalLoadBalancerReconciler struct {
 
 // ExternalLoadBalancerFinalizer is the finalizer object
 const ExternalLoadBalancerFinalizer = "finalizer.lb.lbconfig.io"
+
+func init() {
+	// Disable backend logs using log module
+	_, present := os.LookupEnv("BACKEND_LOGS")
+	if !present {
+		plog.SetOutput(ioutil.Discard)
+		plog.SetFlags(0)
+	}
+}
 
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers/status,verbs=get;update;patch
@@ -113,6 +126,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	var nodes []lbv1.Node
 	for _, n := range nodeList.Items {
+		log.Info("Processing node", "node", n.Name, "labels", n.Labels)
 		nodeAddrs := n.Status.Addresses
 		for _, addr := range nodeAddrs {
 			if addr.Type == "ExternalIP" {
@@ -149,6 +163,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Handle IP Pools
 	// ----------------------------------------
+	var pools []lbv1.Pool
 	for _, p := range lb.Spec.Ports {
 
 		// Create the pool object
@@ -171,6 +186,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
 		}
+		pools = append(pools, pool)
 	}
 
 	// ----------------------------------------
@@ -197,7 +213,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	lb.Status.VIPs = vips
 	lb.Status.Monitor = *monitor
-	lb.Status.PoolMembers = nodes
+	if len(nodes) != 0 {
+		lb.Status.Nodes = nodes
+	}
+	if len(pools) != 0 {
+		lb.Status.Pools = pools
+	}
 	lb.Status.Ports = lb.Spec.Ports
 
 	if err := r.Status().Update(ctx, lb); err != nil {

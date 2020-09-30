@@ -3,6 +3,7 @@ module github.com/carlosedp/lbconfig-operator
 go 1.14
 
 require (
+	github.com/chiradeep/go-nitro v0.0.0-20200821123458-840d5d6b80ce
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
