@@ -12,14 +12,57 @@ The main users for this project is enterprise deployments or high-available clus
 
 ## High level architecture
 
-> ascii art
+```sh
++-----------------------------------------------------------------------------+
+|          Nodes                                                              |
+|                                                                             |
+|   +-------------+                                                           |
+|   |             |                                                           |
+|   |   +-------------+                                                       |
+|   |   |         |   |                                                       |
+|   |   |   +--------------+                                                  |
+|   +-------------+   |    |                                                  |
+|       |   |         |    |                                                  |
+|       +-------------+    |                                                  |
+|           |              |                                                  |
+|           +---+----------+                                                  |
+|               ^                                                             |
+|               |                                                             |
+|               |                                                             |
+|               |                                                             |
+|   +---------------------------------------------------------------------+   |
+|   |           |                                                         |   |       +-------------------+
+|   |     +-----+------------------+       +------------------------+     |   |       |                   |
+|   |     |                        |       |                        |     |   |       |                   |
+|   |     |  ExternalLoadBalancer  +------>+  LoadBalancerBackend   +---------------->+   Load Balancer   |
+|   |     |        Instance        |       |        Instance        |     |   |       |                   |
+|   |     |                        |       |                        |     |   |       |                   |
+|   |     +------------------------+       +-----------+------------+     |   |       +-------------------+
+|   |                                                  |                  |   |
+|   |                                                  |                  |   |
+|   |                                                  |                  |   |
+|   |                                                  v                  |   |
+|   |                                           +------+------+           |   |
+|   |                                           |             |           |   |
+|   |                                           |   Secret    |           |   |
+|   |                                           | Credentials |           |   |
+|   |                                           |             |           |   |
+|   |                                           +-------------+           |   |
+|   |                                                                     |   |
+|   |                              Operator                               |   |
+|   +---------------------------------------------------------------------+   |
+|                                                                             |
+|                       Kubernetes / Openshift Cluster                        |
++-----------------------------------------------------------------------------+
+```
 
 ## Planned Features
 
-* [ ] Multiple backends (not in priority order)
-  * [ ] F5 BigIP
-  * [ ] Citrix Netscaler
+* Multiple backends (not in priority order)
+  * [x] F5 BigIP
+  * [x] Citrix ADC (Netscaler)
   * [ ] NGINX
+  * [ ] HAProxy
   * [ ] NSX
 * [ ] Dynamic port configuration from NodePort services
 
@@ -57,7 +100,7 @@ oc create secret generic f5-creds --from-literal=username=admin --from-literal=p
 
 Then create the instances for each Load Balancer you need (for example one for Master Nodes and another for the Infra Nodes):
 
-The yaml field `type: "master"` or `type: "infra"` selects nodes with the label `"node-role.kubernetes.io/master" = ""` and `"node-role.kubernetes.io/infra" = ""` respectively. If the field is ommited, the nodes will be selected only by the `shardlabels` labels.
+The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected only by the `nodelabels` labels.
 
 Master Nodes:
 
