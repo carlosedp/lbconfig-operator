@@ -225,6 +225,10 @@ func (p *Provider) EditPool(pool *lbv1.Pool) error {
 
 // DeletePool removes a server pool in the Load Balancer
 func (p *Provider) DeletePool(pool *lbv1.Pool) error {
+	err := p.f5.DeletePool(pool.Name)
+	if err != nil {
+		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
+	}
 	return nil
 }
 
@@ -243,9 +247,7 @@ func (p *Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	n, _ := p.f5.GetNode(m.Node.Host)
 	if n != nil {
 		p.f5.ModifyNode(m.Node.Host, &config)
-	}
-
-	if n != nil {
+	} else {
 		err := p.f5.CreateNode(m.Node.Host, m.Node.Host)
 		if err != nil {
 			return fmt.Errorf("error creating node %s: %v", m.Node.Host, err)
@@ -273,15 +275,15 @@ func (p *Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status st
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	// First delete member from pool
-	err := p.f5.DeletePoolMember(partition+pool.Name, m.Node.Host)
+	err := p.f5.DeletePoolMember(partition+pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
 	if err != nil {
 		return fmt.Errorf("error removing member %s from pool %s: %v", m.Node.Host, pool.Name, err)
 	}
-	// Then delete node (TEST)
-	err = p.f5.DeleteNode(partition + m.Node.Host)
-	if err != nil {
-		return fmt.Errorf("error deleting member %s: %v", m.Node.Host, err)
-	}
+	// Then delete node (Do not delete node since it could be in use on another LB)
+	// err = p.f5.DeleteNode(partition + m.Node.Host)
+	// if err != nil {
+	// 	return fmt.Errorf("error deleting member %s: %v", m.Node.Host, err)
+	// }
 	return nil
 }
 
@@ -383,5 +385,9 @@ func (p *Provider) EditVIP(v *lbv1.VIP) error {
 
 // DeleteVIP deletes a Virtual Server in the Load Balancer
 func (p *Provider) DeleteVIP(v *lbv1.VIP) error {
+	err := p.f5.DeleteVirtualServer(v.Name)
+	if err != nil {
+		return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
+	}
 	return nil
 }
