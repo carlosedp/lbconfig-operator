@@ -46,8 +46,8 @@ func init() {
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;update;patch
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=secrets,verbs=get;list
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=nodes,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
 
 // Reconcile our ExternalLoadBalancer object
 func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

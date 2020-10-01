@@ -7,6 +7,20 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+- apiGroups:
   - lb.lbconfig.io
   resources:
   - externalloadbalancers
@@ -42,17 +56,3 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - lb.lbconfig.io
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - lb.lbconfig.io
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list

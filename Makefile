@@ -68,12 +68,17 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+# docker-build: test
+docker-build: generate fmt vet manifests
 	docker build . -t ${IMG}
 
 # Push the docker image
-docker-push:
+docker-push: docker-build
 	docker push ${IMG}
+
+# Cross build Docker images for multiple architectures using buildx
+docker-cross: generate fmt vet manifests
+	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push .
 
 # find or download controller-gen
 # download controller-gen if necessary

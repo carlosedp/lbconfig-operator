@@ -1,0 +1,53 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.0.1
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: lbconfig-operator.vX.Y.Z
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: ExternalLoadBalancer is the Schema for the externalloadbalancers API
+      displayName: External Load Balancer
+      kind: ExternalLoadBalancer
+      name: externalloadbalancers.lb.lbconfig.io
+      version: v1
+    - description: LoadBalancerBackend is the Schema for the loadbalancerbackends API
+      displayName: Load Balancer Backend
+      kind: LoadBalancerBackend
+      name: loadbalancerbackends.lb.lbconfig.io
+      version: v1
+  description: External Load Balancer dynamic configuration operator
+  displayName: lbconfig-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - loadbalancer
+  - vip
+  links:
+  - name: Lbconfig Operator
+    url: https://lbconfig-operator.domain
+  maturity: alpha
+  provider:
+    name: Carlos Eduardo de Paula
+    url: http://carlosedp.com
+  version: 0.0.0

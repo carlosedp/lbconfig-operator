@@ -1,0 +1,228 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "lb.lbconfig.io/v1",
+          "kind": "ExternalLoadBalancer",
+          "metadata": {
+            "name": "externalloadbalancer-master-sample",
+            "namespace": "lbconfig"
+          },
+          "spec": {
+            "backend": "backend-f5-sample",
+            "monitor": {
+              "monitortype": "https",
+              "path": "/healthz",
+              "port": 6443
+            },
+            "ports": [
+              6443
+            ],
+            "type": "master",
+            "vip": "192.168.1.40"
+          }
+        },
+        {
+          "apiVersion": "lb.lbconfig.io/v1",
+          "kind": "LoadBalancerBackend",
+          "metadata": {
+            "name": "backend-f5-sample",
+            "namespace": "lbconfig"
+          },
+          "spec": {
+            "provider": {
+              "creds": "f5-creds",
+              "host": "192.168.1.35",
+              "partition": "Common",
+              "port": 443,
+              "validatecerts": false,
+              "vendor": "F5"
+            }
+          }
+        }
+      ]
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.0.1
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: lbconfig-operator.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: ExternalLoadBalancer is the Schema for the externalloadbalancers API
+      displayName: External Load Balancer
+      kind: ExternalLoadBalancer
+      name: externalloadbalancers.lb.lbconfig.io
+      version: v1
+    - description: LoadBalancerBackend is the Schema for the loadbalancerbackends API
+      displayName: Load Balancer Backend
+      kind: LoadBalancerBackend
+      name: loadbalancerbackends.lb.lbconfig.io
+      version: v1
+  description: External Load Balancer dynamic configuration operator
+  displayName: lbconfig-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - lb.lbconfig.io
+          resources:
+          - externalloadbalancers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - lb.lbconfig.io
+          resources:
+          - externalloadbalancers/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - lb.lbconfig.io
+          resources:
+          - loadbalancerbackends
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - lb.lbconfig.io
+          resources:
+          - loadbalancerbackends/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: default
+      deployments:
+      - name: lbconfig-operator-controller-manager
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              control-plane: controller-manager
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                control-plane: controller-manager
+            spec:
+              containers:
+              - args:
+                - --metrics-addr=127.0.0.1:8080
+                - --enable-leader-election
+                command:
+                - /manager
+                image: carlosedp/lbconfig-operator:latest
+                name: manager
+                resources:
+                  limits:
+                    cpu: 100m
+                    memory: 30Mi
+                  requests:
+                    cpu: 100m
+                    memory: 20Mi
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080/
+                - --logtostderr=true
+                - --v=10
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: https
+                resources: {}
+              terminationGracePeriodSeconds: 10
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps/status
+          verbs:
+          - get
+          - update
+          - patch
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        serviceAccountName: default
+    strategy: deployment
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - loadbalancer
+  - vip
+  links:
+  - name: Lbconfig Operator
+    url: https://lbconfig-operator.domain
+  maturity: alpha
+  provider:
+    name: Carlos Eduardo de Paula
+    url: http://carlosedp.com
+  version: 0.0.1
