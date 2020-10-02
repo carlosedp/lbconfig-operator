@@ -119,6 +119,7 @@ spec:
           verbs:
           - get
           - list
+          - watch
         - apiGroups:
           - ""
           resources:
@@ -126,6 +127,7 @@ spec:
           verbs:
           - get
           - list
+          - watch
         - apiGroups:
           - lb.lbconfig.io
           resources:
@@ -151,15 +153,20 @@ spec:
           resources:
           - loadbalancerbackends
           verbs:
+          - create
+          - delete
           - get
+          - list
           - patch
           - update
+          - watch
         - apiGroups:
           - lb.lbconfig.io
           resources:
           - loadbalancerbackends/status
           verbs:
           - get
+          - list
           - patch
           - update
         - apiGroups:
@@ -195,14 +202,15 @@ spec:
                 command:
                 - /manager
                 image: carlosedp/lbconfig-operator:latest
+                imagePullPolicy: Always
                 name: manager
                 resources:
                   limits:
-                    cpu: 100m
-                    memory: 30Mi
+                    cpu: 300m
+                    memory: 200Mi
                   requests:
                     cpu: 100m
-                    memory: 20Mi
+                    memory: 100Mi
               - args:
                 - --secure-listen-address=0.0.0.0:8443
                 - --upstream=http://127.0.0.1:8080/

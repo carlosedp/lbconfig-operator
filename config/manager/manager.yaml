@@ -23,17 +23,18 @@ spec:
         control-plane: controller-manager
     spec:
       containers:
-      - command:
-        - /manager
-        args:
-        - --enable-leader-election
-        image: controller:latest
-        name: manager
-        resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
+        - command:
+            - /manager
+          args:
+            - --enable-leader-election
+          image: controller:latest
+          imagePullPolicy: Always
+          name: manager
+          resources:
+            limits:
+              cpu: 300m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
       terminationGracePeriodSeconds: 10

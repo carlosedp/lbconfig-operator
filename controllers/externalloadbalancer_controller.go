@@ -44,10 +44,10 @@ func init() {
 
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;update;patch
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
+// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends/status,verbs=get;list;update;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
 // Reconcile our ExternalLoadBalancer object
 func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -79,8 +79,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, lbBackend)
 
 	if err != nil && errors.IsNotFound(err) {
-		log.Info("Could not find backend", "backend", lb.Spec.Backend)
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, fmt.Errorf("Could not find LoadBalancerBackend %s", lb.Spec.Backend)
 	} else if err != nil {
 		log.Error(err, "failed to get LoadBalancerBackend")
 		return ctrl.Result{}, err
