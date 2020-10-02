@@ -153,8 +153,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	monitorName := "Monitor-" + lb.Name
 	lb.Spec.Monitor.Name = monitorName
-
-	monitor, err := backend.HandleMonitors(log, provider, lb.Spec.Monitor)
+	monitor := lb.Spec.Monitor
+	err = backend.HandleMonitors(log, provider, &monitor)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
 	}
@@ -180,7 +180,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 		pool.Members = poolMembers
 
-		err := backend.HandlePool(log, provider, &pool, monitor)
+		err := backend.HandlePool(log, provider, &pool, &monitor)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
@@ -211,7 +211,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// Update ExternalLoadBalancer Status
 	// ----------------------------------------
 	lb.Status.VIPs = vips
-	lb.Status.Monitor = *monitor
+	lb.Status.Monitor = monitor
 	if len(nodes) != 0 {
 		lb.Status.Nodes = nodes
 	}

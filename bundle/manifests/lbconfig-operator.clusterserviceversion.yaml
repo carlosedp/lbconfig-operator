@@ -222,7 +222,7 @@ spec:
                 - containerPort: 8443
                   name: https
                 resources: {}
-              terminationGracePeriodSeconds: 10
+              terminationGracePeriodSeconds: 50
       permissions:
       - rules:
         - apiGroups:

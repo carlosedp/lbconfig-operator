@@ -59,13 +59,13 @@ func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, userna
 }
 
 // HandleMonitors manages the Monitor validation, update and creation
-func HandleMonitors(log logr.Logger, p Provider, monitor lbv1.Monitor) (*lbv1.Monitor, error) {
+func HandleMonitors(log logr.Logger, p Provider, monitor *lbv1.Monitor) error {
 	// Check if monitor exists
-	m, err := p.GetMonitor(&monitor)
+	m, err := p.GetMonitor(monitor)
 
 	// Error getting monitor
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Monitor is not empty so update it's data if needed
@@ -76,25 +76,25 @@ func HandleMonitors(log logr.Logger, p Provider, monitor lbv1.Monitor) (*lbv1.Mo
 			log.Info("Monitor requires update", "name", monitor.Name)
 			log.Info("Need", "params", monitor)
 			log.Info("Have", "params", m)
-			err = p.EditMonitor(&monitor)
+			err = p.EditMonitor(monitor)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			log.Info("Monitor updated successfully", "name", monitor.Name)
 		} else {
 			log.Info("Monitor does not need update", "name", m.Name)
 		}
-		return &monitor, nil
+		return nil
 	}
 
 	// Create Monitor
 	log.Info("Monitor does not exist. Creating...", "name", monitor.Name)
-	newmonitor, err := p.CreateMonitor(&monitor)
+	_, err = p.CreateMonitor(monitor)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	log.Info("Created monitor", "name", newmonitor.Name, "port", newmonitor.Port)
-	return newmonitor, nil
+	log.Info("Created monitor", "name", monitor.Name, "port", monitor.Port)
+	return nil
 }
 
 // HandlePool manages the Pool validation, update and creation
