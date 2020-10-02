@@ -5,3 +5,4 @@ resources:
   - lb_v1_loadbalancerbackend-f5.yaml
   - lb_v1_loadbalancerbackend-netscaler.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
+namespace: lbconfig-operator-system

@@ -2,7 +2,7 @@ apiVersion: lb.lbconfig.io/v1
 kind: ExternalLoadBalancer
 metadata:
   name: externalloadbalancer-infra-sample-shard
-  namespace: lbconfig
+  namespace: lbconfig-operator-system
 spec:
   vip: "192.168.1.46"
   type: "infra"

@@ -81,7 +81,7 @@ apiVersion: lb.lbconfig.io/v1
 kind: LoadBalancerBackend
 metadata:
   name: backend-f5-sample
-  namespace: lbconfig
+  namespace: lbconfig-operator-system
 spec:
   provider:
     vendor: F5
@@ -100,7 +100,7 @@ The provider `vendor` field can be:
 And the secret holding the Load Balancer API user and password:
 
 ```sh
-oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig
+oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig-operator-system
 ```
 
 Then create the instances for each Load Balancer you need (for example one for Master Nodes and another for the Infra Nodes):
@@ -114,7 +114,7 @@ apiVersion: lb.lbconfig.io/v1
 kind: ExternalLoadBalancer
 metadata:
   name: externalloadbalancer-master-sample
-  namespace: lbconfig
+  namespace: lbconfig-operator-system
 spec:
   vip: "192.168.1.40"
   type: "master"
@@ -134,7 +134,7 @@ apiVersion: lb.lbconfig.io/v1
 kind: ExternalLoadBalancer
 metadata:
   name: externalloadbalancer-infra-sample-shard
-  namespace: lbconfig
+  namespace: lbconfig-operator-system
 spec:
   vip: "10.0.0.6"
   type: "infra"

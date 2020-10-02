@@ -53,6 +53,11 @@ deploy: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
+# Generate deployment manifests for manual install
+deployment-manifests: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > manifests/deploy.yaml
+
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
@@ -71,7 +76,7 @@ generate: controller-gen
 
 # Build the docker image
 # docker-build: test
-docker-build: generate fmt vet manifests
+docker-build: generate fmt vet manifests deployment-manifests
 	docker build . -t ${IMG}
 
 # Push the docker image
@@ -79,7 +84,7 @@ docker-push: docker-build
 	docker push ${IMG}
 
 # Build Docker images for multiple architectures using Docker buildx
-docker-cross: generate fmt vet manifests
+docker-cross: generate fmt vet manifests deployment-manifests
 	@for ARCH in $(ARCHS) ; do \
 		echo "Building binary for $$ARCH" ; \
 		GOOS=linux GOARCH=$$ARCH CGO_ENABLED=0 \
@@ -123,7 +128,7 @@ endif
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: manifests
+bundle: manifests deployment-manifests
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)

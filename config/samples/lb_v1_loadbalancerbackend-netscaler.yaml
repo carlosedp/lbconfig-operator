@@ -2,7 +2,7 @@ apiVersion: lb.lbconfig.io/v1
 kind: LoadBalancerBackend
 metadata:
   name: backend-netscaler-sample
-  namespace: lbconfig
+  namespace: lbconfig-operator-system
 spec:
   provider:
     vendor: netscaler

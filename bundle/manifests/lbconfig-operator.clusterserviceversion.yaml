@@ -9,7 +9,7 @@ metadata:
           "kind": "ExternalLoadBalancer",
           "metadata": {
             "name": "externalloadbalancer-infra-sample",
-            "namespace": "lbconfig"
+            "namespace": "lbconfig-operator-system"
           },
           "spec": {
             "backend": "backend-f5-sample",
@@ -31,7 +31,7 @@ metadata:
           "kind": "ExternalLoadBalancer",
           "metadata": {
             "name": "externalloadbalancer-master-sample",
-            "namespace": "lbconfig"
+            "namespace": "lbconfig-operator-system"
           },
           "spec": {
             "backend": "backend-f5-sample",
@@ -52,7 +52,7 @@ metadata:
           "kind": "LoadBalancerBackend",
           "metadata": {
             "name": "backend-f5-sample",
-            "namespace": "lbconfig"
+            "namespace": "lbconfig-operator-system"
           },
           "spec": {
             "provider": {
@@ -70,7 +70,7 @@ metadata:
           "kind": "LoadBalancerBackend",
           "metadata": {
             "name": "backend-netscaler-sample",
-            "namespace": "lbconfig"
+            "namespace": "lbconfig-operator-system"
           },
           "spec": {
             "provider": {
