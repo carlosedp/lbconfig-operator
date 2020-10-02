@@ -70,7 +70,11 @@ The main users for this project is enterprise deployments or high-available clus
 
 ### Deploy the Operator to your cluster
 
-> TBD
+Apply the operator manifest into the cluster:
+
+```sh
+kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/master/manifests/deploy.yaml
+```
 
 ### Create ExternalLoadBalancer instances
 
@@ -155,3 +159,24 @@ spec:
   nodelabels:
     "node.kubernetes.io/region": "production"
 ```
+
+## Developing and Building
+
+There are multiple `make` targets available to ease development.
+
+For local development, after hacking the code run:
+
+1. Build binary: `make`
+2. Create namespace in cluster: `kubectl create namespace `
+3. Create CRs in cluster (secret, backend and LB)
+4. Run operator locally: `make run`
+
+
+Deploy the manifests to the cluster: `make deploy`
+Remove the manifests to the cluster: `make teardown`
+
+
+Building the manifests and docker images: `make dist`
+
+
+

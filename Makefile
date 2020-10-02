@@ -53,10 +53,9 @@ deploy: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+# Delete controller namespace
 teardown:
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	kubectl delete namespace lbconfig-operator-system
 
 .PHONY: dist
 dist: bundle docker-cross

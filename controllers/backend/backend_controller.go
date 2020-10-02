@@ -256,7 +256,7 @@ func HandleCleanup(log logr.Logger, p Provider, lb *lbv1.ExternalLoadBalancer) e
 
 	// Delete Monitor
 	log.Info("Cleaning Monitor", "Monitor", lb.Status.Monitor)
-	if &lb.Status.Monitor != nil {
+	if lb.Status.Monitor != (lbv1.Monitor{}) {
 		err := p.DeleteMonitor(&lb.Status.Monitor)
 		if err != nil {
 			return fmt.Errorf("error in Monitor cleanup %s: %v", lb.Status.Monitor.Name, err)

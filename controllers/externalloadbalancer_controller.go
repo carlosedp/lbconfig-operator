@@ -57,8 +57,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Get the LoadBalancer instance
 	// ----------------------------------------
-	lb := lbv1.ExternalLoadBalancer{}
-	err := r.Get(ctx, req.NamespacedName, &lb)
+	lb := &lbv1.ExternalLoadBalancer{}
+	err := r.Get(ctx, req.NamespacedName, lb)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -210,21 +210,19 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Update ExternalLoadBalancer Status
 	// ----------------------------------------
-	lb.Status.VIPs = vips
-	lb.Status.Monitor = monitor
-	if len(nodes) != 0 {
-		lb.Status.Nodes = nodes
+	status := lbv1.ExternalLoadBalancerStatus{
+		VIPs:    vips,
+		Monitor: monitor,
+		Ports:   lb.Spec.Ports,
+		Nodes:   nodes,
+		Pools:   pools,
 	}
-	if len(pools) != 0 {
-		lb.Status.Pools = pools
-	}
-	lb.Status.Ports = lb.Spec.Ports
+	lb.Status = status
 
-	if err := r.Status().Update(context.Background(), &lb); err != nil {
+	if err := r.Status().Update(ctx, lb); err != nil {
 		log.Error(err, "unable to update ExternalLoadBalancer status")
 		return ctrl.Result{}, err
 	}
-
 	// ----------------------------------------
 	// Check if the ExternalLoadBalancer instance is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
@@ -235,14 +233,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			// Run finalization logic for ExternalLoadBalancerFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := r.finalizeLoadBalancer(log, provider, &lb); err != nil {
+			if err := r.finalizeLoadBalancer(log, provider, lb); err != nil {
 				return ctrl.Result{}, err
 			}
 
 			// Remove ExternalLoadBalancerFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
-			controllerutil.RemoveFinalizer(&lb, ExternalLoadBalancerFinalizer)
-			err := r.Update(ctx, &lb)
+			controllerutil.RemoveFinalizer(lb, ExternalLoadBalancerFinalizer)
+			err := r.Update(ctx, lb)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -252,7 +250,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	// Add finalizer for this CR
 	if !contains(lb.GetFinalizers(), ExternalLoadBalancerFinalizer) {
-		if err := r.addFinalizer(log, &lb); err != nil {
+		if err := r.addFinalizer(log, lb); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -269,11 +267,6 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 }
 
 func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Logger, p backend.Provider, lb *lbv1.ExternalLoadBalancer) error {
-	// TODO(user): Add the cleanup steps that the operator
-	// needs to do before the CR can be deleted. Examples
-	// of finalizers include performing backups and deleting
-	// resources that are not owned by this CR, like a PVC.
-
 	err := backend.HandleCleanup(reqLogger, p, lb)
 	if err != nil {
 		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
