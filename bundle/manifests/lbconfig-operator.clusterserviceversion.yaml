@@ -8,6 +8,28 @@ metadata:
           "apiVersion": "lb.lbconfig.io/v1",
           "kind": "ExternalLoadBalancer",
           "metadata": {
+            "name": "externalloadbalancer-infra-sample",
+            "namespace": "lbconfig"
+          },
+          "spec": {
+            "backend": "backend-f5-sample",
+            "monitor": {
+              "monitortype": "http",
+              "path": "/healthz",
+              "port": 1936
+            },
+            "ports": [
+              80,
+              443
+            ],
+            "type": "infra",
+            "vip": "192.168.1.45"
+          }
+        },
+        {
+          "apiVersion": "lb.lbconfig.io/v1",
+          "kind": "ExternalLoadBalancer",
+          "metadata": {
             "name": "externalloadbalancer-master-sample",
             "namespace": "lbconfig"
           },
@@ -40,6 +62,24 @@ metadata:
               "port": 443,
               "validatecerts": false,
               "vendor": "F5"
+            }
+          }
+        },
+        {
+          "apiVersion": "lb.lbconfig.io/v1",
+          "kind": "LoadBalancerBackend",
+          "metadata": {
+            "name": "backend-netscaler-sample",
+            "namespace": "lbconfig"
+          },
+          "spec": {
+            "provider": {
+              "creds": "netscaler-creds",
+              "host": "192.168.1.36",
+              "partition": "Common",
+              "port": 443,
+              "validatecerts": false,
+              "vendor": "netscaler"
             }
           }
         }

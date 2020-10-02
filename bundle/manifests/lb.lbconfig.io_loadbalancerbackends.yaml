@@ -49,7 +49,7 @@ spec:
                   description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
                   type: boolean
                 vendor:
-                  description: Vendor is the backend provider vendor (F5, NSX, Nerscaler)
+                  description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
                   type: string
               required:
               - creds
@@ -82,7 +82,7 @@ spec:
                   description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
                   type: boolean
                 vendor:
-                  description: Vendor is the backend provider vendor (F5, NSX, Nerscaler)
+                  description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
                   type: string
               required:
               - creds

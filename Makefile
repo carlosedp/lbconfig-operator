@@ -11,6 +11,8 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
+ARCHS ?= amd64 arm64 ppc64le
+
 # Image URL to use all building/pushing image targets
 IMG ?= ${REPO}/lbconfig-operator:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -76,9 +78,16 @@ docker-build: generate fmt vet manifests
 docker-push: docker-build
 	docker push ${IMG}
 
-# Cross build Docker images for multiple architectures using buildx
+# Build Docker images for multiple architectures using Docker buildx
 docker-cross: generate fmt vet manifests
-	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push .
+	@for ARCH in $(ARCHS) ; do \
+		echo "Building binary for $$ARCH" ; \
+		GOOS=linux GOARCH=$$ARCH CGO_ENABLED=0 \
+		go build -a -installsuffix cgo \
+		-ldflags '-s -w -extldflags "-static"' \
+		-o bin/manager-linux-$$ARCH main.go ; \
+	done
+	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile.cross .
 
 # find or download controller-gen
 # download controller-gen if necessary

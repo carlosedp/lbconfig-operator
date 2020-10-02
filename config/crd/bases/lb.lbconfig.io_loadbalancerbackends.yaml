@@ -60,7 +60,7 @@ spec:
                     Balancer API certificate. Defaults to false.
                   type: boolean
                 vendor:
-                  description: Vendor is the backend provider vendor (F5, NSX, Nerscaler)
+                  description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
                   type: string
               required:
               - creds
@@ -96,7 +96,7 @@ spec:
                     Balancer API certificate. Defaults to false.
                   type: boolean
                 vendor:
-                  description: Vendor is the backend provider vendor (F5, NSX, Nerscaler)
+                  description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
                   type: string
               required:
               - creds

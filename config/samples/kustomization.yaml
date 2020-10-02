@@ -1,5 +1,7 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
-- lb_v1_externalloadbalancer.yaml
-- lb_v1_loadbalancerbackend.yaml
+  - lb_v1_externalloadbalancer-master.yaml
+  - lb_v1_externalloadbalancer-infra.yaml
+  - lb_v1_loadbalancerbackend-f5.yaml
+  - lb_v1_loadbalancerbackend-netscaler.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

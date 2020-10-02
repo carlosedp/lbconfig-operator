@@ -16,7 +16,7 @@ type LoadBalancerBackendSpec struct {
 
 // Provider is a backend provider for F5 Big IP Load Balancers
 type Provider struct {
-	// Vendor is the backend provider vendor (F5, NSX, Nerscaler)
+	// Vendor is the backend provider vendor (F5, NSX, Netscaler)
 	Vendor string `json:"vendor"`
 	// Host is the Load Balancer API IP or Hostname.
 	Host string `json:"host"`

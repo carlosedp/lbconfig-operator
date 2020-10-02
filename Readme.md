@@ -85,12 +85,17 @@ metadata:
 spec:
   provider:
     vendor: F5
-    host: "10.0.0.1"
-    hostport: 443
-    creds: "f5-creds"
+    host: "192.168.1.35"
+    port: 443
+    creds: f5-creds
     partition: "Common"
     validatecerts: no
 ```
+
+The provider `vendor` field can be:
+
+* F5
+* netscaler
 
 And the secret holding the Load Balancer API user and password:
 
@@ -111,7 +116,7 @@ metadata:
   name: externalloadbalancer-master-sample
   namespace: lbconfig
 spec:
-  vip: "10.0.0.5"
+  vip: "192.168.1.40"
   type: "master"
   backend: "backend-f5-sample"
   ports:
@@ -119,6 +124,7 @@ spec:
   monitor:
     path: "/healthz"
     port: 6443
+    monitortype: "https"
 ```
 
 Infra Nodes:

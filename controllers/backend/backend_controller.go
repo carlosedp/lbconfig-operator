@@ -2,6 +2,7 @@ package backend
 
 import (
 	"fmt"
+	"strings"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	"github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
@@ -39,8 +40,8 @@ func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, userna
 	// Create backend provider based on backend type
 	var provider Provider
 	var err error
-	switch lbBackend.Spec.Provider.Vendor {
-	case "F5":
+	switch strings.ToLower(lbBackend.Spec.Provider.Vendor) {
+	case "f5":
 		provider, err = f5.Create(log, *lbBackend, username, password)
 	case "netscaler":
 		provider, err = netscaler.Create(log, *lbBackend, username, password)
