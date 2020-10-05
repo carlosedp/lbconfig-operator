@@ -109,22 +109,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Get Nodes by role and label for infra router sharding or service exposure
 	// ----------------------------------------
-
 	if lb.Spec.Type == "" && lb.Spec.NodeLabels == nil {
 		log.Error(err, "undefined loadbalancer type or no nodelabels defined")
 		return ctrl.Result{}, err
 	}
 
 	var nodeList corev1.NodeList
-	labels := make(map[string]string)
-	if lb.Spec.Type != "" {
-		labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
-	}
-	if lb.Spec.NodeLabels != nil {
-		for k, v := range lb.Spec.NodeLabels {
-			labels[k] = v
-		}
-	}
+
+	labels := computeLabels(lb)
 
 	if err := r.List(ctx, &nodeList, client.MatchingLabels(labels)); err != nil {
 		log.Error(err, "unable to list Nodes")
@@ -132,7 +124,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 
 	// ----------------------------------------
-	// Get the nodes external IPs
+	// Check if node is eligible by label and status
 	// ----------------------------------------
 	var nodes []lbv1.Node
 	for _, n := range nodeList.Items {
@@ -279,31 +271,38 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&lbv1.ExternalLoadBalancer{}).
-		Watches(
-			&source.Kind{Type: &corev1.Node{}},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-					if _, ok := obj.Object.(*corev1.Node); ok {
-						lbList := &lbv1.ExternalLoadBalancerList{}
-						r.List(context.Background(), lbList)
-						// lbList, _ := r.getELBNameFromNode(*node)
+		Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestsFromMapFunc{
+			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
+				externalLoadBalancerList := &lbv1.ExternalLoadBalancerList{}
+				client := mgr.GetClient()
 
-						var rr []reconcile.Request
-						// Reconcile all ExternalLoadBalancers
-						for _, lb := range lbList.Items {
+				err := client.List(context.TODO(), externalLoadBalancerList)
+				if err != nil {
+					return []reconcile.Request{}
+				}
+				var reconcileRequests []reconcile.Request
+				if node, ok := obj.Object.(*corev1.Node); ok {
+					// Reconcile all ExternalLoadBalancers that match labels
+					lbToReconcile := make(map[string]bool)
+					for _, lb := range externalLoadBalancerList.Items {
+						labels := computeLabels(&lb)
+						if containsLabels(node.Labels, labels) {
 							rec := reconcile.Request{
 								NamespacedName: types.NamespacedName{
 									Name:      lb.Name,
 									Namespace: lb.Namespace,
 								},
 							}
-							rr = append(rr, rec)
+							if _, ok := lbToReconcile[lb.Name]; !ok {
+								lbToReconcile[lb.Name] = true
+								reconcileRequests = append(reconcileRequests, rec)
+							}
 						}
-						return rr
 					}
-					return []reconcile.Request{}
-				}),
-			}).
+				}
+				return reconcileRequests
+			}),
+		}).
 		WithEventFilter(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
 				if _, ok := e.ObjectNew.(*corev1.Node); ok {
@@ -380,6 +379,32 @@ func contains(list []string, s string) bool {
 		if v == s {
 			return true
 		}
+	}
+	return false
+}
+
+func computeLabels(lb *lbv1.ExternalLoadBalancer) map[string]string {
+	labels := make(map[string]string)
+	if lb.Spec.Type != "" {
+		labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
+	}
+	if lb.Spec.NodeLabels != nil {
+		for k, v := range lb.Spec.NodeLabels {
+			labels[k] = v
+		}
+	}
+	return labels
+}
+
+func containsLabels(as, bs map[string]string) bool {
+	labels := make(map[string]string)
+	for k, v := range bs {
+		if _, ok := as[k]; ok {
+			labels[k] = v
+		}
+	}
+	if reflect.DeepEqual(bs, labels) {
+		return true
 	}
 	return false
 }
