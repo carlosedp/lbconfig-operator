@@ -4,67 +4,60 @@
 
 This operator manages external Load Balancer instances and creates VIPs and IP Pools with Monitors for the Master and Infra nodes based on it's roles and/or labels.
 
-The IPs are updated automatically based on the Node IPs for each role. The objective is to have a modular architecture to allow plugging additional backends for different providers.
+The IPs are updated automatically based on the Node IPs for each role or label. The objective is to have a modular architecture to allow plugging additional backends for different load balancer providers.
+
+Quick demo:
+
+[![Demo](https://img.youtube.com/vi/4b7oYA4nO5I/0.jpg)](https://www.youtube.com/watch?v=4b7oYA4nO5I)
 
 ## Who is it for
 
-The main users for this project is enterprise deployments or high-available clusters composed of multiple nodes having an external load-balancer providing the balancing and high-availability to access the cluster in both API and Application levels.
+The main users for this operator is enterprise deployments or clusters composed of multiple nodes having an external load-balancer providing the balancing and high-availability to access the cluster in both API and Application levels.
 
 ## High level architecture
 
-```sh
-+-----------------------------------------------------------------------------+
-|          Nodes                                                              |
-|                                                                             |
-|   +-------------+                                                           |
-|   |             |                                                           |
-|   |   +-------------+                                                       |
-|   |   |         |   |                                                       |
-|   |   |   +--------------+                                                  |
-|   +-------------+   |    |                                                  |
-|       |   |         |    |                                                  |
-|       +-------------+    |                                                  |
-|           |              |                                                  |
-|           +---+----------+                                                  |
-|               ^                                                             |
-|               |                                                             |
-|               |                                                             |
-|               |                                                             |
-|   +---------------------------------------------------------------------+   |
-|   |           |                                                         |   |       +-------------------+
-|   |     +-----+------------------+       +------------------------+     |   |       |                   |
-|   |     |                        |       |                        |     |   |       |                   |
-|   |     |  ExternalLoadBalancer  +------>+  LoadBalancerBackend   +---------------->+   Load Balancer   |
-|   |     |        Instance        |       |        Instance        |     |   |       |                   |
-|   |     |                        |       |                        |     |   |       |                   |
-|   |     +------------------------+       +-----------+------------+     |   |       +-------------------+
-|   |                                                  |                  |   |
-|   |                                                  |                  |   |
-|   |                                                  |                  |   |
-|   |                                                  v                  |   |
-|   |                                           +------+------+           |   |
-|   |                                           |             |           |   |
-|   |                                           |   Secret    |           |   |
-|   |                                           | Credentials |           |   |
-|   |                                           |             |           |   |
-|   |                                           +-------------+           |   |
-|   |                                                                     |   |
-|   |                              Operator                               |   |
-|   +---------------------------------------------------------------------+   |
-|                                                                             |
-|                       Kubernetes / Openshift Cluster                        |
-+-----------------------------------------------------------------------------+
 ```
++-------------------------------------------------------------------+
+|           Nodes                                                   |
+|                                                                   |
+|    +-------------+                                                |
+|    |             |                                                |
+|    |   +-------------+                                            |
+|    |   |         |   |                                            |
+|    |   |   +--------------+                                       |
+|    +-------------+   |    |                                       |
+|        |   |         |    |                                       |
+|        +-------------+    |                                       |
+|            |              |                                       |
+|            +---+----------+                                       |
+|                ^                                                  |
+|                |                                                  |
+|  +-----------+-+-----------------------------------------------+  |
+|  |           |                                                 |  |    +-------------------+
+|  | +---------+--------------+       +------------------------+ |  |    |                   |
+|  | |                        |       |                        | |  |    |                   |
+|  | |  ExternalLoadBalancer  +------>+  LoadBalancerBackend   +-------->+   Load Balancer   |
+|  | |        Instance        |       |        Instance        | |  |    |                   |
+|  | |                        |       |                        | |  |    |                   |
+|  | +------------------------+       +-----------+------------+ |  |    +-------------------+
+|  |                                              |              |  |
+|  |                                              |              |  |
+|  |                                              |              |  |
+|  |                                              v              |  |
+|  |                                       +------+------+       |  |
+|  |                                       |             |       |  |
+|  |                                       |   Secret    |       |  |
+|  |                                       | Credentials |       |  |
+|  |                                       |             |       |  |
+|  |                                       +-------------+       |  |
+|  |                                                             |  |
+|  |                              Operator                       |  |
+|  +-------------------------------------------------------------+  |
+|                                                                   |
+|                        Kubernetes / Openshift Cluster             |
++-------------------------------------------------------------------+
 
-## Planned Features
-
-* Multiple backends (not in priority order)
-  * [x] F5 BigIP
-  * [x] Citrix ADC (Netscaler)
-  * [ ] NGINX
-  * [ ] HAProxy
-  * [ ] NSX
-* [ ] Dynamic port configuration from NodePort services
+```
 
 ## Install
 
@@ -162,21 +155,25 @@ spec:
 
 ## Developing and Building
 
-There are multiple `make` targets available to ease development.
-
-For local development, after hacking the code run:
+There are multiple `make` targets available to ease development:
 
 1. Build binary: `make`
-2. Create namespace in cluster: `kubectl create namespace `
+2. Install CRDs: `make install`
 3. Create CRs in cluster (secret, backend and LB)
-4. Run operator locally: `make run`
+4. Run operator locally: `make run` (this will use your user's KUBECONFIG environment)
 
-
-Deploy the manifests to the cluster: `make deploy`
+Deploy the operator manifests to the cluster: `make deploy`
 Remove the manifests to the cluster: `make teardown`
-
 
 Building the manifests and docker images: `make dist`
 
+## Planned Features
 
+* Multiple backends (not in priority order)
+  * [x] F5 BigIP
+  * [x] Citrix ADC (Netscaler)
+  * [ ] NGINX
+  * [ ] HAProxy
+  * [ ] NSX
+* [ ] Dynamic port configuration from NodePort services
 
