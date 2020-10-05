@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"strconv"
 
 	plog "log"
 
+	"github.com/carlosedp/lbconfig-operator/controllers/backend"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,8 +19,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	"github.com/carlosedp/lbconfig-operator/controllers/backend"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 )
@@ -30,15 +35,21 @@ type ExternalLoadBalancerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// LoadBalancerIPType defines the kind of IP that the operator fetches for the node
+var LoadBalancerIPType corev1.NodeAddressType = "ExternalIP"
+
 // ExternalLoadBalancerFinalizer is the finalizer object
 const ExternalLoadBalancerFinalizer = "finalizer.lb.lbconfig.io"
 
 func init() {
 	// Disable backend logs using log module
-	_, present := os.LookupEnv("BACKEND_LOGS")
-	if !present {
+	if _, present := os.LookupEnv("BACKEND_LOGS"); !present {
 		plog.SetOutput(ioutil.Discard)
 		plog.SetFlags(0)
+	}
+	// LoadBalancerIPType defines the kind of IP that the operator fetches for the node
+	if _, KIND := os.LookupEnv("KIND"); KIND {
+		LoadBalancerIPType = "InternalIP"
 	}
 }
 
@@ -127,8 +138,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	for _, n := range nodeList.Items {
 		log.Info("Processing node", "node", n.Name, "labels", n.Labels)
 		nodeAddrs := n.Status.Addresses
+		var nodeReady bool
+		for _, cond := range n.Status.Conditions {
+			if cond.Type == "Ready" && cond.Status == "True" {
+				nodeReady = true
+			}
+		}
 		for _, addr := range nodeAddrs {
-			if addr.Type == "ExternalIP" {
+			if addr.Type == LoadBalancerIPType && nodeReady {
 				node := &lbv1.Node{
 					Name:   n.Name,
 					Host:   addr.Address,
@@ -210,14 +227,13 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Update ExternalLoadBalancer Status
 	// ----------------------------------------
-	status := lbv1.ExternalLoadBalancerStatus{
+	lb.Status = lbv1.ExternalLoadBalancerStatus{
 		VIPs:    vips,
 		Monitor: monitor,
 		Ports:   lb.Spec.Ports,
 		Nodes:   nodes,
 		Pools:   pools,
 	}
-	lb.Status = status
 
 	if err := r.Status().Update(ctx, lb); err != nil {
 		log.Error(err, "unable to update ExternalLoadBalancer status")
@@ -263,6 +279,41 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&lbv1.ExternalLoadBalancer{}).
+		Watches(
+			&source.Kind{Type: &corev1.Node{}},
+			&handler.EnqueueRequestsFromMapFunc{
+				ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
+					if _, ok := obj.Object.(*corev1.Node); ok {
+						lbList := &lbv1.ExternalLoadBalancerList{}
+						r.List(context.Background(), lbList)
+						// lbList, _ := r.getELBNameFromNode(*node)
+
+						var rr []reconcile.Request
+						// Reconcile all ExternalLoadBalancers
+						for _, lb := range lbList.Items {
+							rec := reconcile.Request{
+								NamespacedName: types.NamespacedName{
+									Name:      lb.Name,
+									Namespace: lb.Namespace,
+								},
+							}
+							rr = append(rr, rec)
+						}
+						return rr
+					}
+					return []reconcile.Request{}
+				}),
+			}).
+		WithEventFilter(predicate.Funcs{
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				if _, ok := e.ObjectNew.(*corev1.Node); ok {
+					return hasNodeChanged(
+						e.ObjectOld.(*corev1.Node),
+						e.ObjectNew.(*corev1.Node))
+				}
+				return true
+			},
+		}).
 		Complete(r)
 }
 
@@ -288,6 +339,41 @@ func (r *ExternalLoadBalancerReconciler) addFinalizer(reqLogger logr.Logger, m *
 	}
 	return nil
 }
+
+func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
+	var oldCond corev1.ConditionStatus
+	var newCond corev1.ConditionStatus
+	var oldIP string
+	var newIP string
+
+	for _, cond := range o.Status.Conditions {
+		if cond.Type == "Ready" {
+			oldCond = cond.Status
+		}
+	}
+	for _, cond := range n.Status.Conditions {
+		if cond.Type == "Ready" {
+			newCond = cond.Status
+		}
+	}
+	for _, addr := range o.Status.Addresses {
+		if addr.Type == LoadBalancerIPType {
+			oldIP = addr.Address
+		}
+	}
+	for _, addr := range n.Status.Addresses {
+		if addr.Type == LoadBalancerIPType {
+			newIP = addr.Address
+		}
+	}
+
+	if (oldCond == newCond) && (oldIP == newIP) && reflect.DeepEqual(o.Labels, n.Labels) {
+		return false
+	}
+	return true
+}
+
+// Auxiliary functions
 
 func contains(list []string, s string) bool {
 	for _, v := range list {
