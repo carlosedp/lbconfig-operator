@@ -19,18 +19,13 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: ExternalLoadBalancer is the Schema for the externalloadbalancers
-        API
+      description: ExternalLoadBalancer is the Schema for the externalloadbalancers API
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -41,13 +36,10 @@ spec:
               description: Backend is the LoadBalancer used
               type: string
             monitor:
-              description: Monitor is the path and port to monitor the LoadBalancer
-                members
+              description: Monitor is the path and port to monitor the LoadBalancer members
               properties:
                 monitortype:
-                  description: MonitorType is the monitor parent type. <monitorType>
-                    must be one of "http", "https", "icmp", "gateway icmp", "inband",
-                    "postgresql", "mysql", "udp" or "tcp".
+                  description: MonitorType is the monitor parent type. <monitorType> must be one of "http", "https", "icmp", "gateway icmp", "inband", "postgresql", "mysql", "udp" or "tcp".
                   type: string
                 name:
                   description: Name is the monitor name, it is set by the controller
@@ -56,8 +48,7 @@ spec:
                   description: Path is the path URL to check for the pool members
                   type: string
                 port:
-                  description: Port is the port this monitor should check the pool
-                    members
+                  description: Port is the port this monitor should check the pool members
                   type: integer
               required:
               - monitortype
@@ -67,8 +58,7 @@ spec:
             nodelabels:
               additionalProperties:
                 type: string
-              description: NodeLabels are the node labels used for router sharding
-                or exposed service. Optional.
+              description: NodeLabels are the node labels used for router sharding or exposed service. Optional.
               type: object
             ports:
               description: Ports are the list of ports used for this Vip
@@ -76,12 +66,10 @@ spec:
                 type: integer
               type: array
             type:
-              description: Type is the node role type (master or infra) for the LoadBalancer
-                instance
+              description: Type is the node role type (master or infra) for the LoadBalancer instance
               type: string
             vip:
-              description: Vip is the Virtual IP configured in  this LoadBalancer
-                instance
+              description: Vip is the Virtual IP configured in  this LoadBalancer instance
               type: string
           required:
           - backend
@@ -96,9 +84,7 @@ spec:
               description: Monitor defines a monitor object in the LoadBalancer.
               properties:
                 monitortype:
-                  description: MonitorType is the monitor parent type. <monitorType>
-                    must be one of "http", "https", "icmp", "gateway icmp", "inband",
-                    "postgresql", "mysql", "udp" or "tcp".
+                  description: MonitorType is the monitor parent type. <monitorType> must be one of "http", "https", "icmp", "gateway icmp", "inband", "postgresql", "mysql", "udp" or "tcp".
                   type: string
                 name:
                   description: Name is the monitor name, it is set by the controller
@@ -107,8 +93,7 @@ spec:
                   description: Path is the path URL to check for the pool members
                   type: string
                 port:
-                  description: Port is the port this monitor should check the pool
-                    members
+                  description: Port is the port this monitor should check the pool members
                   type: integer
               required:
               - monitortype
@@ -147,8 +132,7 @@ spec:
                           description: Node is the node part of a pool
                           properties:
                             host:
-                              description: Host is the host IP set dynamically by
-                                the controller
+                              description: Host is the host IP set dynamically by the controller
                               type: string
                             label:
                               additionalProperties:
@@ -156,8 +140,7 @@ spec:
                               description: Label is the node labels this node has
                               type: object
                             name:
-                              description: Name is the host name set dynamically by
-                                the controller
+                              description: Name is the host name set dynamically by the controller
                               type: string
                           required:
                           - host
@@ -186,8 +169,7 @@ spec:
               type: array
             vips:
               items:
-                description: VIP defines VIP instance in the LoadBalancer with a pool
-                  and port
+                description: VIP defines VIP instance in the LoadBalancer with a pool and port
                 properties:
                   ip:
                     description: IP is the IP address this VIP instance listens to
