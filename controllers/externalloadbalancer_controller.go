@@ -116,7 +116,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	var nodeList corev1.NodeList
 
-	labels := computeLabels(lb)
+	labels := computeLabels(*lb)
 
 	if err := r.List(ctx, &nodeList, client.MatchingLabels(labels)); err != nil {
 		log.Error(err, "unable to list Nodes")
@@ -286,7 +286,7 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 					// Reconcile all ExternalLoadBalancers that match labels
 					lbToReconcile := make(map[string]bool)
 					for _, lb := range externalLoadBalancerList.Items {
-						labels := computeLabels(&lb)
+						labels := computeLabels(lb)
 						if containsLabels(node.Labels, labels) {
 							rec := reconcile.Request{
 								NamespacedName: types.NamespacedName{
@@ -384,7 +384,7 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-func computeLabels(lb *lbv1.ExternalLoadBalancer) map[string]string {
+func computeLabels(lb lbv1.ExternalLoadBalancer) map[string]string {
 	labels := make(map[string]string)
 	if lb.Spec.Type != "" {
 		labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
