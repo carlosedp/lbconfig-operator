@@ -97,6 +97,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 	log.Info("Found backend", "backend", lbBackend.Name)
 
+	// Get backend secret
 	credsSecret := &corev1.Secret{}
 	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Spec.Provider.Creds, Namespace: lbBackend.Namespace}, credsSecret)
 
@@ -114,10 +115,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 
-	var nodeList corev1.NodeList
-
 	labels := computeLabels(*lb)
-
+	var nodeList corev1.NodeList
 	if err := r.List(ctx, &nodeList, client.MatchingLabels(labels)); err != nil {
 		log.Error(err, "unable to list Nodes")
 		return ctrl.Result{}, err
@@ -129,14 +128,13 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	var nodes []lbv1.Node
 	for _, n := range nodeList.Items {
 		log.Info("Processing node", "node", n.Name, "labels", n.Labels)
-		nodeAddrs := n.Status.Addresses
 		var nodeReady bool
 		for _, cond := range n.Status.Conditions {
 			if cond.Type == "Ready" && cond.Status == "True" {
 				nodeReady = true
 			}
 		}
-		for _, addr := range nodeAddrs {
+		for _, addr := range n.Status.Addresses {
 			if addr.Type == LoadBalancerIPType && nodeReady {
 				node := &lbv1.Node{
 					Name:   n.Name,
@@ -173,11 +171,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	var pools []lbv1.Pool
 	for _, p := range lb.Spec.Ports {
-
-		// Create the pool object
-		var pool lbv1.Pool
-		pool.Name = "Pool-" + lb.Name + "-" + strconv.Itoa(p)
-		pool.Monitor = monitor.Name
+		// Create pool members based on nodes
 		var poolMembers []lbv1.PoolMember
 		for _, n := range nodes {
 			poolMember := &lbv1.PoolMember{
@@ -187,7 +181,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			poolMembers = append(poolMembers, *poolMember)
 		}
 
-		pool.Members = poolMembers
+		// Create the pool object
+		pool := lbv1.Pool{
+			Name:    "Pool-" + lb.Name + "-" + strconv.Itoa(p),
+			Monitor: monitor.Name,
+			Members: poolMembers,
+		}
 
 		err := backend.HandlePool(log, provider, &pool, &monitor)
 		if err != nil {
@@ -202,11 +201,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	var vips []lbv1.VIP
 	for _, p := range lb.Spec.Ports {
-		var vip lbv1.VIP
-		vip.Name = "VIP-" + lb.Name + "-" + strconv.Itoa(p)
-		vip.Port = p
-		vip.Pool = "Pool-" + lb.Name + "-" + strconv.Itoa(p)
-		vip.IP = lb.Spec.Vip
+		vip := lbv1.VIP{
+			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
+			IP:   lb.Spec.Vip,
+			Pool: "Pool-" + lb.Name + "-" + strconv.Itoa(p),
+			Port: p,
+		}
 
 		newVIP, err := backend.HandleVIP(log, provider, &vip)
 		if err != nil {
@@ -272,6 +272,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&lbv1.ExternalLoadBalancer{}).
+		// Watch node changes
 		Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestsFromMapFunc{
 			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
 				externalLoadBalancerList := &lbv1.ExternalLoadBalancerList{}
@@ -304,6 +305,7 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 				return reconcileRequests
 			}),
 		}).
+		// Filter watched events to check only some fields on Node updates
 		WithEventFilter(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
 				if _, ok := e.ObjectNew.(*corev1.Node); ok {
@@ -340,6 +342,19 @@ func (r *ExternalLoadBalancerReconciler) addFinalizer(reqLogger logr.Logger, m *
 	return nil
 }
 
+// Auxiliary functions
+
+// contains check if string s is in array list
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// hasNodeChanged checks two instances of node and compares if some fields have changed
 func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
 	var oldCond corev1.ConditionStatus
 	var newCond corev1.ConditionStatus
@@ -373,17 +388,7 @@ func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
 	return true
 }
 
-// Auxiliary functions
-
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
+// computeLabels builds a label map with node role and additional labels
 func computeLabels(lb lbv1.ExternalLoadBalancer) map[string]string {
 	labels := make(map[string]string)
 	if lb.Spec.Type != "" {
@@ -397,6 +402,7 @@ func computeLabels(lb lbv1.ExternalLoadBalancer) map[string]string {
 	return labels
 }
 
+// containsLabels checks if label map `as` contains labels from map `bs`
 func containsLabels(as, bs map[string]string) bool {
 	labels := make(map[string]string)
 	for k, v := range bs {
