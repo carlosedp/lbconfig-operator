@@ -219,6 +219,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	// ----------------------------------------
 	// Update ExternalLoadBalancer Status
 	// ----------------------------------------
+	_ = r.Get(ctx, req.NamespacedName, lb)
 	lb.Status = lbv1.ExternalLoadBalancerStatus{
 		VIPs:    vips,
 		Monitor: monitor,
