@@ -169,15 +169,18 @@ Building the manifests and docker images: `make dist`
 
 ## Planned Features
 
-* Multiple backends (not in priority order)
+* Add Multiple backends (not in priority order)
   * [x] F5 BigIP
   * [x] Citrix ADC (Netscaler)
-  * [ ] NGINX
   * [ ] HAProxy
+  * [ ] NGINX
   * [ ] NSX
 * [ ] Dynamic port configuration from NodePort services
+* [ ] Check LB configuration on finalizer
+* [ ] Add tests
+* [ ] Update to latest Operator SDK
+* [ ] Add Metrics/Tracing/Stats
 
 ## Known issues
 
-* The F5 backend only supports creating elements in the **Common** partition. This is a limitation from the backend API used.
-* If you try do delete the Load Balancer instances applied to your cluster and the operator pod or application is not running, the CRs get stuck because of finalizers and are not deleted until the operator runs. To override this, patch the CRs removing the finalizer with the command `kubectl patch externalloadbalancers externalloadbalancer-infra-sample -n lbconfig-operator-system -p '{"metadata":{"finalizers":[]}}' --type=merge` using your CR name.
+Check Issues at <https://github.com/carlosedp/lbconfig-operator/issues>.
