@@ -62,6 +62,11 @@ func (p *Provider) Connect() error {
 	return nil
 }
 
+// Close closes the connection to the IP Load Balancer
+func (p *Provider) Close() error {
+	return saveConfig(p, "close connection")
+}
+
 // ----------------------------------------
 // Monitor Management
 // ----------------------------------------
@@ -95,7 +100,6 @@ func (p *Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
-	defer saveConfig(p, "create monitor")
 	lbMonitor := lb.Lbmonitor{
 		Monitorname: m.Name,
 		Type:        "HTTP",
@@ -125,7 +129,6 @@ func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 // EditMonitor edits a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *Provider) EditMonitor(m *lbv1.Monitor) error {
-	defer saveConfig(p, "edit monitor")
 	lbMonitor := lb.Lbmonitor{
 		Monitorname: m.Name,
 		Type:        "HTTP",
@@ -153,7 +156,6 @@ func (p *Provider) EditMonitor(m *lbv1.Monitor) error {
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
 func (p *Provider) DeleteMonitor(m *lbv1.Monitor) error {
-	defer saveConfig(p, "delete monitor")
 	// err := p.client.DeleteResource(netscaler.Lbmonitor.Type(), m.Name)
 
 	var t string
@@ -238,7 +240,6 @@ func (p *Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 // CreatePool creates a server pool in the Load Balancer
 func (p *Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
-	defer saveConfig(p, "create pool")
 	nsSvcGrp := &basic.Servicegroup{
 		Servicegroupname: pool.Name,
 		Servicetype:      "TCP",
@@ -262,7 +263,6 @@ func (p *Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 // EditPool modifies a server pool in the Load Balancer
 func (p *Provider) EditPool(pool *lbv1.Pool) error {
-	defer saveConfig(p, "edit pool")
 	nsSvcGrp := &basic.Servicegroup{
 		Servicegroupname: pool.Name,
 		Servicetype:      "TCP",
@@ -286,7 +286,6 @@ func (p *Provider) EditPool(pool *lbv1.Pool) error {
 
 // DeletePool removes a server pool in the Load Balancer
 func (p *Provider) DeletePool(pool *lbv1.Pool) error {
-	defer saveConfig(p, "delete pool")
 	err := p.client.DeleteResource(netscaler.Servicegroup.Type(), pool.Name)
 	if err != nil {
 		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
@@ -301,7 +300,6 @@ func (p *Provider) DeletePool(pool *lbv1.Pool) error {
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
 func (p *Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
-	defer saveConfig(p, "create member")
 	p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
 
 	nsServer := basic.Server{
@@ -336,7 +334,6 @@ func (p *Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status st
 
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
-	defer saveConfig(p, "delete member")
 	p.log.Info("Deleting Node", "node", m.Node.Name, "host", m.Node.Host)
 	svcName := m.Node.Host
 
@@ -397,7 +394,6 @@ func (p *Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 
 // CreateVIP creates a Virtual Server in the Load Balancer
 func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
-	defer saveConfig(p, "create VIP")
 	nsLB := lb.Lbvserver{
 		Name:        v.Name,
 		Ipv46:       v.IP,
@@ -428,7 +424,6 @@ func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 
 // EditVIP modifies a Virtual Server in the Load Balancer
 func (p *Provider) EditVIP(v *lbv1.VIP) error {
-	defer saveConfig(p, "edit VIP")
 	nsLB := lb.Lbvserver{
 		Name:        v.Name,
 		Ipv46:       v.IP,
@@ -458,7 +453,6 @@ func (p *Provider) EditVIP(v *lbv1.VIP) error {
 
 // DeleteVIP deletes a Virtual Server in the Load Balancer
 func (p *Provider) DeleteVIP(v *lbv1.VIP) error {
-	defer saveConfig(p, "delete VIP")
 	err := p.client.DeleteResource(netscaler.Lbvserver.Type(), v.Name)
 	if err != nil {
 		return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
@@ -470,5 +464,6 @@ func saveConfig(p *Provider, msg string) error {
 	if err := p.client.SaveConfig(); err != nil {
 		return fmt.Errorf("error saving Netscaler - %s: %v", msg, err)
 	}
+	p.log.Info("Configuration saved")
 	return nil
 }

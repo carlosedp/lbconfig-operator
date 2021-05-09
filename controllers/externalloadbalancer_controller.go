@@ -217,6 +217,16 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 
 	// ----------------------------------------
+	// Close Provider and save config if required.
+	// Depends on provider implementation
+	// ----------------------------------------
+	err = provider.Close()
+	if err != nil {
+		log.Error(err, "unable to close the backend provider")
+		return ctrl.Result{}, err
+	}
+
+	// ----------------------------------------
 	// Update ExternalLoadBalancer Status
 	// ----------------------------------------
 	_ = r.Get(ctx, req.NamespacedName, lb)

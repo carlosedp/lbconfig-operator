@@ -55,6 +55,11 @@ func (p *Provider) Connect() error {
 	return nil
 }
 
+// Close closes the connection to the IP Load Balancer
+func (p *Provider) Close() error {
+	return nil
+}
+
 // ----------------------------------------
 // Monitor Management
 // ----------------------------------------

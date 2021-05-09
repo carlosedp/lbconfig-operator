@@ -13,6 +13,7 @@ import (
 // Provider interface method signatures
 type Provider interface {
 	Connect() error
+	Close() error
 
 	GetMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
 	CreateMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
