@@ -61,8 +61,7 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
 // Reconcile our ExternalLoadBalancer object
-func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("externalloadbalancer", req.NamespacedName)
 
 	// ----------------------------------------
@@ -90,7 +89,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, lbBackend)
 
 	if err != nil && errors.IsNotFound(err) {
-		return ctrl.Result{}, fmt.Errorf("Could not find LoadBalancerBackend %s", lb.Spec.Backend)
+		return ctrl.Result{}, fmt.Errorf("could not find LoadBalancerBackend %s", lb.Spec.Backend)
 	} else if err != nil {
 		log.Error(err, "failed to get LoadBalancerBackend")
 		return ctrl.Result{}, err
@@ -283,38 +282,37 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&lbv1.ExternalLoadBalancer{}).
 		// Watch node changes
-		Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestsFromMapFunc{
-			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
-				externalLoadBalancerList := &lbv1.ExternalLoadBalancerList{}
-				client := mgr.GetClient()
+		Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+			externalLoadBalancerList := &lbv1.ExternalLoadBalancerList{}
+			client := mgr.GetClient()
 
-				err := client.List(context.TODO(), externalLoadBalancerList)
-				if err != nil {
-					return []reconcile.Request{}
-				}
-				var reconcileRequests []reconcile.Request
-				if node, ok := obj.Object.(*corev1.Node); ok {
-					// Reconcile all ExternalLoadBalancers that match labels
-					lbToReconcile := make(map[string]bool)
-					for _, lb := range externalLoadBalancerList.Items {
-						labels := computeLabels(lb)
-						if containsLabels(node.Labels, labels) {
-							rec := reconcile.Request{
-								NamespacedName: types.NamespacedName{
-									Name:      lb.Name,
-									Namespace: lb.Namespace,
-								},
-							}
-							if _, ok := lbToReconcile[lb.Name]; !ok {
-								lbToReconcile[lb.Name] = true
-								reconcileRequests = append(reconcileRequests, rec)
-							}
+			err := client.List(context.TODO(), externalLoadBalancerList)
+			if err != nil {
+				return []reconcile.Request{}
+			}
+			var reconcileRequests []reconcile.Request
+			if node, ok := obj.(*corev1.Node); ok {
+				// Reconcile all ExternalLoadBalancers that match labels
+				lbToReconcile := make(map[string]bool)
+				for _, lb := range externalLoadBalancerList.Items {
+					labels := computeLabels(lb)
+					if containsLabels(node.Labels, labels) {
+						rec := reconcile.Request{
+							NamespacedName: types.NamespacedName{
+								Name:      lb.Name,
+								Namespace: lb.Namespace,
+							},
+						}
+						if _, ok := lbToReconcile[lb.Name]; !ok {
+							lbToReconcile[lb.Name] = true
+							reconcileRequests = append(reconcileRequests, rec)
 						}
 					}
 				}
-				return reconcileRequests
-			}),
-		}).
+			}
+			return reconcileRequests
+		}),
+		).
 		// Filter watched events to check only some fields on Node updates
 		WithEventFilter(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
@@ -420,8 +418,5 @@ func containsLabels(as, bs map[string]string) bool {
 			labels[k] = v
 		}
 	}
-	if reflect.DeepEqual(bs, labels) {
-		return true
-	}
-	return false
+	return reflect.DeepEqual(bs, labels)
 }

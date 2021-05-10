@@ -3,13 +3,21 @@ layout: go.kubebuilder.io/v2
 projectName: lbconfig-operator
 repo: github.com/carlosedp/lbconfig-operator
 resources:
-- group: lb
+-
+  controller: true
+  domain: lbconfig.io
+  group: lb
   kind: ExternalLoadBalancer
+  path: github.com/carlosedp/lbconfig-operator/api/v1
   version: v1
-- group: lb
+-
+  controller: true
+  domain: lbconfig.io
+  group: lb
   kind: LoadBalancerBackend
+  path: github.com/carlosedp/lbconfig-operator/api/v1
   version: v1
-version: 3-alpha
+version: "3"
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
