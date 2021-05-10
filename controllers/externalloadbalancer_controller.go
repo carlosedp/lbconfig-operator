@@ -39,7 +39,7 @@ type ExternalLoadBalancerReconciler struct {
 var LoadBalancerIPType corev1.NodeAddressType = "ExternalIP"
 
 // ExternalLoadBalancerFinalizer is the finalizer object
-const ExternalLoadBalancerFinalizer = "finalizer.lb.lbconfig.io"
+const ExternalLoadBalancerFinalizer = "lb.lbconfig.io/finalizer"
 
 func init() {
 	// Disable backend logs using log module
