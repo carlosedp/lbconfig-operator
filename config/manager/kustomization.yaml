@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: carlosedp/lbconfig-operator
-  newTag: latest
+  newTag: v0.0.2

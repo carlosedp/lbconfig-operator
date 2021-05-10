@@ -16,7 +16,7 @@ The main users for this operator is enterprise deployments or clusters composed 
 
 ## High level architecture
 
-```
+```sh
 +-------------------------------------------------------------------+
 |           Nodes                                                   |
 |                                                                   |
@@ -155,17 +155,23 @@ spec:
 
 ## Developing and Building
 
-There are multiple `make` targets available to ease development:
+There are multiple `make` targets available to ease development. All configurations use the defined cluster configured in the `$HOME/.kube/config`.
 
 1. Build binary: `make`
-2. Install CRDs: `make install`
-3. Create CRs in cluster (secret, backend and LB)
-4. Run operator locally: `make run` (this will use your user's KUBECONFIG environment)
+2. Install CRDs in the cluster: `make install`
+3. Deploy the operator manifests to the cluster: `make deploy`
+4. Create CRs in cluster (secret, backend and LB)
+5. Run operator locally: `make run`
 
-Deploy the operator manifests to the cluster: `make deploy`
 Remove the manifests to the cluster: `make teardown`
 
-Building the manifests and docker images: `make dist`
+## Distribute
+
+Building the manifests and docker images: `make dist`.
+
+Operator deployment manifest bundle is created at `./manifests/deploy.yaml`.
+
+The sample manifests for LoadBalancer instances and backends are in `./config/samples` folder.
 
 ## Planned Features
 
@@ -178,7 +184,6 @@ Building the manifests and docker images: `make dist`
 * [ ] Dynamic port configuration from NodePort services
 * [ ] Check LB configuration on finalizer
 * [ ] Add tests
-* [ ] Update to latest Operator SDK
 * [ ] Add Metrics/Tracing/Stats
 
 ## Known issues

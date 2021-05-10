@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.0.1
+VERSION ?= 0.0.2
 # Operator repository
 REPO ?= carlosedp
 # Options for 'bundle-build'
@@ -16,7 +16,7 @@ ARCH = $(shell go env GOARCH)
 ARCHS ?= amd64 arm64 ppc64le
 
 # Image URL to use all building/pushing image targets
-IMG ?= ${REPO}/lbconfig-operator:latest
+IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
 IMAGE_TAG_BASE ?= ${REPO}/lbconfig-operator
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 

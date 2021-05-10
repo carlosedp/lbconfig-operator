@@ -60,7 +60,7 @@ metadata:
               "host": "192.168.1.35",
               "partition": "Common",
               "port": 443,
-              "validatecerts": false,
+              "validatecerts": "no",
               "vendor": "F5"
             }
           }
@@ -76,18 +76,17 @@ metadata:
             "provider": {
               "creds": "netscaler-creds",
               "host": "192.168.1.36",
-              "partition": "Common",
               "port": 443,
-              "validatecerts": false,
+              "validatecerts": "no",
               "vendor": "netscaler"
             }
           }
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.0.1
+    operators.operatorframework.io/builder: operator-sdk-v1.7.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: lbconfig-operator.v0.0.1
+  name: lbconfig-operator.v0.0.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -112,6 +111,15 @@ spec:
     spec:
       clusterPermissions:
       - rules:
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - get
+          - list
+          - update
         - apiGroups:
           - ""
           resources:
@@ -181,7 +189,7 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: default
+        serviceAccountName: lbconfig-operator-controller-manager
       deployments:
       - name: lbconfig-operator-controller-manager
         spec:
@@ -197,21 +205,6 @@ spec:
             spec:
               containers:
               - args:
-                - --metrics-addr=127.0.0.1:8080
-                - --enable-leader-election
-                command:
-                - /manager
-                image: carlosedp/lbconfig-operator:latest
-                imagePullPolicy: Always
-                name: manager
-                resources:
-                  limits:
-                    cpu: 300m
-                    memory: 200Mi
-                  requests:
-                    cpu: 100m
-                    memory: 100Mi
-              - args:
                 - --secure-listen-address=0.0.0.0:8443
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
@@ -222,6 +215,22 @@ spec:
                 - containerPort: 8443
                   name: https
                 resources: {}
+              - args:
+                - --metrics-addr=127.0.0.1:8080
+                - --enable-leader-election
+                command:
+                - /manager
+                image: carlosedp/lbconfig-operator:v0.0.2
+                imagePullPolicy: Always
+                name: manager
+                resources:
+                  limits:
+                    cpu: 300m
+                    memory: 200Mi
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+              serviceAccountName: lbconfig-operator-controller-manager
               terminationGracePeriodSeconds: 50
       permissions:
       - rules:
@@ -252,7 +261,13 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: default
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+        serviceAccountName: lbconfig-operator-controller-manager
     strategy: deployment
   installModes:
   - supported: false
@@ -273,4 +288,4 @@ spec:
   provider:
     name: Carlos Eduardo de Paula
     url: http://carlosedp.com
-  version: 0.0.1
+  version: 0.0.2
