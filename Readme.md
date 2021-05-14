@@ -155,15 +155,16 @@ spec:
 
 ## Developing and Building
 
-There are multiple `make` targets available to ease development. All configurations use the defined cluster configured in the `$HOME/.kube/config`.
+There are multiple `make` targets available to ease development.
 
 1. Build binary: `make`
 2. Install CRDs in the cluster: `make install`
 3. Deploy the operator manifests to the cluster: `make deploy`
 4. Create CRs in cluster (secret, backend and LB)
-5. Run operator locally: `make run`
 
-Remove the manifests to the cluster: `make teardown`
+To run the operator locally without deploying it to the cluster (using configurations use the defined in the `$HOME/.kube/config`), do not use `make deploy`, instead use `make run`. Create CRs (secret, backend, LB) as normal.
+
+To remove the manifests to the cluster: `make teardown`
 
 ## Distribute
 
