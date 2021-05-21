@@ -186,6 +186,7 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
 * [ ] Check LB configuration on finalizer
 * [ ] Add tests
 * [ ] Add Metrics/Tracing/Stats
+* [ ] Upgrade to go.kubebuilder.io/v3 (https://master.book.kubebuilder.io/migration/v2vsv3.html)
 
 ## Known issues
 
