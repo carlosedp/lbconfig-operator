@@ -23,3 +23,6 @@ resources:
   path: github.com/carlosedp/lbconfig-operator/api/v1
   version: v1
 version: "3"
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}

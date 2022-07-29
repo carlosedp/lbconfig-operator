@@ -6,6 +6,9 @@ This operator manages external Load Balancer instances and creates VIPs and IP P
 
 The IPs are updated automatically based on the Node IPs for each role or label. The objective is to have a modular architecture to allow plugging additional backends for different load balancer providers.
 
+You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
+**Note:** Your controller will automatically use the current context in your kubeconfig file (`~/.kube/config`) (i.e. whatever cluster `kubectl cluster-info` shows).
+
 Quick demo:
 
 [![Demo](https://img.youtube.com/vi/4b7oYA4nO5I/0.jpg)](https://www.youtube.com/watch?v=4b7oYA4nO5I)
@@ -16,48 +19,7 @@ The main users for this operator is enterprise deployments or clusters composed 
 
 ## High level architecture
 
-```sh
-+-------------------------------------------------------------------+
-|           Nodes                                                   |
-|                                                                   |
-|    +-------------+                                                |
-|    |             |                                                |
-|    |   +-------------+                                            |
-|    |   |         |   |                                            |
-|    |   |   +--------------+                                       |
-|    +-------------+   |    |                                       |
-|        |   |         |    |                                       |
-|        +-------------+    |                                       |
-|            |              |                                       |
-|            +---+----------+                                       |
-|                ^                                                  |
-|                |                                                  |
-|  +-----------+-+-----------------------------------------------+  |
-|  |           |                                                 |  |    +-------------------+
-|  | +---------+--------------+       +------------------------+ |  |    |                   |
-|  | |                        |       |                        | |  |    |                   |
-|  | |  ExternalLoadBalancer  +------>+  LoadBalancerBackend   +-------->+   Load Balancer   |
-|  | |        Instance        |       |        Instance        | |  |    |                   |
-|  | |                        |       |                        | |  |    |                   |
-|  | +------------------------+       +-----------+------------+ |  |    +-------------------+
-|  |                                              |              |  |
-|  |                                              |              |  |
-|  |                                              |              |  |
-|  |                                              v              |  |
-|  |                                       +------+------+       |  |
-|  |                                       |             |       |  |
-|  |                                       |   Secret    |       |  |
-|  |                                       | Credentials |       |  |
-|  |                                       |             |       |  |
-|  |                                       +-------------+       |  |
-|  |                                                             |  |
-|  |                              Operator                       |  |
-|  +-------------------------------------------------------------+  |
-|                                                                   |
-|                        Kubernetes / Openshift Cluster             |
-+-------------------------------------------------------------------+
-
-```
+![High Level Architecture](./docs/LBOperator-Arch.drawio.png)
 
 ## Install
 
@@ -155,6 +117,11 @@ spec:
 
 ## Developing and Building
 
+This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
+
+It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/)
+which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster
+
 There are multiple `make` targets available to ease development.
 
 1. Build binary: `make`
@@ -164,7 +131,7 @@ There are multiple `make` targets available to ease development.
 
 To run the operator locally without deploying it to the cluster (using configurations use the defined in the `$HOME/.kube/config`), do not use `make deploy`, instead use `make run`. Create CRs (secret, backend, LB) as normal.
 
-To remove the manifests to the cluster: `make teardown`
+To remove the manifests to the cluster: `make undeploy`
 
 ## Distribute
 
@@ -182,11 +149,12 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
   * [ ] HAProxy
   * [ ] NGINX
   * [ ] NSX
+  * [x] Dummy backend
 * [ ] Dynamic port configuration from NodePort services
 * [ ] Check LB configuration on finalizer
 * [ ] Add tests
 * [ ] Add Metrics/Tracing/Stats
-* [ ] Upgrade to go.kubebuilder.io/v3 (https://master.book.kubebuilder.io/migration/v2vsv3.html)
+* [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
 
 ## Known issues
 

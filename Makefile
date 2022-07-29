@@ -59,7 +59,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 # Generate deployment manifests for manual install
 .PHONY: deployment-manifests
-deployment-manifests: manifests
+deployment-manifests: manifests ## Generate deployment manifests for the controller.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > manifests/deploy.yaml
 
@@ -77,7 +77,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
+	ACK_GINKGO_DEPRECATIONS=1.16.5 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
 
