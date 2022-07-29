@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2022 Carlos Eduardo de Paula
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 package controllers
 
 import (
@@ -39,7 +63,7 @@ type ExternalLoadBalancerReconciler struct {
 var LoadBalancerIPType corev1.NodeAddressType = "ExternalIP"
 
 // ExternalLoadBalancerFinalizer is the finalizer object
-const ExternalLoadBalancerFinalizer = "lb.lbconfig.io/finalizer"
+const ExternalLoadBalancerFinalizer = "lb.lbconfig.carlosedp.com/finalizer"
 
 func init() {
 	// Disable backend logs using log module
@@ -53,10 +77,10 @@ func init() {
 	}
 }
 
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=externalloadbalancers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=lb.lbconfig.io,resources=loadbalancerbackends/status,verbs=get;list;update;patch
+// +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=externalloadbalancers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=loadbalancerbackends,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=loadbalancerbackends/status,verbs=get;list;update;patch
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch

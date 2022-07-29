@@ -5,21 +5,16 @@ kind: ServiceMonitor
 metadata:
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: lbconfig-operator
-  name: lbconfig-manager-metrics-monitor
-  namespace: lbconfig-operator-system
+  name: controller-manager-metrics-monitor
+  namespace: system
 spec:
   endpoints:
     - path: /metrics
       port: https
       scheme: https
-      interval: 30s
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
         insecureSkipVerify: true
-  namespaceSelector:
-    matchNames:
-    - lbconfig-operator-system
   selector:
     matchLabels:
       control-plane: controller-manager
