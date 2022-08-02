@@ -59,7 +59,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 # Generate deployment manifests for manual install
 .PHONY: deployment-manifests
-deployment-manifests: manifests ## Generate deployment manifests for the controller.
+deployment-manifests: manifests kustomize ## Generate deployment manifests for the controller.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > manifests/deploy.yaml
 
@@ -91,7 +91,6 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test deployment-manifests ## Build docker image with the manager.
-#	docker build -t ${IMG} .
 	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le -f Dockerfile .
 
 .PHONY: docker-push

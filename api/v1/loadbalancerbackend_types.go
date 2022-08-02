@@ -57,7 +57,7 @@ type Provider struct {
 
 // LoadBalancerBackendStatus defines the observed state of LoadBalancerBackend
 type LoadBalancerBackendStatus struct {
-	Type Provider `json:"provider"`
+	Provider Provider `json:"provider"`
 }
 
 // +kubebuilder:object:root=true
