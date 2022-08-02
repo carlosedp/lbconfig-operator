@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -87,8 +88,7 @@ func init() {
 
 // Reconcile our ExternalLoadBalancer object
 func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("externalloadbalancer", req.NamespacedName)
-
+	log := log.FromContext(ctx)
 	// ----------------------------------------
 	// Get the LoadBalancer instance
 	// ----------------------------------------
@@ -120,6 +120,20 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 	log.Info("Found backend", "backend", lbBackend.Name)
+
+	// ----------------------------------------
+	// Update LoadBalancerBackend Status
+	// ----------------------------------------
+	// Fixthis
+	lbBackend.Status = lbv1.LoadBalancerBackendStatus{
+		Provider: lbBackend.Spec.Provider,
+	}
+
+	_ = r.Get(ctx, req.NamespacedName, lbBackend)
+	if err := r.Status().Update(ctx, lbBackend); err != nil {
+		log.Error(err, "unable to update LoadBalancerBackend status")
+		return ctrl.Result{}, err
+	}
 
 	// Get backend secret
 	credsSecret := &corev1.Secret{}

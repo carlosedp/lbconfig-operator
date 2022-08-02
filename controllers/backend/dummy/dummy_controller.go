@@ -13,23 +13,21 @@ import (
 
 // Provider is the object for the dummy provider implementing the Provider interface
 type Provider struct {
-	log           logr.Logger
-	host          string
-	hostport      int
-	username      string
-	password      string
-	validatecerts bool
+	log      logr.Logger
+	host     string
+	hostport int
+	username string
+	password string
 }
 
 // Create creates a new Load Balancer backend provider
 func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
 	var p = &Provider{
-		log:           log,
-		host:          lbBackend.Spec.Provider.Host,
-		hostport:      lbBackend.Spec.Provider.Port,
-		validatecerts: *lbBackend.Spec.Provider.ValidateCerts,
-		username:      username,
-		password:      password,
+		log:      log,
+		host:     lbBackend.Spec.Provider.Host,
+		hostport: lbBackend.Spec.Provider.Port,
+		username: username,
+		password: password,
 	}
 	log.WithValues("backend", lbBackend.Name, "provider", "dummy")
 	err := p.Connect()
