@@ -1,7 +1,8 @@
 # Current Operator version
 VERSION ?= 0.1.0
 # Operator repository
-REPO ?= carlosedp
+REPO ?= docker.io/carlosedp
+ARCHS ?= amd64 arm64 ppc64le
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
@@ -76,8 +77,9 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
-	ACK_GINKGO_DEPRECATIONS=1.16.5 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -race -covermode=atomic -coverprofile coverage.out
+test: manifests generate fmt vet envtest ginkgo ## Run tests.
+# KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) ./... -race -covermode=atomic -coverprofile coverage.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -race -covermode=atomic -coverprofile coverage.out
 
 ##@ Build
 
@@ -90,12 +92,25 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test deployment-manifests ## Build docker image with the manager.
-	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le -f Dockerfile .
+docker-build: test bundle ## Build docker image for the operator locally.
+	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le -f Dockerfile.cross .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+docker-push: test bundle ## Build and push docker image for the operator.
+	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile.cross .
+
+.PHONY: docker-cross
+docker-cross: ## Build operator binaries locally and then build/push the Docker image
+# docker-cross: test bundle
+	@for ARCH in $(ARCHS) ; do \
+		OS=linux ; \
+		echo "Building binary for $$ARCH at output/manager-$$OS-$$ARCH" ; \
+		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=0 \
+		go build -a -installsuffix cgo \
+		-ldflags '-s -w -extldflags "-static"' \
+		-o output/manager-$$OS-$$ARCH main.go ; \
+	done
+	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile .
 
 ##@ Deployment
 
@@ -131,6 +146,7 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+GINKGO ?= $(LOCALBIN)/ginkgo
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
@@ -141,6 +157,11 @@ KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/k
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
 	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+
+.PHONY: ginkgo
+ginkgo: $(GINKGO) ## Download kustomize locally if necessary.
+$(GINKGO): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/ginkgo@latest
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.

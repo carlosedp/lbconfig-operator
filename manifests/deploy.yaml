@@ -576,7 +576,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: carlosedp/lbconfig-operator:v0.1.0
+        image: docker.io/carlosedp/lbconfig-operator:v0.1.0
         livenessProbe:
           httpGet:
             path: /healthz
