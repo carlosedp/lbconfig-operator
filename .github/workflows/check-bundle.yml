@@ -1,0 +1,35 @@
+name: Bundle
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Generate bundle
+        run: make bundle
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v24
+
+      - name: Run step if any of the listed files above change
+        if: steps.changed-files-specific.outputs.any_changed == 'true'
+        uses: actions/github-script@v3
+        with:
+          script: |
+              core.setFailed('Files changed in bundle generation. Please run `make bundle` and commit.')
