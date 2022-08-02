@@ -277,6 +277,31 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			}
 			Expect(nodeAddresses).ShouldNot(ContainElement("1.1.1.3"))
 
+			By("By removing one Master Node")
+			k8sClient.Get(ctx, types.NamespacedName{Name: "master-node-1"}, node)
+			Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
+
+			if err := k8sClient.List(ctx, &nodeList); err != nil {
+				return
+			}
+			Expect(len(nodeList.Items)).Should(Equal(3))
+
+			By("By checking the ExternalLoadBalancer has one Node")
+
+			Eventually(func() (int, error) {
+				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
+				if err != nil {
+					return 0, err
+				}
+				return len(loadBalancer.Status.Nodes), nil
+			}, timeout, interval).Should(Equal(1))
+
+			nodeAddresses = []string{}
+			for _, node := range loadBalancer.Status.Nodes {
+				nodeAddresses = append(nodeAddresses, node.Host)
+			}
+			Expect(nodeAddresses).ShouldNot(ContainElement("1.1.1.1"))
+
 		})
 	})
 })
