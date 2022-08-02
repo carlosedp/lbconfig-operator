@@ -1,7 +1,10 @@
 package dummy
 
 import (
+	"context"
 	"strconv"
+
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	"github.com/go-logr/logr"
@@ -21,7 +24,8 @@ type Provider struct {
 }
 
 // Create creates a new Load Balancer backend provider
-func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend", lbBackend.Name, "provider", "dummy")
 	var p = &Provider{
 		log:      log,

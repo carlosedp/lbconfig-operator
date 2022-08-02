@@ -1,6 +1,7 @@
 package f5
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	"github.com/go-logr/logr"
 	"github.com/scottdware/go-bigip"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ----------------------------------------
@@ -27,8 +29,9 @@ type Provider struct {
 }
 
 // Create creates a new Load Balancer backend provider
-func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
-	log = log.WithValues("backend", lbBackend.Name, "provider", "F5")
+func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+	log := ctrllog.FromContext(ctx)
+	log.WithValues("backend", lbBackend.Name, "provider", "F5")
 	var p = &Provider{
 		log:           log,
 		host:          lbBackend.Spec.Provider.Host,

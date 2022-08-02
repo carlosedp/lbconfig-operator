@@ -25,6 +25,7 @@ SOFTWARE.
 package netscaler
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/chiradeep/go-nitro/config/lb"
 	"github.com/chiradeep/go-nitro/netscaler"
 	"github.com/go-logr/logr"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ----------------------------------------
@@ -53,8 +55,9 @@ type Provider struct {
 }
 
 // Create creates a new Load Balancer backend provider
-func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
-	log = log.WithValues("backend", lbBackend.Name, "provider", "netscaler")
+func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+	log := ctrllog.FromContext(ctx)
+	log.WithValues("backend", lbBackend.Name, "provider", "netscaler")
 	var p = &Provider{
 		log:           log,
 		host:          lbBackend.Spec.Provider.Host,

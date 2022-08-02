@@ -188,7 +188,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Create Backend Provider
 	// ----------------------------------------
-	provider, err := backend.CreateProvider(log, lbBackend, username, password)
+	provider, err := backend.CreateProvider(ctx, lbBackend, username, password)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

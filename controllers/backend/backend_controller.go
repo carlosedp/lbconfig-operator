@@ -25,6 +25,7 @@ SOFTWARE.
 package backend
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
 	"github.com/carlosedp/lbconfig-operator/controllers/backend/netscaler"
 	"github.com/go-logr/logr"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Provider interface method signatures
@@ -61,18 +63,18 @@ type Provider interface {
 }
 
 // CreateProvider creates a new backend provider
-func CreateProvider(log logr.Logger, lbBackend *lbv1.LoadBalancerBackend, username string, password string) (Provider, error) {
-
+func CreateProvider(ctx context.Context, lbBackend *lbv1.LoadBalancerBackend, username string, password string) (Provider, error) {
+	log := ctrllog.FromContext(ctx)
 	// Create backend provider based on backend type
 	var provider Provider
 	var err error
 	switch strings.ToLower(lbBackend.Spec.Provider.Vendor) {
 	case "dummy":
-		provider, err = dummy.Create(log, *lbBackend, username, password)
+		provider, err = dummy.Create(ctx, *lbBackend, username, password)
 	case "f5":
-		provider, err = f5.Create(log, *lbBackend, username, password)
+		provider, err = f5.Create(ctx, *lbBackend, username, password)
 	case "netscaler":
-		provider, err = netscaler.Create(log, *lbBackend, username, password)
+		provider, err = netscaler.Create(ctx, *lbBackend, username, password)
 	default:
 		err := fmt.Errorf("Provider not implemented")
 		log.Error(err, "the configured provider is not  implemented", "provider", lbBackend.Spec.Provider.Vendor)

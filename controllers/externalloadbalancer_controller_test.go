@@ -37,17 +37,9 @@ import (
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 )
 
-/*
-The first step to writing a simple integration test is to actually create an instance of CronJob you can run tests against.
-Note that to create a CronJob, you’ll need to create a stub CronJob struct that contains your CronJob’s specifications.
-
-Note that when we create a stub CronJob, the CronJob also needs stubs of its required downstream objects.
-Without the stubbed Job template spec and the Pod template spec below, the Kubernetes API will not be able to
-create the CronJob.
-*/
 var _ = Describe("ExternalLoadBalancer controller", func() {
 
-	// // Define utility constants for object names and testing timeouts/durations and intervals.
+	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
 		// 	JobName          = "test-job"
 		SecretName = "backend-creds"
