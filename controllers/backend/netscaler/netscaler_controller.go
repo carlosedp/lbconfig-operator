@@ -54,7 +54,7 @@ type Provider struct {
 
 // Create creates a new Load Balancer backend provider
 func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
-
+	log = log.WithValues("backend", lbBackend.Name, "provider", "netscaler")
 	var p = &Provider{
 		log:           log,
 		host:          lbBackend.Spec.Provider.Host,

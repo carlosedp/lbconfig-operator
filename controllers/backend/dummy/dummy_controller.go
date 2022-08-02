@@ -22,6 +22,7 @@ type Provider struct {
 
 // Create creates a new Load Balancer backend provider
 func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+	log.WithValues("backend", lbBackend.Name, "provider", "dummy")
 	var p = &Provider{
 		log:      log,
 		host:     lbBackend.Spec.Provider.Host,
@@ -29,7 +30,6 @@ func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string
 		username: username,
 		password: password,
 	}
-	log.WithValues("backend", lbBackend.Name, "provider", "dummy")
 	err := p.Connect()
 	if err != nil {
 		return nil, err
