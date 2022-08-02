@@ -11,7 +11,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
     - name: Set up Go
       uses: actions/setup-go@v3
@@ -20,3 +21,6 @@ jobs:
 
     - name: Test
       run: make test
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
