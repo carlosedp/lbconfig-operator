@@ -60,7 +60,7 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
+		"Operator Controller Suite",
 		[]Reporter{printer.NewlineReporter{}})
 }
 
