@@ -1,18 +1,23 @@
-domain: lbconfig.io
-layout: go.kubebuilder.io/v2
+domain: lbconfig.carlosedp.com
+layout:
+- go.kubebuilder.io/v3
 projectName: lbconfig-operator
 repo: github.com/carlosedp/lbconfig-operator
 resources:
--
+- api:
+    crdVersion: v1
+    namespaced: true
   controller: true
-  domain: lbconfig.io
+  domain: lbconfig.carlosedp.com
   group: lb
   kind: ExternalLoadBalancer
   path: github.com/carlosedp/lbconfig-operator/api/v1
   version: v1
--
+- api:
+    crdVersion: v1
+    namespaced: true
   controller: true
-  domain: lbconfig.io
+  domain: lbconfig.carlosedp.com
   group: lb
   kind: LoadBalancerBackend
   path: github.com/carlosedp/lbconfig-operator/api/v1

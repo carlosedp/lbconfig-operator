@@ -21,3 +21,41 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
+package controllers
+
+import (
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+func createReadyNode(name string, labels map[string]string, address string) *corev1.Node {
+	return createTestNode(name, labels, address, corev1.ConditionTrue)
+}
+
+func createNotReadyNode(name string, labels map[string]string, address string) *corev1.Node {
+	return createTestNode(name, labels, address, corev1.ConditionFalse)
+}
+
+func createTestNode(name string, labels map[string]string, address string, readyCondition corev1.ConditionStatus) *corev1.Node {
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    corev1.NodeExternalIP,
+					Address: address,
+				},
+			},
+			Conditions: []corev1.NodeCondition{{
+				Type:   corev1.NodeReady,
+				Status: readyCondition,
+			},
+			},
+		},
+	}
+	return node
+}

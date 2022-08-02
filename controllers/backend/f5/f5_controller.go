@@ -14,8 +14,6 @@ import (
 // Provider creation and connection
 // ----------------------------------------
 
-const partition = "/Common/"
-
 // Provider is the object for the F5 Big IP Provider implementing the Provider interface
 type Provider struct {
 	log           logr.Logger
@@ -30,16 +28,16 @@ type Provider struct {
 
 // Create creates a new Load Balancer backend provider
 func Create(log logr.Logger, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+	log = log.WithValues("backend", lbBackend.Name, "provider", "F5")
 	var p = &Provider{
 		log:           log,
 		host:          lbBackend.Spec.Provider.Host,
 		hostport:      lbBackend.Spec.Provider.Port,
-		partition:     lbBackend.Spec.Provider.Partition,
+		partition:     "/" + lbBackend.Spec.Provider.Partition + "/",
 		validatecerts: *lbBackend.Spec.Provider.ValidateCerts,
 		username:      username,
 		password:      password,
 	}
-	log = log.WithValues("backend", lbBackend.Name, "provider", "F5")
 	err := p.Connect()
 	if err != nil {
 		return nil, err
@@ -100,7 +98,7 @@ func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 	config := &bigip.Monitor{
 		Name:          m.Name,
-		ParentMonitor: partition + m.MonitorType,
+		ParentMonitor: p.partition + m.MonitorType,
 		Interval:      5,
 		Timeout:       16,
 		SendString:    "GET " + m.Path,
@@ -124,7 +122,7 @@ func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 func (p *Provider) EditMonitor(m *lbv1.Monitor) error {
 	config := &bigip.Monitor{
 		Name:          m.Name,
-		ParentMonitor: partition + m.MonitorType,
+		ParentMonitor: p.partition + m.MonitorType,
 		Interval:      5,
 		Timeout:       16,
 		SendString:    "GET " + m.Path,
@@ -190,7 +188,7 @@ func (p *Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	retPool := &lbv1.Pool{
 		Name:    newPool.Name,
-		Monitor: strings.Trim(newPool.Monitor, partition),
+		Monitor: strings.Trim(newPool.Monitor, p.partition),
 		Members: members,
 	}
 
@@ -280,7 +278,7 @@ func (p *Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status st
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	// First delete member from pool
-	err := p.f5.DeletePoolMember(partition+pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
+	err := p.f5.DeletePoolMember(p.partition+pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
 	if err != nil {
 		return fmt.Errorf("error removing member %s from pool %s: %v", m.Node.Host, pool.Name, err)
 	}
@@ -310,7 +308,7 @@ func (p *Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 
 	// Return VIP details in case it exists
 	s := strings.Split(vs.Destination, ":")
-	ip := strings.Trim(s[0], partition)
+	ip := strings.Trim(s[0], p.partition)
 	port, err := strconv.Atoi(s[1])
 	if err != nil {
 		return nil, fmt.Errorf("error reading F5 VS port: %v", err)
@@ -332,7 +330,7 @@ func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 
 	config := &bigip.VirtualServer{
 		Name:        v.Name,
-		Partition:   partition,
+		Partition:   p.partition,
 		Destination: v.IP + ":" + strconv.Itoa(v.Port),
 		Pool:        v.Pool,
 		SourceAddressTranslation: struct {
@@ -362,7 +360,7 @@ func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 func (p *Provider) EditVIP(v *lbv1.VIP) error {
 	config := &bigip.VirtualServer{
 		Name:        v.Name,
-		Partition:   partition,
+		Partition:   p.partition,
 		Destination: v.IP + ":" + strconv.Itoa(v.Port),
 		Pool:        v.Pool,
 		SourceAddressTranslation: struct {
@@ -381,7 +379,7 @@ func (p *Provider) EditVIP(v *lbv1.VIP) error {
 			},
 		},
 	}
-	err := p.f5.PatchVirtualServer(partition+v.Name, config)
+	err := p.f5.PatchVirtualServer(p.partition+v.Name, config)
 	if err != nil {
 		return fmt.Errorf("error editing VIP %s: %v", v.Name, err)
 	}

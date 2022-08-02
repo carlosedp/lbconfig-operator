@@ -1,4 +1,4 @@
-apiVersion: lb.lbconfig.io/v1
+apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: LoadBalancerBackend
 metadata:
   name: backend-netscaler-sample

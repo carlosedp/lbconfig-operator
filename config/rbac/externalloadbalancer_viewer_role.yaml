@@ -5,7 +5,7 @@ metadata:
   name: externalloadbalancer-viewer-role
 rules:
 - apiGroups:
-  - lb.lbconfig.io
+  - lb.lbconfig.carlosedp.com
   resources:
   - externalloadbalancers
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - lb.lbconfig.io
+  - lb.lbconfig.carlosedp.com
   resources:
   - externalloadbalancers/status
   verbs:

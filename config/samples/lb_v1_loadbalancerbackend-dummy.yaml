@@ -1,13 +1,12 @@
 apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: LoadBalancerBackend
 metadata:
-  name: backend-f5-sample
+  name: backend-dummy-sample
   namespace: lbconfig-operator-system
 spec:
   provider:
-    vendor: F5
-    host: "192.168.1.35"
+    vendor: dummy
+    host: "1.2.3.4"
     port: 443
-    creds: f5-creds
-    partition: "Common"
+    creds: dummy-creds
     validatecerts: no
