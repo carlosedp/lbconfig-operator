@@ -2,7 +2,6 @@
 VERSION ?= 0.1.0
 # Operator repository
 REPO ?= docker.io/carlosedp
-ARCHS ?= amd64 arm64 ppc64le
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
@@ -78,8 +77,8 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
-# KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) ./... -race -covermode=atomic -coverprofile coverage.out
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -race -covermode=atomic -coverprofile coverage.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) run -r --cover --race --covermode=atomic --coverprofile=coverage.out .
+# KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -race -covermode=atomic -coverprofile coverage.out
 
 ##@ Build
 
@@ -99,6 +98,7 @@ docker-build: test bundle ## Build docker image for the operator locally.
 docker-push: test bundle ## Build and push docker image for the operator.
 	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile.cross .
 
+ARCHS ?= amd64 arm64 ppc64le
 .PHONY: docker-cross
 docker-cross: ## Build operator binaries locally and then build/push the Docker image
 # docker-cross: test bundle
@@ -161,7 +161,7 @@ $(KUSTOMIZE): $(LOCALBIN)
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download kustomize locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install github.com/onsi/ginkgo/ginkgo@latest
+	GOBIN=$(LOCALBIN) go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@latest
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
