@@ -22,49 +22,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package dummy_test
+package netscaler_test
 
 import (
-	"context"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	. "github.com/carlosedp/lbconfig-operator/controllers/backend/dummy"
 )
 
-func TestDummy(t *testing.T) {
+func TestNetscaler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Dummy Backend Suite")
+	RunSpecs(t, "Netscaler Backend Suite")
 }
-
-var _ = Describe("Controllers/Backend/dummy/dummy_controller", func() {
-
-	Context("When using a dummy backend", func() {
-		var ctx = context.TODO()
-		backend := &lbv1.LoadBalancerBackend{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dummy-backend",
-				Namespace: "default",
-			},
-			Spec: lbv1.LoadBalancerBackendSpec{
-				Provider: lbv1.Provider{
-					Vendor: "dummy",
-					Host:   "1.2.3.4",
-					Port:   443,
-					Creds:  "creds-secret",
-				},
-			},
-		}
-		createdBackend, err := Create(ctx, *backend, "username", "password")
-
-		It("Should create the backend", func() {
-
-			Expect(err).To(BeNil())
-			Expect(createdBackend).NotTo(BeNil())
-		})
-	})
-})

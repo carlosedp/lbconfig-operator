@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	"github.com/carlosedp/lbconfig-operator/controllers"
+	controllers "github.com/carlosedp/lbconfig-operator/controllers/externalloadbalancer"
 	//+kubebuilder:scaffold:imports
 )
 

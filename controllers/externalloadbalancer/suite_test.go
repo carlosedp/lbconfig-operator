@@ -57,9 +57,10 @@ var (
 	cancel    context.CancelFunc
 )
 
-func TestAPIs(t *testing.T) {
+func TestBackendController(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Operator Controller Suite", types.ReporterConfig{
+		Succinct:          true,
 		SlowSpecThreshold: 30 * time.Second,
 	})
 }
@@ -70,7 +71,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("../..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
 
