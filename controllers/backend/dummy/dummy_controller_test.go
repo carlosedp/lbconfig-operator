@@ -26,6 +26,7 @@ package dummy_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -59,12 +60,12 @@ var _ = Describe("Controllers/Backend/dummy/dummy_controller", func() {
 				},
 			},
 		}
-		createdBackend, err := Create(ctx, *backend, "username", "password")
 
 		It("Should create the backend", func() {
-
+			createdBackend, err := Create(ctx, *backend, "username", "password")
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
+			Expect(reflect.TypeOf(createdBackend)).To(Equal(reflect.TypeOf(&DummyProvider{})))
 		})
 	})
 })

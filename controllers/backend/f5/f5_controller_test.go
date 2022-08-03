@@ -25,13 +25,51 @@ SOFTWARE.
 package f5_test
 
 import (
+	"context"
+	"reflect"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	. "github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
 )
 
 func TestF5(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "F5 Backend Suite")
 }
+
+var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
+
+	Context("When using a f5 backend", func() {
+		var ctx = context.TODO()
+		var falseVar bool = false
+		backend := &lbv1.LoadBalancerBackend{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "f5-backend",
+				Namespace: "default",
+			},
+			Spec: lbv1.LoadBalancerBackendSpec{
+				Provider: lbv1.Provider{
+					Vendor:        "f5",
+					Host:          "1.2.3.4",
+					Port:          443,
+					Creds:         "creds-secret",
+					Partition:     "Common",
+					ValidateCerts: &falseVar,
+				},
+			},
+		}
+
+		It("Should create the backend", func() {
+			createdBackend, err := Create(ctx, *backend, "username", "password")
+			Expect(err).To(BeNil())
+			Expect(createdBackend).NotTo(BeNil())
+			Expect(reflect.TypeOf(createdBackend)).To(Equal(reflect.TypeOf(&F5Provider{})))
+		})
+	})
+})

@@ -42,27 +42,29 @@ import (
 // Provider creation and connection
 // ----------------------------------------
 
-// Provider is the object for the Citrix Netscaler Provider implementing the Provider interface
-type Provider struct {
+// NetscalerProvider is the object for the Citrix Netscaler NetscalerProvider implementing the NetscalerProvider interface
+type NetscalerProvider struct {
 	log           logr.Logger
 	client        *netscaler.NitroClient
 	host          string
 	hostport      int
 	username      string
 	password      string
-	partition     string
 	validatecerts bool
 }
 
 // Create creates a new Load Balancer backend provider
-func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*Provider, error) {
+func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*NetscalerProvider, error) {
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend", lbBackend.Name, "provider", "netscaler")
-	var p = &Provider{
+
+	if lbBackend.Spec.Provider.ValidateCerts == nil {
+		return nil, fmt.Errorf("validateCerts is required")
+	}
+	var p = &NetscalerProvider{
 		log:           log,
 		host:          lbBackend.Spec.Provider.Host,
 		hostport:      lbBackend.Spec.Provider.Port,
-		partition:     lbBackend.Spec.Provider.Partition,
 		validatecerts: *lbBackend.Spec.Provider.ValidateCerts,
 		username:      username,
 		password:      password,
@@ -85,12 +87,12 @@ func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username st
 }
 
 // Connect creates a connection to the IP Load Balancer
-func (p *Provider) Connect() error {
+func (p *NetscalerProvider) Connect() error {
 	return nil
 }
 
 // Close closes the connection to the IP Load Balancer
-func (p *Provider) Close() error {
+func (p *NetscalerProvider) Close() error {
 	return saveConfig(p, "close connection")
 }
 
@@ -99,7 +101,7 @@ func (p *Provider) Close() error {
 // ----------------------------------------
 
 // GetMonitor gets a monitor in the IP Load Balancer
-func (p *Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *NetscalerProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 	m, _ := p.client.FindResource(netscaler.Lbmonitor.Type(), monitor.Name)
 
 	// Return in case monitor does not exist
@@ -126,7 +128,7 @@ func (p *Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *NetscalerProvider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	lbMonitor := lb.Lbmonitor{
 		Monitorname: m.Name,
 		Type:        "HTTP",
@@ -155,7 +157,7 @@ func (p *Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 // EditMonitor edits a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *Provider) EditMonitor(m *lbv1.Monitor) error {
+func (p *NetscalerProvider) EditMonitor(m *lbv1.Monitor) error {
 	lbMonitor := lb.Lbmonitor{
 		Monitorname: m.Name,
 		Type:        "HTTP",
@@ -182,7 +184,7 @@ func (p *Provider) EditMonitor(m *lbv1.Monitor) error {
 }
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
-func (p *Provider) DeleteMonitor(m *lbv1.Monitor) error {
+func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
 	// err := p.client.DeleteResource(netscaler.Lbmonitor.Type(), m.Name)
 
 	var t string
@@ -208,7 +210,7 @@ func (p *Provider) DeleteMonitor(m *lbv1.Monitor) error {
 // ----------------------------------------
 
 // GetPool gets a server pool from the Load Balancer
-func (p *Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *NetscalerProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	m, _ := p.client.FindResource(netscaler.Servicegroup.Type(), pool.Name)
 
 	// Return in case pool does not exist
@@ -266,7 +268,7 @@ func (p *Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // CreatePool creates a server pool in the Load Balancer
-func (p *Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *NetscalerProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	nsSvcGrp := &basic.Servicegroup{
 		Servicegroupname: pool.Name,
 		Servicetype:      "TCP",
@@ -289,7 +291,7 @@ func (p *Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // EditPool modifies a server pool in the Load Balancer
-func (p *Provider) EditPool(pool *lbv1.Pool) error {
+func (p *NetscalerProvider) EditPool(pool *lbv1.Pool) error {
 	nsSvcGrp := &basic.Servicegroup{
 		Servicegroupname: pool.Name,
 		Servicetype:      "TCP",
@@ -312,7 +314,7 @@ func (p *Provider) EditPool(pool *lbv1.Pool) error {
 }
 
 // DeletePool removes a server pool in the Load Balancer
-func (p *Provider) DeletePool(pool *lbv1.Pool) error {
+func (p *NetscalerProvider) DeletePool(pool *lbv1.Pool) error {
 	err := p.client.DeleteResource(netscaler.Servicegroup.Type(), pool.Name)
 	if err != nil {
 		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
@@ -326,7 +328,7 @@ func (p *Provider) DeletePool(pool *lbv1.Pool) error {
 // ----------------------------------------
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
-func (p *Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+func (p *NetscalerProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
 
 	nsServer := basic.Server{
@@ -355,12 +357,12 @@ func (p *Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 
 // EditPoolMember modifies a server pool member in the Load Balancer
 // status could be "enable" or "disable"
-func (p *Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
+func (p *NetscalerProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
 	return nil
 }
 
 // DeletePoolMember deletes a member in the Load Balancer
-func (p *Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+func (p *NetscalerProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	p.log.Info("Deleting Node", "node", m.Node.Name, "host", m.Node.Host)
 	svcName := m.Node.Host
 
@@ -393,7 +395,7 @@ func (p *Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 // ----------------------------------------
 
 // GetVIP gets a VIP in the IP Load Balancer
-func (p *Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *NetscalerProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	vs, _ := p.client.FindResource(netscaler.Lbvserver.Type(), v.Name)
 
 	// Return in case VIP does not exist
@@ -420,7 +422,7 @@ func (p *Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // CreateVIP creates a Virtual Server in the Load Balancer
-func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *NetscalerProvider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	nsLB := lb.Lbvserver{
 		Name:        v.Name,
 		Ipv46:       v.IP,
@@ -450,7 +452,7 @@ func (p *Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // EditVIP modifies a Virtual Server in the Load Balancer
-func (p *Provider) EditVIP(v *lbv1.VIP) error {
+func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 	nsLB := lb.Lbvserver{
 		Name:        v.Name,
 		Ipv46:       v.IP,
@@ -479,7 +481,7 @@ func (p *Provider) EditVIP(v *lbv1.VIP) error {
 }
 
 // DeleteVIP deletes a Virtual Server in the Load Balancer
-func (p *Provider) DeleteVIP(v *lbv1.VIP) error {
+func (p *NetscalerProvider) DeleteVIP(v *lbv1.VIP) error {
 	err := p.client.DeleteResource(netscaler.Lbvserver.Type(), v.Name)
 	if err != nil {
 		return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
@@ -487,7 +489,7 @@ func (p *Provider) DeleteVIP(v *lbv1.VIP) error {
 	return nil
 }
 
-func saveConfig(p *Provider, msg string) error {
+func saveConfig(p *NetscalerProvider, msg string) error {
 	if err := p.client.SaveConfig(); err != nil {
 		return fmt.Errorf("error saving Netscaler - %s: %v", msg, err)
 	}
