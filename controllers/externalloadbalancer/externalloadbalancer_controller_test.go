@@ -64,7 +64,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 		})
 
 		It("Should compute labels from LoadBalancer instance", func() {
-			By("Checking if labels are correct")
 			loadBalancer := lbv1.ExternalLoadBalancer{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-load-balancer",
@@ -127,11 +126,7 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			Expect(backend.Spec.Provider.Vendor).Should(Equal("dummy"))
-			// Fixthis
-			// fmt.Fprintf(GinkgoWriter, "Backend Vendor: %v\n", backend.Status.Provider.Vendor)
-			// Expect(backend.Status.Provider.Vendor).Should(Equal("dummy"))
 
-			// Create the ExternalLoadBalancer
 			By("By creating a new ExternalLoadBalancer")
 			loadBalancer := &lbv1.ExternalLoadBalancer{
 				ObjectMeta: metav1.ObjectMeta{
@@ -180,7 +175,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			Expect(len(nodeList.Items)).Should(Equal(1))
 
 			By("By checking the ExternalLoadBalancer has one Node")
-
 			Eventually(func() (int, error) {
 				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 				if err != nil {
@@ -202,7 +196,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			Expect(len(nodeList.Items)).Should(Equal(2))
 
 			By("By checking the ExternalLoadBalancer still has one Node")
-
 			Eventually(func() (int, error) {
 				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 				if err != nil {
@@ -228,7 +221,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			Expect(len(nodeList.Items)).Should(Equal(3))
 
 			By("By checking the ExternalLoadBalancer has two Nodes")
-
 			Eventually(func() (int, error) {
 				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 				if err != nil {
@@ -254,7 +246,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			Expect(len(nodeList.Items)).Should(Equal(4))
 
 			By("By checking the ExternalLoadBalancer still has two Nodes")
-
 			Eventually(func() (int, error) {
 				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 				if err != nil {
@@ -279,7 +270,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			Expect(len(nodeList.Items)).Should(Equal(3))
 
 			By("By checking the ExternalLoadBalancer has one Node")
-
 			Eventually(func() (int, error) {
 				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 				if err != nil {
@@ -293,7 +283,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				nodeAddresses = append(nodeAddresses, node.Host)
 			}
 			Expect(nodeAddresses).ShouldNot(ContainElement("1.1.1.1"))
-
 		})
 	})
 })

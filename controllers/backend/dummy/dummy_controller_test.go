@@ -63,11 +63,11 @@ var _ = Describe("Controllers/Backend/dummy/dummy_controller", func() {
 		}
 
 		It("Should create the backend", func() {
-			createdBackend, err := CreateProvider(ctx, backend, "username", "password")
+			createdBackend, err := CreateBackend(ctx, backend, "username", "password")
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
 			Expect(ListProviders()).To(ContainElement("dummy"))
-			Expect(reflect.TypeOf(createdBackend)).To(Equal(reflect.TypeOf(&DummyProvider{})))
+			Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&DummyProvider{})))
 		})
 	})
 })

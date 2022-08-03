@@ -31,7 +31,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
@@ -67,11 +66,11 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 		}
 
 		It("Should create the backend", func() {
-			createdBackend, err := CreateProvider(ctx, backend, "username", "password")
+			createdBackend, err := CreateBackend(ctx, backend, "username", "password")
 			Expect(ListProviders()).To(ContainElement("f5"))
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
-			Expect(reflect.TypeOf(createdBackend)).To(Equal(reflect.TypeOf(&F5Provider{})))
+			Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&F5Provider{})))
 		})
 	})
 })

@@ -34,7 +34,6 @@ import (
 
 	plog "log"
 
-	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -52,6 +51,7 @@ import (
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
+	"github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 )
 
 // ExternalLoadBalancerReconciler reconciles a ExternalLoadBalancer object
@@ -122,20 +122,6 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	log.Info("Found backend", "backend", lbBackend.Name)
 
-	// ----------------------------------------
-	// Update LoadBalancerBackend Status
-	// ----------------------------------------
-	// Fixthis
-	lbBackend.Status = lbv1.LoadBalancerBackendStatus{
-		Provider: lbBackend.Spec.Provider,
-	}
-
-	_ = r.Get(ctx, req.NamespacedName, lbBackend)
-	if err := r.Status().Update(ctx, lbBackend); err != nil {
-		log.Error(err, "unable to update LoadBalancerBackend status")
-		return ctrl.Result{}, err
-	}
-
 	// Get backend secret
 	credsSecret := &corev1.Secret{}
 	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Spec.Provider.Creds, Namespace: lbBackend.Namespace}, credsSecret)
@@ -189,7 +175,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Create Backend Provider
 	// ----------------------------------------
-	provider, err := backend.CreateProvider(ctx, lbBackend, username, password)
+	backend, err := controller.CreateBackend(ctx, lbBackend, username, password)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -197,7 +183,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Connect to Backend Provider
 	// ----------------------------------------
-	err = provider.Connect()
+	err = backend.Provider.Connect()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -208,7 +194,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	monitorName := "Monitor-" + lb.Name
 	lb.Spec.Monitor.Name = monitorName
 	monitor := lb.Spec.Monitor
-	err = backend.HandleMonitors(log, provider, &monitor)
+	err = backend.HandleMonitors(&monitor)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
 	}
@@ -235,7 +221,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			Members: poolMembers,
 		}
 
-		err := backend.HandlePool(log, provider, &pool, &monitor)
+		err := backend.HandlePool(&pool, &monitor)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			return ctrl.Result{}, err
@@ -255,7 +241,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			Port: p,
 		}
 
-		newVIP, err := backend.HandleVIP(log, provider, &vip)
+		newVIP, err := backend.HandleVIP(&vip)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			return ctrl.Result{}, err
@@ -267,7 +253,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// Close Provider and save config if required.
 	// Depends on provider implementation
 	// ----------------------------------------
-	err = provider.Close()
+	err = backend.Provider.Close()
 	if err != nil {
 		log.Error(err, "unable to close the backend provider")
 		return ctrl.Result{}, err
@@ -289,6 +275,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Error(err, "unable to update ExternalLoadBalancer status")
 		return ctrl.Result{}, err
 	}
+
 	// ----------------------------------------
 	// Check if the ExternalLoadBalancer instance is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
@@ -299,7 +286,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			// Run finalization logic for ExternalLoadBalancerFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := r.finalizeLoadBalancer(log, provider, lb); err != nil {
+			if err := r.finalizeLoadBalancer(log, backend, lb); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -375,8 +362,8 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Logger, p backend.Provider, lb *lbv1.ExternalLoadBalancer) error {
-	err := backend.HandleCleanup(reqLogger, p, lb)
+func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Logger, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer) error {
+	err := backend.HandleCleanup(lb)
 	if err != nil {
 		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
 		return err

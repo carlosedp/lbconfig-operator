@@ -30,14 +30,14 @@ import (
 	"strconv"
 	"strings"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
-
 	"github.com/chiradeep/go-nitro/config/basic"
 	"github.com/chiradeep/go-nitro/config/lb"
 	"github.com/chiradeep/go-nitro/netscaler"
 	"github.com/go-logr/logr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 )
 
 // ----------------------------------------

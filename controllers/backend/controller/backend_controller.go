@@ -22,16 +22,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package backend
+package controller
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	"github.com/go-logr/logr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 )
 
 // Provider interface method signatures
@@ -77,6 +78,12 @@ type Provider interface {
 	DeleteVIP(*lbv1.VIP) error
 }
 
+// ExternalLoadBalancerReconciler reconciles a ExternalLoadBalancer object
+type BackendController struct {
+	log      logr.Logger
+	Provider Provider
+}
+
 var providers = make(map[string]Provider)
 
 func ListProviders() []string {
@@ -88,7 +95,7 @@ func ListProviders() []string {
 }
 
 func RegisterProvider(name string, provider Provider) {
-	ctx := context.Background()
+	var ctx = context.Background()
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend_controller", "RegisterProvider")
 	if _, exists := providers[name]; exists {
@@ -99,23 +106,26 @@ func RegisterProvider(name string, provider Provider) {
 	providers[name] = provider
 }
 
-func CreateProvider(ctx context.Context, lbBackend *lbv1.LoadBalancerBackend, username string, password string) (Provider, error) {
-	log := ctrllog.FromContext(ctx)
+func CreateBackend(ctx context.Context, lbBackend *lbv1.LoadBalancerBackend, username string, password string) (*BackendController, error) {
+	backend := &BackendController{}
+	backend.log = ctrllog.FromContext(ctx)
+	backend.log.WithValues("backend_controller", "RegisterProvider")
 	name := strings.ToLower(lbBackend.Spec.Provider.Vendor)
 	if provider, ok := providers[name]; ok {
 		if err := provider.Create(ctx, *lbBackend, username, password); err != nil {
 			return nil, err
 		}
-		log.Info("Created backend", "provider", lbBackend.Spec.Provider.Vendor)
-		return provider, nil
+		backend.log.Info("Created backend", "provider", lbBackend.Spec.Provider.Vendor)
+		backend.Provider = provider
+		return backend, nil
 	}
 	return nil, fmt.Errorf("no such provider: %s", name)
 }
 
 // HandleMonitors manages the Monitor validation, update and creation
-func HandleMonitors(log logr.Logger, p Provider, monitor *lbv1.Monitor) error {
+func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 	// Check if monitor exists
-	m, err := p.GetMonitor(monitor)
+	m, err := b.Provider.GetMonitor(monitor)
 
 	// Error getting monitor
 	if err != nil {
@@ -125,36 +135,36 @@ func HandleMonitors(log logr.Logger, p Provider, monitor *lbv1.Monitor) error {
 	// Monitor is not empty so update it's data if needed
 	if m != nil {
 		// Exists, so check to Update Monitor ports and parameters
-		log.Info("Monitor exists, check if needs update", "name", m.Name)
+		b.log.Info("Monitor exists, check if needs update", "name", m.Name)
 		if monitor.Port != m.Port || monitor.Path != m.Path || monitor.MonitorType != m.MonitorType {
-			log.Info("Monitor requires update", "name", monitor.Name)
-			log.Info("Need", "params", monitor)
-			log.Info("Have", "params", m)
-			err = p.EditMonitor(monitor)
+			b.log.Info("Monitor requires update", "name", monitor.Name)
+			b.log.Info("Need", "params", monitor)
+			b.log.Info("Have", "params", m)
+			err = b.Provider.EditMonitor(monitor)
 			if err != nil {
 				return err
 			}
-			log.Info("Monitor updated successfully", "name", monitor.Name)
+			b.log.Info("Monitor updated successfully", "name", monitor.Name)
 		} else {
-			log.Info("Monitor does not need update", "name", m.Name)
+			b.log.Info("Monitor does not need update", "name", m.Name)
 		}
 		return nil
 	}
 
 	// Create Monitor
-	log.Info("Monitor does not exist. Creating...", "name", monitor.Name)
-	_, err = p.CreateMonitor(monitor)
+	b.log.Info("Monitor does not exist. Creating...", "name", monitor.Name)
+	_, err = b.Provider.CreateMonitor(monitor)
 	if err != nil {
 		return err
 	}
-	log.Info("Created monitor", "name", monitor.Name, "port", monitor.Port)
+	b.log.Info("Created monitor", "name", monitor.Name, "port", monitor.Port)
 	return nil
 }
 
 // HandlePool manages the Pool validation, update and creation
-func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Monitor) error {
+func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) error {
 	// Check if pool exists
-	configuredPool, err := p.GetPool(pool)
+	configuredPool, err := b.Provider.GetPool(pool)
 
 	// Error getting pool
 	if err != nil {
@@ -165,7 +175,7 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 	if configuredPool != nil {
 		// Exists, so check to Update pool parameters and members
 
-		log.Info("Pool exists, check if needs update", "name", configuredPool.Name)
+		b.log.Info("Pool exists, check if needs update", "name", configuredPool.Name)
 		var addMembers []lbv1.PoolMember
 		var delMembers []lbv1.PoolMember
 
@@ -185,24 +195,24 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 		}
 
 		if pool.Monitor != configuredPool.Monitor {
-			log.Info("Pool requires update", "name", pool.Name)
-			log.Info("Need", "params", pool)
-			log.Info("Have", "params", configuredPool)
-			err := p.EditPool(pool)
+			b.log.Info("Pool requires update", "name", pool.Name)
+			b.log.Info("Need", "params", pool)
+			b.log.Info("Have", "params", configuredPool)
+			err := b.Provider.EditPool(pool)
 			if err != nil {
 				return err
 			}
 		}
 
 		if addMembers != nil || delMembers != nil {
-			log.Info("Pool members requires update", "name", pool.Name)
-			log.Info("Need", "params", pool)
-			log.Info("Have", "params", configuredPool)
+			b.log.Info("Pool members requires update", "name", pool.Name)
+			b.log.Info("Need", "params", pool)
+			b.log.Info("Have", "params", configuredPool)
 			// Add members
 			if addMembers != nil {
-				log.Info("Add nodes", "nodes", addMembers)
+				b.log.Info("Add nodes", "nodes", addMembers)
 				for _, m := range addMembers {
-					err = p.CreatePoolMember(&m, pool)
+					err = b.Provider.CreatePoolMember(&m, pool)
 					if err != nil {
 						return err
 					}
@@ -210,33 +220,33 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 			}
 			// Remove members
 			if delMembers != nil {
-				log.Info("Remove nodes", "nodes", delMembers)
+				b.log.Info("Remove nodes", "nodes", delMembers)
 				for _, m := range delMembers {
-					err = p.DeletePoolMember(&m, pool)
+					err = b.Provider.DeletePoolMember(&m, pool)
 					if err != nil {
 						return err
 					}
 				}
 			}
 
-			log.Info("Pool updated successfully", "name", pool.Name)
+			b.log.Info("Pool updated successfully", "name", pool.Name)
 			return nil
 		}
-		log.Info("Pool does not need update", "name", pool.Name)
+		b.log.Info("Pool does not need update", "name", pool.Name)
 		return nil
 	}
 
 	// Creating pool
-	log.Info("Pool does not exist. Creating...", "name", pool.Name)
-	_, err = p.CreatePool(pool)
+	b.log.Info("Pool does not exist. Creating...", "name", pool.Name)
+	_, err = b.Provider.CreatePool(pool)
 	if err != nil {
 		return err
 	}
 	// Adding members to pool
-	log.Info("Created pool", "name", pool.Name)
+	b.log.Info("Created pool", "name", pool.Name)
 	for _, m := range pool.Members {
-		log.Info("Adding node to pool", "node", m, "pool", pool)
-		err = p.CreatePoolMember(&m, pool)
+		b.log.Info("Adding node to pool", "node", m, "pool", pool)
+		err = b.Provider.CreatePoolMember(&m, pool)
 		if err != nil {
 			return err
 		}
@@ -245,9 +255,9 @@ func HandlePool(log logr.Logger, p Provider, pool *lbv1.Pool, monitor *lbv1.Moni
 }
 
 //HandleVIP manages the VIP validation, update and creation
-func HandleVIP(log logr.Logger, p Provider, v *lbv1.VIP) (vip *lbv1.VIP, err error) {
+func (b *BackendController) HandleVIP(v *lbv1.VIP) (vip *lbv1.VIP, err error) {
 	// Check if VIP exists
-	vs, err := p.GetVIP(v)
+	vs, err := b.Provider.GetVIP(v)
 	// Error getting VIP
 	if err != nil {
 		return nil, err
@@ -256,42 +266,42 @@ func HandleVIP(log logr.Logger, p Provider, v *lbv1.VIP) (vip *lbv1.VIP, err err
 	// VIP is not empty so update it's data if needed
 	if vs != nil {
 		// Exists, so check to update VIP parameters and pool
-		log.Info("VIP exists, check if needs update", "name", vs.Name)
+		b.log.Info("VIP exists, check if needs update", "name", vs.Name)
 
 		if v.Port != vs.Port || v.IP != vs.IP || v.Pool != vs.Pool {
-			log.Info("VIP requires update", "name", v.Name)
-			log.Info("Need", "params", v)
-			log.Info("Have", "params", vs)
-			err = p.EditVIP(v)
+			b.log.Info("VIP requires update", "name", v.Name)
+			b.log.Info("Need", "params", v)
+			b.log.Info("Have", "params", vs)
+			err = b.Provider.EditVIP(v)
 			if err != nil {
 				return nil, err
 			}
-			log.Info("VIP updated successfully", "name", vs.Name)
+			b.log.Info("VIP updated successfully", "name", vs.Name)
 		} else {
-			log.Info("VIP does not need update", "name", vs.Name)
+			b.log.Info("VIP does not need update", "name", vs.Name)
 		}
 		return vs, nil
 	}
 
 	// Create VIP
-	log.Info("VIP does not exist. Creating...", "name", v.Name)
-	newVIP, err := p.CreateVIP(v)
+	b.log.Info("VIP does not exist. Creating...", "name", v.Name)
+	newVIP, err := b.Provider.CreateVIP(v)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("Created VIP", "name", newVIP.Name, "port", newVIP.Port, "VIP", newVIP.IP, "pool", newVIP.Pool)
+	b.log.Info("Created VIP", "name", newVIP.Name, "port", newVIP.Port, "VIP", newVIP.IP, "pool", newVIP.Pool)
 	return newVIP, nil
 }
 
 // HandleCleanup removes all elements when ExternalLoadBalancer is deleted
-func HandleCleanup(log logr.Logger, p Provider, lb *lbv1.ExternalLoadBalancer) error {
-	log.Info("Cleanup started", "ExternalLoadBalancer", lb.Name)
+func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
+	b.log.Info("Cleanup started", "ExternalLoadBalancer", lb.Name)
 
 	// Delete VIP
 	if len(lb.Status.VIPs) != 0 {
 		for _, v := range lb.Status.VIPs {
-			log.Info("Cleaning VIP", "VIP", v.Name)
-			err := p.DeleteVIP(&v)
+			b.log.Info("Cleaning VIP", "VIP", v.Name)
+			err := b.Provider.DeleteVIP(&v)
 			if err != nil {
 				return fmt.Errorf("error in VIP cleanup %s: %v", v.Name, err)
 			}
@@ -300,8 +310,8 @@ func HandleCleanup(log logr.Logger, p Provider, lb *lbv1.ExternalLoadBalancer) e
 	// Delete Pool
 	if len(lb.Status.Pools) != 0 {
 		for _, pool := range lb.Status.Pools {
-			log.Info("Cleaning pool", "pool", pool.Name)
-			err := p.DeletePool(&pool)
+			b.log.Info("Cleaning pool", "pool", pool.Name)
+			err := b.Provider.DeletePool(&pool)
 			if err != nil {
 				return fmt.Errorf("error in pool cleanup %s: %v", pool.Name, err)
 			}
@@ -309,9 +319,9 @@ func HandleCleanup(log logr.Logger, p Provider, lb *lbv1.ExternalLoadBalancer) e
 	}
 
 	// Delete Monitor
-	log.Info("Cleaning Monitor", "Monitor", lb.Status.Monitor)
+	b.log.Info("Cleaning Monitor", "Monitor", lb.Status.Monitor)
 	if lb.Status.Monitor != (lbv1.Monitor{}) {
-		err := p.DeleteMonitor(&lb.Status.Monitor)
+		err := b.Provider.DeleteMonitor(&lb.Status.Monitor)
 		if err != nil {
 			return fmt.Errorf("error in Monitor cleanup %s: %v", lb.Status.Monitor.Name, err)
 		}

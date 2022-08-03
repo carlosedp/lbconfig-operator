@@ -30,12 +30,12 @@ import (
 	"strconv"
 	"strings"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
-
 	"github.com/go-logr/logr"
 	"github.com/scottdware/go-bigip"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 )
 
 // ----------------------------------------
