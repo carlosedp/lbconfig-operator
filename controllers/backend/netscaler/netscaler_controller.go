@@ -31,6 +31,8 @@ import (
 	"strings"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+
 	"github.com/chiradeep/go-nitro/config/basic"
 	"github.com/chiradeep/go-nitro/config/lb"
 	"github.com/chiradeep/go-nitro/netscaler"
@@ -53,22 +55,24 @@ type NetscalerProvider struct {
 	validatecerts bool
 }
 
+func init() {
+	backend.RegisterProvider("netscaler", new(NetscalerProvider))
+}
+
 // Create creates a new Load Balancer backend provider
-func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*NetscalerProvider, error) {
+func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend", lbBackend.Name, "provider", "netscaler")
 
 	if lbBackend.Spec.Provider.ValidateCerts == nil {
-		return nil, fmt.Errorf("validateCerts is required")
+		return fmt.Errorf("validateCerts is required")
 	}
-	var p = &NetscalerProvider{
-		log:           log,
-		host:          lbBackend.Spec.Provider.Host,
-		hostport:      lbBackend.Spec.Provider.Port,
-		validatecerts: *lbBackend.Spec.Provider.ValidateCerts,
-		username:      username,
-		password:      password,
-	}
+	p.log = log
+	p.host = lbBackend.Spec.Provider.Host
+	p.hostport = lbBackend.Spec.Provider.Port
+	p.validatecerts = *lbBackend.Spec.Provider.ValidateCerts
+	p.username = username
+	p.password = password
 
 	var params = &netscaler.NitroParams{
 		Url:       "http://" + p.host,
@@ -80,10 +84,10 @@ func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username st
 	client, err := netscaler.NewNitroClientFromParams(*params)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 	p.client = client
-	return p, nil
+	return nil
 }
 
 // Connect creates a connection to the IP Load Balancer

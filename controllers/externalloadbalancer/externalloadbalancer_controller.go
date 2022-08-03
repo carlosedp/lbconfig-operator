@@ -34,7 +34,7 @@ import (
 
 	plog "log"
 
-	"github.com/carlosedp/lbconfig-operator/controllers/backend"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -51,6 +51,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
 )
 
 // ExternalLoadBalancerReconciler reconciles a ExternalLoadBalancer object
@@ -189,6 +190,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// Create Backend Provider
 	// ----------------------------------------
 	provider, err := backend.CreateProvider(ctx, lbBackend, username, password)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// ----------------------------------------
+	// Connect to Backend Provider
+	// ----------------------------------------
+	err = provider.Connect()
 	if err != nil {
 		return ctrl.Result{}, err
 	}

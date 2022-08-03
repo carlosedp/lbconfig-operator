@@ -30,62 +30,86 @@ import (
 	"strings"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	"github.com/carlosedp/lbconfig-operator/controllers/backend/dummy"
-	"github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
-	"github.com/carlosedp/lbconfig-operator/controllers/backend/netscaler"
 	"github.com/go-logr/logr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Provider interface method signatures
 type Provider interface {
+	// Create a new backend provider
+	Create(context.Context, lbv1.LoadBalancerBackend, string, string) error
+	// Connect initializes a connection to the backend provider
 	Connect() error
+	// Close closes the connection to the backend provider
 	Close() error
 
+	// GetMonitor returns a monitor if it exists
 	GetMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
+	// CreateMonitor creates a new monitor
 	CreateMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
+	// EditMonitor updates a monitor
 	EditMonitor(*lbv1.Monitor) error
+	// DeleteMonitor deletes a monitor
 	DeleteMonitor(*lbv1.Monitor) error
 
+	//	GetPool returns a pool if it exists
 	GetPool(*lbv1.Pool) (*lbv1.Pool, error)
+	// CreatePool creates a new pool
 	CreatePool(*lbv1.Pool) (*lbv1.Pool, error)
+	// EditPool updates a pool
 	EditPool(*lbv1.Pool) error
+	// DeletePool deletes a pool
 	DeletePool(*lbv1.Pool) error
-
+	// GetPoolMembers returns a pool members if it exists
 	CreatePoolMember(*lbv1.PoolMember, *lbv1.Pool) error
+	// EditPoolMember updates a pool member
 	EditPoolMember(*lbv1.PoolMember, *lbv1.Pool, string) error
+	// DeletePoolMember deletes a pool member
 	DeletePoolMember(*lbv1.PoolMember, *lbv1.Pool) error
 
+	// GetVIP returns a virtual server if it exists
 	GetVIP(*lbv1.VIP) (*lbv1.VIP, error)
+	// CreateVIP creates a new virtual server
 	CreateVIP(*lbv1.VIP) (*lbv1.VIP, error)
+	// EditVIP updates a virtual server
 	EditVIP(*lbv1.VIP) error
+	// DeleteVIP deletes a virtual server
 	DeleteVIP(*lbv1.VIP) error
 }
 
-// CreateProvider creates a new backend provider
+var providers = make(map[string]Provider)
+
+func ListProviders() []string {
+	var p []string
+	for k := range providers {
+		p = append(p, k)
+	}
+	return p
+}
+
+func RegisterProvider(name string, provider Provider) {
+	ctx := context.Background()
+	log := ctrllog.FromContext(ctx)
+	log.WithValues("backend_controller", "RegisterProvider")
+	if _, exists := providers[name]; exists {
+		log.Error(fmt.Errorf("provider already exists"), "Provider '%s' tried to register twice", name)
+		return
+	}
+	log.Info("Registering provider", "provider", name)
+	providers[name] = provider
+}
+
 func CreateProvider(ctx context.Context, lbBackend *lbv1.LoadBalancerBackend, username string, password string) (Provider, error) {
 	log := ctrllog.FromContext(ctx)
-	// Create backend provider based on backend type
-	var provider Provider
-	var err error
-	switch strings.ToLower(lbBackend.Spec.Provider.Vendor) {
-	case "dummy":
-		provider, err = dummy.Create(ctx, *lbBackend, username, password)
-	case "f5":
-		provider, err = f5.Create(ctx, *lbBackend, username, password)
-	case "netscaler":
-		provider, err = netscaler.Create(ctx, *lbBackend, username, password)
-	default:
-		err := fmt.Errorf("Provider not implemented")
-		log.Error(err, "the configured provider is not  implemented", "provider", lbBackend.Spec.Provider.Vendor)
+	name := strings.ToLower(lbBackend.Spec.Provider.Vendor)
+	if provider, ok := providers[name]; ok {
+		if err := provider.Create(ctx, *lbBackend, username, password); err != nil {
+			return nil, err
+		}
+		log.Info("Created backend", "provider", lbBackend.Spec.Provider.Vendor)
+		return provider, nil
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	log.Info("Created backend", "provider", lbBackend.Spec.Provider.Vendor)
-	return provider, nil
+	return nil, fmt.Errorf("no such provider: %s", name)
 }
 
 // HandleMonitors manages the Monitor validation, update and creation

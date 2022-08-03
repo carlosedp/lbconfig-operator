@@ -31,6 +31,8 @@ import (
 	"strings"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+
 	"github.com/go-logr/logr"
 	"github.com/scottdware/go-bigip"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -52,29 +54,28 @@ type F5Provider struct {
 	validatecerts bool
 }
 
+func init() {
+	backend.RegisterProvider("f5", new(F5Provider))
+}
+
 // Create creates a new Load Balancer backend provider
-func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*F5Provider, error) {
+func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend", lbBackend.Name, "provider", "F5")
 
 	if lbBackend.Spec.Provider.Partition == "" || lbBackend.Spec.Provider.ValidateCerts == nil {
-		return nil, fmt.Errorf("partition or validateCerts is required")
+		return fmt.Errorf("partition or validateCerts is required")
 	}
 
-	var p = &F5Provider{
-		log:           log,
-		host:          lbBackend.Spec.Provider.Host,
-		hostport:      lbBackend.Spec.Provider.Port,
-		partition:     "/" + lbBackend.Spec.Provider.Partition + "/",
-		validatecerts: *lbBackend.Spec.Provider.ValidateCerts,
-		username:      username,
-		password:      password,
-	}
-	err := p.Connect()
-	if err != nil {
-		return nil, err
-	}
-	return p, nil
+	p.log = log
+	p.host = lbBackend.Spec.Provider.Host
+	p.hostport = lbBackend.Spec.Provider.Port
+	p.partition = "/" + lbBackend.Spec.Provider.Partition + "/"
+	p.validatecerts = *lbBackend.Spec.Provider.ValidateCerts
+	p.username = username
+	p.password = password
+
+	return nil
 }
 
 // Connect creates a connection to the IP Load Balancer
@@ -82,6 +83,18 @@ func (p *F5Provider) Connect() error {
 	host := p.host + ":" + strconv.Itoa(p.hostport)
 	p.f5 = bigip.NewSession(host, p.username, p.password, nil)
 
+	if err := p.HealthCheck(); err != nil {
+		return fmt.Errorf("could not connect to f5 host '%s': %v", host, err)
+	}
+	return nil
+}
+
+// HealthCheck checks if a connection to the Load Balancer is established
+func (p *F5Provider) HealthCheck() error {
+	_, err := p.f5.Pools()
+	if err != nil {
+		return fmt.Errorf("failed to list f5 pools: %v", err)
+	}
 	return nil
 }
 

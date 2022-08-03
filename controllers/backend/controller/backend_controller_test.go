@@ -25,43 +25,13 @@ SOFTWARE.
 package backend_test
 
 import (
-	"context"
 	"testing"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	. "github.com/carlosedp/lbconfig-operator/controllers/backend"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestBackendController(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Backend Controller Suite")
 }
-
-var _ = Describe("BackendController", func() {
-	Context("When creating a backend controller", func() {
-		It("should create a provider", func() {
-
-			var ctx = context.TODO()
-			backend := &lbv1.LoadBalancerBackend{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dummy-backend",
-					Namespace: "default",
-				},
-				Spec: lbv1.LoadBalancerBackendSpec{
-					Provider: lbv1.Provider{
-						Vendor: "dummy",
-						Host:   "1.2.3.4",
-					},
-				},
-			}
-
-			provider, err := CreateProvider(ctx, backend, "username", "password")
-
-			Expect(err).To(BeNil())
-			Expect(provider).NotTo(BeNil())
-		})
-	})
-})

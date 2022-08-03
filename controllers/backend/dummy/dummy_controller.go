@@ -31,6 +31,8 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+
 	"github.com/go-logr/logr"
 )
 
@@ -47,22 +49,26 @@ type DummyProvider struct {
 	password string
 }
 
+func init() {
+	backend.RegisterProvider("dummy", new(DummyProvider))
+}
+
 // Create creates a new Load Balancer backend provider
-func Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) (*DummyProvider, error) {
+func (p *DummyProvider) Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend", lbBackend.Name, "provider", "dummy")
-	var p = &DummyProvider{
-		log:      log,
-		host:     lbBackend.Spec.Provider.Host,
-		hostport: lbBackend.Spec.Provider.Port,
-		username: username,
-		password: password,
-	}
+
+	p.log = log
+	p.host = lbBackend.Spec.Provider.Host
+	p.hostport = lbBackend.Spec.Provider.Port
+	p.username = username
+	p.password = password
+
 	err := p.Connect()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return p, nil
+	return nil
 }
 
 // Connect creates a connection to the IP Load Balancer
