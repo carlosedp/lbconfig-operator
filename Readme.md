@@ -146,6 +146,13 @@ Operator deployment manifest bundle is created at `./manifests/deploy.yaml`.
 
 The sample manifests for LoadBalancer instances and backends are in `./config/samples` folder.
 
+## Adding new Providers
+
+* Create a package directory at `controllers/backend` with provider name
+* Create the provider code with CRUD matrix of functions implementing the `Provider` interface
+* Create the test file using Ginkgo
+* Add the new package to be loaded by the [`controllers/backend/backend_loader/backend_loader.go`](controllers/backend/backend_loader/backend_loader.go) as an `_` import
+
 ## Planned Features
 
 * Add Multiple backends (not in priority order)
@@ -161,6 +168,3 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
 * [ ] Add Metrics/Tracing/Stats
 * [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
 
-## Known issues
-
-Check Issues at <https://github.com/carlosedp/lbconfig-operator/issues>.
