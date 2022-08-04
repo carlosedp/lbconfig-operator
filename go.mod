@@ -5,10 +5,15 @@ go 1.18
 replace github.com/haproxytech/models => github.com/haproxytech/models/v2 v2.2.0
 
 require (
-	github.com/chiradeep/go-nitro v0.0.0-20210718233043-c3c38b448c27
+	github.com/citrix/adc-nitro-go v0.0.0-20220729103504-dcff5ad76fcd
+	github.com/form3tech-oss/haproxy-data-plane-api-client v0.3.1-0.20220531121427-4df09edbaf45
 	github.com/go-logr/logr v1.2.0
+	github.com/go-openapi/runtime v0.24.1
+	github.com/go-openapi/strfmt v0.21.2
+	github.com/gorilla/mux v1.8.0
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/scottdware/go-bigip v0.0.0-20220517145708-9fe3e2f9f005
 	k8s.io/api v0.24.0
 	k8s.io/apimachinery v0.24.0
@@ -33,7 +38,6 @@ require (
 	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/form3tech-oss/haproxy-data-plane-api-client v0.3.1-0.20220531121427-4df09edbaf45 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/zapr v1.2.0 // indirect
@@ -42,9 +46,7 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.6 // indirect
 	github.com/go-openapi/loads v0.21.1 // indirect
-	github.com/go-openapi/runtime v0.24.1 // indirect
 	github.com/go-openapi/spec v0.20.4 // indirect
-	github.com/go-openapi/strfmt v0.21.2 // indirect
 	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/go-openapi/validate v0.21.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
@@ -55,7 +57,6 @@ require (
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/haproxytech/models v2.1.0+incompatible // indirect
 	github.com/hashicorp/go-hclog v0.16.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -73,7 +74,6 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect

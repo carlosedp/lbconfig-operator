@@ -30,9 +30,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chiradeep/go-nitro/config/basic"
-	"github.com/chiradeep/go-nitro/config/lb"
-	"github.com/chiradeep/go-nitro/netscaler"
+	"github.com/citrix/adc-nitro-go/resource/config/basic"
+	"github.com/citrix/adc-nitro-go/resource/config/lb"
+	"github.com/citrix/adc-nitro-go/service"
+
 	"github.com/go-logr/logr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -47,7 +48,7 @@ import (
 // NetscalerProvider is the object for the Citrix Netscaler NetscalerProvider implementing the NetscalerProvider interface
 type NetscalerProvider struct {
 	log           logr.Logger
-	client        *netscaler.NitroClient
+	client        *service.NitroClient
 	host          string
 	hostport      int
 	username      string
@@ -74,14 +75,14 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.LoadBalan
 	p.username = username
 	p.password = password
 
-	var params = &netscaler.NitroParams{
+	var params = &service.NitroParams{
 		Url:       "http://" + p.host + ":" + strconv.Itoa(p.hostport),
 		Username:  p.username,
 		Password:  p.password,
 		SslVerify: p.validatecerts,
 	}
 
-	client, err := netscaler.NewNitroClientFromParams(*params)
+	client, err := service.NewNitroClientFromParams(*params)
 
 	if err != nil {
 		return err
@@ -106,7 +107,7 @@ func (p *NetscalerProvider) Close() error {
 
 // GetMonitor gets a monitor in the IP Load Balancer
 func (p *NetscalerProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
-	m, _ := p.client.FindResource(netscaler.Lbmonitor.Type(), monitor.Name)
+	m, _ := p.client.FindResource(service.Lbmonitor.Type(), monitor.Name)
 
 	// Return in case monitor does not exist
 	if len(m) == 0 {
@@ -139,7 +140,6 @@ func (p *NetscalerProvider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error
 		Interval:    5,
 		Downtime:    16,
 		Httprequest: "GET " + m.Path,
-		Respcode:    "",
 	}
 
 	if m.Port != 0 {
@@ -151,7 +151,7 @@ func (p *NetscalerProvider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error
 		lbMonitor.Sslprofile = "ns_default_ssl_profile_backend"
 	}
 
-	name, err := p.client.AddResource(netscaler.Lbmonitor.Type(), m.Name, &lbMonitor)
+	name, err := p.client.AddResource(service.Lbmonitor.Type(), m.Name, &lbMonitor)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Netscaler monitor %s: %v", name, err)
 	}
@@ -168,7 +168,6 @@ func (p *NetscalerProvider) EditMonitor(m *lbv1.Monitor) error {
 		Interval:    5,
 		Downtime:    16,
 		Httprequest: "GET " + m.Path,
-		Respcode:    "",
 	}
 
 	if m.Port != 0 {
@@ -180,7 +179,7 @@ func (p *NetscalerProvider) EditMonitor(m *lbv1.Monitor) error {
 		lbMonitor.Sslprofile = "ns_default_ssl_profile_backend"
 	}
 
-	name, err := p.client.AddResource(netscaler.Lbmonitor.Type(), m.Name, &lbMonitor)
+	name, err := p.client.AddResource(service.Lbmonitor.Type(), m.Name, &lbMonitor)
 	if err != nil {
 		return fmt.Errorf("error creating Netscaler monitor %s: %v", name, err)
 	}
@@ -189,7 +188,7 @@ func (p *NetscalerProvider) EditMonitor(m *lbv1.Monitor) error {
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
 func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
-	// err := p.client.DeleteResource(netscaler.Lbmonitor.Type(), m.Name)
+	// err := p.client.DeleteResource(service.Lbmonitor.Type(), m.Name)
 
 	var t string
 	if m.MonitorType == "https" {
@@ -201,7 +200,7 @@ func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
 		"monitorname:" + m.Name,
 		"type:" + t,
 	}
-	err := p.client.DeleteResourceWithArgs(netscaler.Lbmonitor.Type(), m.Name, args)
+	err := p.client.DeleteResourceWithArgs(service.Lbmonitor.Type(), m.Name, args)
 
 	if err != nil {
 		return fmt.Errorf("error deleting Netscaler monitor %s: %v", m.Name, err)
@@ -215,7 +214,7 @@ func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
 
 // GetPool gets a server pool from the Load Balancer
 func (p *NetscalerProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
-	m, _ := p.client.FindResource(netscaler.Servicegroup.Type(), pool.Name)
+	m, _ := p.client.FindResource(service.Servicegroup.Type(), pool.Name)
 
 	// Return in case pool does not exist
 	if len(m) == 0 {
@@ -228,7 +227,7 @@ func (p *NetscalerProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	// Get pool members
 	var members []lbv1.PoolMember
-	poolBinding, _ := p.client.FindResource(netscaler.Servicegroup_binding.Type(), pool.Name)
+	poolBinding, _ := p.client.FindResource(service.Servicegroup_binding.Type(), pool.Name)
 
 	poolMembers := poolBinding["servicegroup_servicegroupmember_binding"]
 
@@ -277,7 +276,7 @@ func (p *NetscalerProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		Servicegroupname: pool.Name,
 		Servicetype:      "TCP",
 	}
-	_, err := p.client.AddResource(netscaler.Servicegroup.Type(), pool.Name, nsSvcGrp)
+	_, err := p.client.AddResource(service.Servicegroup.Type(), pool.Name, nsSvcGrp)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pool %s: %v", pool.Name, err)
 	}
@@ -287,7 +286,7 @@ func (p *NetscalerProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		Monitorname:      pool.Monitor,
 	}
 	// Add monitor to Pool
-	err = p.client.BindResource(netscaler.Servicegroup.Type(), pool.Name, netscaler.Lbmonitor.Type(), pool.Monitor, monitorBinding)
+	err = p.client.BindResource(service.Servicegroup.Type(), pool.Name, service.Lbmonitor.Type(), pool.Monitor, monitorBinding)
 	if err != nil {
 		return nil, fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
 	}
@@ -300,7 +299,7 @@ func (p *NetscalerProvider) EditPool(pool *lbv1.Pool) error {
 		Servicegroupname: pool.Name,
 		Servicetype:      "TCP",
 	}
-	_, err := p.client.AddResource(netscaler.Servicegroup.Type(), pool.Name, nsSvcGrp)
+	_, err := p.client.AddResource(service.Servicegroup.Type(), pool.Name, nsSvcGrp)
 	if err != nil {
 		return fmt.Errorf("error editing pool %s: %v", pool.Name, err)
 	}
@@ -310,7 +309,7 @@ func (p *NetscalerProvider) EditPool(pool *lbv1.Pool) error {
 		Monitorname:      pool.Monitor,
 	}
 	// Add monitor to Pool
-	err = p.client.BindResource(netscaler.Servicegroup.Type(), pool.Name, netscaler.Lbmonitor.Type(), pool.Monitor, monitorBinding)
+	err = p.client.BindResource(service.Servicegroup.Type(), pool.Name, service.Lbmonitor.Type(), pool.Monitor, monitorBinding)
 	if err != nil {
 		return fmt.Errorf("error editing pool %s, adding monitor %s: %v", pool.Name, pool.Monitor, err)
 	}
@@ -319,7 +318,7 @@ func (p *NetscalerProvider) EditPool(pool *lbv1.Pool) error {
 
 // DeletePool removes a server pool in the Load Balancer
 func (p *NetscalerProvider) DeletePool(pool *lbv1.Pool) error {
-	err := p.client.DeleteResource(netscaler.Servicegroup.Type(), pool.Name)
+	err := p.client.DeleteResource(service.Servicegroup.Type(), pool.Name)
 	if err != nil {
 		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
 	}
@@ -339,7 +338,7 @@ func (p *NetscalerProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 		Name:      m.Node.Host,
 		Ipaddress: m.Node.Host,
 	}
-	_, err := p.client.AddResource(netscaler.Server.Type(), m.Node.Host, &nsServer)
+	_, err := p.client.AddResource(service.Server.Type(), m.Node.Host, &nsServer)
 	if err != nil {
 		return fmt.Errorf("error creating node %s: %v", m.Node.Host, err)
 	}
@@ -350,7 +349,7 @@ func (p *NetscalerProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 		Servername:       m.Node.Host,
 		Port:             m.Port,
 	}
-	_, err = p.client.AddResource(netscaler.Servicegroup_servicegroupmember_binding.Type(), pool.Name, &binding)
+	_, err = p.client.AddResource(service.Servicegroup_servicegroupmember_binding.Type(), pool.Name, &binding)
 
 	if err != nil {
 		return fmt.Errorf("error adding member %s to pool %s: %v", m.Node.Host, pool.Name, err)
@@ -377,7 +376,7 @@ func (p *NetscalerProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 		"port:" + strconv.Itoa(m.Port),
 	}
 
-	err := p.client.DeleteResourceWithArgs(netscaler.Servicegroup_servicegroupmember_binding.Type(), pool.Name, args)
+	err := p.client.DeleteResourceWithArgs(service.Servicegroup_servicegroupmember_binding.Type(), pool.Name, args)
 
 	if err != nil {
 		return fmt.Errorf("error deleting member %s from pool %s: %v", m.Node.Host, pool.Name, err)
@@ -387,7 +386,7 @@ func (p *NetscalerProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 	// Cannot delete server since it could also be used on another
 	// LoadBalancer instance Pool. Get's removed from ServiceGroup once deleted
 
-	// err = p.client.DeleteResource(netscaler.Server.Type(), m.Node.Host)
+	// err = p.client.DeleteResource(service.Server.Type(), m.Node.Host)
 
 	// if err != nil {
 	// 	return fmt.Errorf("error deleting node %s: %v", m.Node.Host, err)
@@ -402,7 +401,7 @@ func (p *NetscalerProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 
 // GetVIP gets a VIP in the IP Load Balancer
 func (p *NetscalerProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
-	vs, _ := p.client.FindResource(netscaler.Lbvserver.Type(), v.Name)
+	vs, _ := p.client.FindResource(service.Lbvserver.Type(), v.Name)
 
 	// Return in case VIP does not exist
 	if len(vs) == 0 {
@@ -417,7 +416,7 @@ func (p *NetscalerProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 		Port: int(vs["port"].(float64)),
 		Pool: v.Pool,
 	}
-	poolBinding, err := p.client.FindResource(netscaler.Lbvserver_servicegroup_binding.Type(), v.Name)
+	poolBinding, err := p.client.FindResource(service.Lbvserver_servicegroup_binding.Type(), v.Name)
 
 	if err != nil && len(poolBinding) != 0 {
 		poolName := poolBinding["servicegroupname"].(string)
@@ -437,7 +436,7 @@ func (p *NetscalerProvider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 		Lbmethod:    "ROUNDROBIN",
 		// Lbmethod        : "LEASTCONNECTION",
 	}
-	_, err := p.client.AddResource(netscaler.Lbvserver.Type(), v.Name, &nsLB)
+	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating VIP %s, %+v: %v", v.Name, nsLB, err)
@@ -448,7 +447,7 @@ func (p *NetscalerProvider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 		Name:             v.Name,
 		//Weight				: weight,
 	}
-	err = p.client.BindResource(netscaler.Lbvserver.Type(), v.Name, netscaler.Servicegroup.Type(), v.Pool, &binding)
+	err = p.client.BindResource(service.Lbvserver.Type(), v.Name, service.Servicegroup.Type(), v.Pool, &binding)
 	if err != nil {
 		return nil, fmt.Errorf("error binding ServiceGroup %s to VIP %s, %+v: %v", v.Pool, v.Name, nsLB, err)
 	}
@@ -467,7 +466,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 		Lbmethod:    "ROUNDROBIN",
 		// Lbmethod        : "LEASTCONNECTION",
 	}
-	_, err := p.client.AddResource(netscaler.Lbvserver.Type(), v.Name, &nsLB)
+	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)
 
 	if err != nil {
 		return fmt.Errorf("error creating VIP %s, %+v: %v", v.Name, nsLB, err)
@@ -478,7 +477,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 		Name:             v.Name,
 		//Weight				: weight,
 	}
-	err = p.client.BindResource(netscaler.Lbvserver.Type(), v.Name, netscaler.Servicegroup.Type(), v.Pool, &binding)
+	err = p.client.BindResource(service.Lbvserver.Type(), v.Name, service.Servicegroup.Type(), v.Pool, &binding)
 	if err != nil {
 		return fmt.Errorf("error binding ServiceGroup %s to VIP %s, %+v: %v", v.Pool, v.Name, nsLB, err)
 	}
@@ -488,7 +487,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 
 // DeleteVIP deletes a Virtual Server in the Load Balancer
 func (p *NetscalerProvider) DeleteVIP(v *lbv1.VIP) error {
-	err := p.client.DeleteResource(netscaler.Lbvserver.Type(), v.Name)
+	err := p.client.DeleteResource(service.Lbvserver.Type(), v.Name)
 	if err != nil {
 		return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
 	}
