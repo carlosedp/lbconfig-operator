@@ -31,10 +31,12 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	plog "log"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -67,6 +70,29 @@ var LoadBalancerIPType corev1.NodeAddressType = "ExternalIP"
 // ExternalLoadBalancerFinalizer is the finalizer object
 const ExternalLoadBalancerFinalizer = "lb.lbconfig.carlosedp.com/finalizer"
 
+// Definition of Prometheus metrics
+var (
+	metric_backends = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "backends_total",
+			Help: "Number of backends configured",
+		},
+	)
+	metric_externallb = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "externallb_total",
+			Help: "Number of external load balancers configured",
+		},
+	)
+	metric_externallb_nodes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "externallb_nodes",
+			Help: "Number of nodes for the load balancer instance",
+		},
+		[]string{"name", "namespace", "type", "ip", "port"},
+	)
+)
+
 func init() {
 	// Disable backend logs using log module
 	if _, present := os.LookupEnv("BACKEND_LOGS"); !present {
@@ -77,6 +103,8 @@ func init() {
 	if _, KIND := os.LookupEnv("KIND"); KIND {
 		LoadBalancerIPType = "InternalIP"
 	}
+	// Register custom metrics with the global prometheus registry
+	metrics.Registry.MustRegister(metric_backends, metric_externallb, metric_externallb_nodes)
 }
 
 // +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
@@ -107,6 +135,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Error(err, "Failed to get ExternalLoadBalancer")
 		return ctrl.Result{}, err
 	}
+	metric_externallb.Inc()
 
 	// ----------------------------------------
 	// Get Load Balancer backend
@@ -121,6 +150,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 	log.Info("Found backend", "backend", lbBackend.Name)
+	metric_backends.Inc()
 
 	// Get backend secret
 	credsSecret := &corev1.Secret{}
@@ -171,6 +201,9 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			}
 		}
 	}
+	// Set metric to the number of nodes found
+	ports := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lb.Spec.Ports)), ","), "[]")
+	metric_externallb_nodes.WithLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports).Set(float64(len(nodes)))
 
 	// ----------------------------------------
 	// Create Backend Provider
@@ -368,6 +401,10 @@ func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Log
 		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
 		return err
 	}
+	metric_backends.Dec()
+	metric_externallb.Dec()
+	ports := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lb.Spec.Ports)), ","), "[]")
+	metric_externallb_nodes.WithLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports).Set(0)
 	reqLogger.Info("Successfully finalized ExternalLoadBalancer")
 	return nil
 }

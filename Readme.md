@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/carlosedp/lbconfig-operator/branch/main/graph/badge.svg?token=YQG8GDWOKC)](https://codecov.io/gh/carlosedp/lbconfig-operator)
 [![Go](https://github.com/carlosedp/lbconfig-operator/actions/workflows/go.yml/badge.svg)](https://github.com/carlosedp/lbconfig-operator/actions/workflows/go.yml)
 [![Bundle](https://github.com/carlosedp/lbconfig-operator/actions/workflows/check-bundle.yml/badge.svg)](https://github.com/carlosedp/lbconfig-operator/actions/workflows/check-bundle.yml)
-
+[![Go Report Card](https://goreportcard.com/badge/github.com/carlosedp/lbconfig-operator)](https://goreportcard.com/report/github.com/carlosedp/lbconfig-operator)
 
 **This is still a work-in-progress project.**
 
@@ -134,7 +134,12 @@ There are multiple `make` targets available to ease development.
 3. Deploy the operator manifests to the cluster: `make deploy`
 4. Create CRs in cluster (secret, backend and LB)
 
-To run the operator locally without deploying it to the cluster (using configurations use the defined in the `$HOME/.kube/config`), do not use `make deploy`, instead use `make run`. Create CRs (secret, backend, LB) as normal.
+To run the operator in your dev machine without deploying it to the cluster (using configurations use the defined in the `$HOME/.kube/config`), do not use `make deploy`, instead do:
+
+1. Run `make install` to create the CRDs as above;
+2. Create the operator namespace with `kubectl create namespace lbconfig-operator-system`;
+3. Create CRs (secret, backend, LB) as normal in the same namespace.
+4. Use `make run` to run the operator locally;
 
 To remove the manifests to the cluster: `make undeploy`
 

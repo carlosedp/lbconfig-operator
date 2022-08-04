@@ -307,6 +307,19 @@ func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
 			}
 		}
 	}
+	// Delete pool members
+	if len(lb.Status.Pools) != 0 {
+		for _, p := range lb.Status.Pools {
+			for _, m := range p.Members {
+				b.log.Info("Cleaning pool member", "pool", p.Name, "node", p.Name, "ip", m.Node.Host)
+				err := b.Provider.DeletePoolMember(&m, &p)
+				if err != nil {
+					b.log.Info("Could not delete pool member", "host", m.Node.Host, "pool", p.Name, "error", err)
+				}
+			}
+		}
+	}
+
 	// Delete Pool
 	if len(lb.Status.Pools) != 0 {
 		for _, pool := range lb.Status.Pools {

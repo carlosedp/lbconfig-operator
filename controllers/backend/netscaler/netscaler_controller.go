@@ -75,7 +75,7 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.LoadBalan
 	p.password = password
 
 	var params = &netscaler.NitroParams{
-		Url:       "http://" + p.host,
+		Url:       "http://" + p.host + ":" + strconv.Itoa(p.hostport),
 		Username:  p.username,
 		Password:  p.password,
 		SslVerify: p.validatecerts,
@@ -386,11 +386,13 @@ func (p *NetscalerProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 	// Delete Server
 	// Cannot delete server since it could also be used on another
 	// LoadBalancer instance Pool. Get's removed from ServiceGroup once deleted
-	// err = p.client.DeleteResource(netscaler.Server.Type(), svcName)
+
+	// err = p.client.DeleteResource(netscaler.Server.Type(), m.Node.Host)
 
 	// if err != nil {
 	// 	return fmt.Errorf("error deleting node %s: %v", m.Node.Host, err)
 	// }
+
 	return nil
 }
 
