@@ -72,12 +72,6 @@ const ExternalLoadBalancerFinalizer = "lb.lbconfig.carlosedp.com/finalizer"
 
 // Definition of Prometheus metrics
 var (
-	metric_backends = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "backends_total",
-			Help: "Number of backends configured",
-		},
-	)
 	metric_externallb = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "externallb_total",
@@ -89,7 +83,7 @@ var (
 			Name: "externallb_nodes",
 			Help: "Number of nodes for the load balancer instance",
 		},
-		[]string{"name", "namespace", "type", "ip", "port"},
+		[]string{"name", "namespace", "type", "vip", "port", "backend_vendor"},
 	)
 )
 
@@ -104,7 +98,7 @@ func init() {
 		LoadBalancerIPType = "InternalIP"
 	}
 	// Register custom metrics with the global prometheus registry
-	metrics.Registry.MustRegister(metric_backends, metric_externallb, metric_externallb_nodes)
+	metrics.Registry.MustRegister(metric_externallb, metric_externallb_nodes)
 }
 
 // +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
@@ -116,11 +110,22 @@ func init() {
 // Reconcile our ExternalLoadBalancer object
 func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+
+	// ----------------------------------------
+	// Get the LoadBalancer instance list to update metrics
+	// ----------------------------------------
+	lb_list := &lbv1.ExternalLoadBalancerList{}
+	err := r.List(ctx, lb_list)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to list ExternalLoadBalancers: %v", err)
+	}
+	metric_externallb.Set(float64(len(lb_list.Items)))
+
 	// ----------------------------------------
 	// Get the LoadBalancer instance
 	// ----------------------------------------
 	lb := &lbv1.ExternalLoadBalancer{}
-	err := r.Get(ctx, req.NamespacedName, lb)
+	err = r.Get(ctx, req.NamespacedName, lb)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -133,13 +138,11 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Error(err, "Failed to get ExternalLoadBalancer")
 		return ctrl.Result{}, err
 	}
-	metric_externallb.Inc()
 
 	// ----------------------------------------
 	// Set the Load Balancer backend
 	// ----------------------------------------
 	lbBackend := lb.Spec.Provider
-	metric_backends.Inc()
 
 	// Get backend secret
 	credsSecret := &corev1.Secret{}
@@ -192,7 +195,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	// Set metric to the number of nodes found
 	ports := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lb.Spec.Ports)), ","), "[]")
-	metric_externallb_nodes.WithLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports).Set(float64(len(nodes)))
+	metric_externallb_nodes.WithLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports, lb.Spec.Provider.Vendor).Set(float64(len(nodes)))
 
 	// ----------------------------------------
 	// Create Backend Provider
@@ -391,10 +394,10 @@ func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(reqLogger logr.Log
 		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
 		return err
 	}
-	metric_backends.Dec()
-	metric_externallb.Dec()
+
+	// Delete metrics since the load balancer is gone
 	ports := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lb.Spec.Ports)), ","), "[]")
-	metric_externallb_nodes.WithLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports).Set(0)
+	metric_externallb_nodes.DeleteLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports, lb.Spec.Provider.Vendor)
 	reqLogger.Info("Successfully finalized ExternalLoadBalancer")
 	return nil
 }
