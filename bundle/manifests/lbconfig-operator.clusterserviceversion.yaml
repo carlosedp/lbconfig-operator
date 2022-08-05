@@ -22,8 +22,41 @@ metadata:
               80,
               443
             ],
+            "provider": {
+              "creds": "f5-creds",
+              "host": "192.168.1.35",
+              "partition": "Common",
+              "port": 443,
+              "validatecerts": false,
+              "vendor": "F5"
+            },
             "type": "infra",
             "vip": "192.168.1.45"
+          }
+        },
+        {
+          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
+          "kind": "ExternalLoadBalancer",
+          "metadata": {
+            "name": "externalloadbalancer-infra-sample-shard",
+            "namespace": "lbconfig-operator-system"
+          },
+          "spec": {
+            "backend": "backend-f5-sample",
+            "monitor": {
+              "monitortype": "http",
+              "path": "/healthz",
+              "port": 1936
+            },
+            "nodelabels": {
+              "node.kubernetes.io/region": "production"
+            },
+            "ports": [
+              80,
+              443
+            ],
+            "type": "infra",
+            "vip": "192.168.1.46"
           }
         },
         {
@@ -34,7 +67,7 @@ metadata:
             "namespace": "lbconfig-operator-system"
           },
           "spec": {
-            "backend": "backend-f5-sample",
+            "backend": "backend-netscaler-sample",
             "monitor": {
               "monitortype": "https",
               "path": "/healthz",
@@ -43,43 +76,15 @@ metadata:
             "ports": [
               6443
             ],
-            "type": "master",
-            "vip": "192.168.1.40"
-          }
-        },
-        {
-          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
-          "kind": "LoadBalancerBackend",
-          "metadata": {
-            "name": "backend-f5-sample",
-            "namespace": "lbconfig-operator-system"
-          },
-          "spec": {
-            "provider": {
-              "creds": "f5-creds",
-              "host": "192.168.1.35",
-              "partition": "Common",
-              "port": 443,
-              "validatecerts": false,
-              "vendor": "F5"
-            }
-          }
-        },
-        {
-          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
-          "kind": "LoadBalancerBackend",
-          "metadata": {
-            "name": "backend-netscaler-sample",
-            "namespace": "lbconfig-operator-system"
-          },
-          "spec": {
             "provider": {
               "creds": "netscaler-creds",
               "host": "192.168.1.36",
               "port": 443,
               "validatecerts": false,
               "vendor": "netscaler"
-            }
+            },
+            "type": "master",
+            "vip": "192.168.1.40"
           }
         }
       ]
@@ -97,12 +102,6 @@ spec:
       displayName: External Load Balancer
       kind: ExternalLoadBalancer
       name: externalloadbalancers.lb.lbconfig.carlosedp.com
-      version: v1
-    - description: LoadBalancerBackend is the Schema for the loadbalancerbackends
-        API
-      displayName: Load Balancer Backend
-      kind: LoadBalancerBackend
-      name: loadbalancerbackends.lb.lbconfig.carlosedp.com
       version: v1
   description: This operator manages external Load Balancer instances and creates
     VIPs and IP Pools with Monitors for the Master and Infra nodes based on it's roles
@@ -158,27 +157,6 @@ spec:
           - externalloadbalancers/status
           verbs:
           - get
-          - patch
-          - update
-        - apiGroups:
-          - lb.lbconfig.carlosedp.com
-          resources:
-          - loadbalancerbackends
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - lb.lbconfig.carlosedp.com
-          resources:
-          - loadbalancerbackends/status
-          verbs:
-          - get
-          - list
           - patch
           - update
         - apiGroups:

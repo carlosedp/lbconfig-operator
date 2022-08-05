@@ -31,6 +31,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
@@ -48,17 +49,39 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 	Context("When using a f5 backend", func() {
 		var ctx = context.TODO()
 		var falseVar bool = false
-		backend := &lbv1.LoadBalancerBackend{
+
+		// Create the backend Secret
+		credsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "username",
+				Namespace: "password",
+			},
+			Data: map[string][]byte{
+				"username": []byte("testuser"),
+				"password": []byte("testpassword"),
+			},
+		}
+
+		// Create the ExternalLoadBalancer CRD
+		loadBalancer := &lbv1.ExternalLoadBalancer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "f5-backend",
 				Namespace: "default",
 			},
-			Spec: lbv1.LoadBalancerBackendSpec{
+			Spec: lbv1.ExternalLoadBalancerSpec{
+				Vip:   "10.0.0.1",
+				Type:  "master",
+				Ports: []int{443},
+				Monitor: lbv1.Monitor{
+					Path:        "/",
+					Port:        80,
+					MonitorType: "http",
+				},
 				Provider: lbv1.Provider{
 					Vendor:        "f5",
 					Host:          "1.2.3.4",
 					Port:          443,
-					Creds:         "creds-secret",
+					Creds:         credsSecret.Name,
 					Partition:     "Common",
 					ValidateCerts: &falseVar,
 				},
@@ -66,7 +89,7 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 		}
 
 		It("Should create the backend", func() {
-			createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(ListProviders()).To(ContainElement("f5"))
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())

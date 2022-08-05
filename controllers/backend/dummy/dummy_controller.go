@@ -53,13 +53,13 @@ func init() {
 }
 
 // Create creates a new Load Balancer backend provider
-func (p *DummyProvider) Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) error {
+func (p *DummyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("backend", lbBackend.Name, "provider", "dummy")
+	log.WithValues("provider", "dummy")
 
 	p.log = log
-	p.host = lbBackend.Spec.Provider.Host
-	p.hostport = lbBackend.Spec.Provider.Port
+	p.host = lbBackend.Host
+	p.hostport = lbBackend.Port
 	p.username = username
 	p.password = password
 

@@ -38,28 +38,15 @@ kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/master/manif
 
 ### Create ExternalLoadBalancer instances
 
-First create a Load Balancer backend:
+Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes):
 
-```yaml
-apiVersion: lb.lbconfig.io/v1
-kind: LoadBalancerBackend
-metadata:
-  name: backend-f5-sample
-  namespace: lbconfig-operator-system
-spec:
-  provider:
-    vendor: F5
-    host: "192.168.1.35"
-    port: 443
-    creds: f5-creds
-    partition: "Common"
-    validatecerts: no
-```
+The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected only by the `nodelabels` labels.
 
 The provider `vendor` field can be:
 
 * F5
 * netscaler
+* dummy
 
 And the secret holding the Load Balancer API user and password:
 
@@ -67,9 +54,6 @@ And the secret holding the Load Balancer API user and password:
 oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig-operator-system
 ```
 
-Then create the instances for each Load Balancer you need (for example one for Master Nodes and another for the Infra Nodes):
-
-The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected only by the `nodelabels` labels.
 
 Master Nodes:
 
@@ -82,7 +66,13 @@ metadata:
 spec:
   vip: "192.168.1.40"
   type: "master"
-  backend: "backend-f5-sample"
+  provider:
+    vendor: F5
+    host: "192.168.1.35"
+    port: 443
+    creds: f5-creds
+    partition: "Common"
+    validatecerts: no
   ports:
     - 6443
   monitor:
@@ -102,7 +92,13 @@ metadata:
 spec:
   vip: "10.0.0.6"
   type: "infra"
-  backend: "backend-f5-sample"
+  provider:
+    vendor: F5
+    host: "192.168.1.35"
+    port: 443
+    creds: f5-creds
+    partition: "Common"
+    validatecerts: no
   ports:
     - 80
     - 443
@@ -111,13 +107,14 @@ spec:
     port: 1936
 ```
 
-Infra Nodes with sharded routers are also supported. Create the YAML adding the `nodelabels` field with your node labels.
+Nodes with sharded routers or arbitrary labels are also supported. Create the YAML adding the `nodelabels` field with your node labels.
 
 ```yaml
 spec:
-  ...
+  vip: "10.0.0.6"
   nodelabels:
     "node.kubernetes.io/region": "production"
+  ...
 ```
 
 ## Developing and Building

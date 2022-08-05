@@ -16,12 +16,6 @@ spec:
       kind: ExternalLoadBalancer
       name: externalloadbalancers.lb.lbconfig.carlosedp.com
       version: v1
-    - description: LoadBalancerBackend is the Schema for the loadbalancerbackends
-        API
-      displayName: Load Balancer Backend
-      kind: LoadBalancerBackend
-      name: loadbalancerbackends.lb.lbconfig.carlosedp.com
-      version: v1
   description: This operator manages external Load Balancer instances and creates
     VIPs and IP Pools with Monitors for the Master and Infra nodes based on it's roles
     and/or labels.
