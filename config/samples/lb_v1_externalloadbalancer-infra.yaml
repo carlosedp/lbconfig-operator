@@ -6,7 +6,6 @@ metadata:
 spec:
   vip: "192.168.1.45"
   type: "infra"
-  backend: "backend-f5-sample"
   ports:
     - 80
     - 443
@@ -14,3 +13,10 @@ spec:
     path: "/healthz"
     port: 1936
     monitortype: http
+  provider:
+    vendor: F5
+    host: "192.168.1.35"
+    port: 443
+    creds: f5-creds
+    partition: "Common"
+    validatecerts: no

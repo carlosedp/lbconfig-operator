@@ -59,19 +59,19 @@ func init() {
 }
 
 // Create creates a new Load Balancer backend provider
-func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) error {
+func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("backend", lbBackend.Name, "provider", "F5")
+	log.WithValues("provider", "F5")
 
-	if lbBackend.Spec.Provider.Partition == "" || lbBackend.Spec.Provider.ValidateCerts == nil {
+	if lbBackend.Partition == "" || lbBackend.ValidateCerts == nil {
 		return fmt.Errorf("partition or validateCerts is required")
 	}
 
 	p.log = log
-	p.host = lbBackend.Spec.Provider.Host
-	p.hostport = lbBackend.Spec.Provider.Port
-	p.partition = "/" + lbBackend.Spec.Provider.Partition + "/"
-	p.validatecerts = *lbBackend.Spec.Provider.ValidateCerts
+	p.host = lbBackend.Host
+	p.hostport = lbBackend.Port
+	p.partition = "/" + lbBackend.Partition + "/"
+	p.validatecerts = *lbBackend.ValidateCerts
 	p.username = username
 	p.password = password
 

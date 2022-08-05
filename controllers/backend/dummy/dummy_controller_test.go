@@ -31,6 +31,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
@@ -47,23 +48,43 @@ var _ = Describe("Controllers/Backend/dummy/dummy_controller", func() {
 
 	Context("When using a dummy backend", func() {
 		var ctx = context.TODO()
-		backend := &lbv1.LoadBalancerBackend{
+		// Create the backend Secret
+		credsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "username",
+				Namespace: "password",
+			},
+			Data: map[string][]byte{
+				"username": []byte("testuser"),
+				"password": []byte("testpassword"),
+			},
+		}
+		// Create the ExternalLoadBalancer CRD
+		loadBalancer := &lbv1.ExternalLoadBalancer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "dummy-backend",
 				Namespace: "default",
 			},
-			Spec: lbv1.LoadBalancerBackendSpec{
+			Spec: lbv1.ExternalLoadBalancerSpec{
+				Vip:   "10.0.0.1",
+				Type:  "master",
+				Ports: []int{443},
+				Monitor: lbv1.Monitor{
+					Path:        "/",
+					Port:        80,
+					MonitorType: "http",
+				},
 				Provider: lbv1.Provider{
 					Vendor: "dummy",
 					Host:   "1.2.3.4",
 					Port:   443,
-					Creds:  "creds-secret",
+					Creds:  credsSecret.Name,
 				},
 			},
 		}
 
 		It("Should create the backend", func() {
-			createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
 			Expect(ListProviders()).To(ContainElement("dummy"))

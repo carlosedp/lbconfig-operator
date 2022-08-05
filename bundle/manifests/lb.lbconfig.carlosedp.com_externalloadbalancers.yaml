@@ -35,9 +35,6 @@ spec:
           spec:
             description: ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
             properties:
-              backend:
-                description: Backend is the LoadBalancer used
-                type: string
               monitor:
                 description: Monitor is the path and port to monitor the LoadBalancer
                   members
@@ -69,10 +66,41 @@ spec:
                   or exposed service. Optional.
                 type: object
               ports:
-                description: Ports are the list of ports used for this Vip
+                description: Backend is the LoadBalancer used
                 items:
                   type: integer
                 type: array
+              provider:
+                description: Provider is the LoadBalancer backend provider (F5, Netscaler,
+                  etc)
+                properties:
+                  creds:
+                    description: Creds credentials secret holding the username and
+                      password keys.
+                    type: string
+                  host:
+                    description: Host is the Load Balancer API IP or Hostname.
+                    type: string
+                  partition:
+                    description: Partition is the F5 partition to create the Load
+                      Balancer instances.
+                    type: string
+                  port:
+                    description: Port is the Load Balancer API Port.
+                    type: integer
+                  validatecerts:
+                    description: ValidateCerts is a flag to validate or not the Load
+                      Balancer API certificate. Defaults to false.
+                    type: boolean
+                  vendor:
+                    description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
+                    type: string
+                required:
+                - creds
+                - host
+                - port
+                - vendor
+                type: object
               type:
                 description: Type is the node role type (master or infra) for the
                   LoadBalancer instance
@@ -82,9 +110,9 @@ spec:
                   instance
                 type: string
             required:
-            - backend
             - monitor
             - ports
+            - provider
             - vip
             type: object
           status:
@@ -183,6 +211,36 @@ spec:
                 items:
                   type: integer
                 type: array
+              provider:
+                description: Provider is a backend provider for F5 Big IP Load Balancers
+                properties:
+                  creds:
+                    description: Creds credentials secret holding the username and
+                      password keys.
+                    type: string
+                  host:
+                    description: Host is the Load Balancer API IP or Hostname.
+                    type: string
+                  partition:
+                    description: Partition is the F5 partition to create the Load
+                      Balancer instances.
+                    type: string
+                  port:
+                    description: Port is the Load Balancer API Port.
+                    type: integer
+                  validatecerts:
+                    description: ValidateCerts is a flag to validate or not the Load
+                      Balancer API certificate. Defaults to false.
+                    type: boolean
+                  vendor:
+                    description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
+                    type: string
+                required:
+                - creds
+                - host
+                - port
+                - vendor
+                type: object
               vips:
                 items:
                   description: VIP defines VIP instance in the LoadBalancer with a

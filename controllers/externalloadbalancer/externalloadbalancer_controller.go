@@ -109,8 +109,6 @@ func init() {
 
 // +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=externalloadbalancers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=externalloadbalancers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=loadbalancerbackends,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=lb.lbconfig.carlosedp.com,resources=loadbalancerbackends/status,verbs=get;list;update;patch
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
@@ -138,23 +136,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	metric_externallb.Inc()
 
 	// ----------------------------------------
-	// Get Load Balancer backend
+	// Set the Load Balancer backend
 	// ----------------------------------------
-	lbBackend := &lbv1.LoadBalancerBackend{}
-	err = r.Get(ctx, types.NamespacedName{Name: lb.Spec.Backend, Namespace: lb.Namespace}, lbBackend)
-
-	if err != nil && errors.IsNotFound(err) {
-		return ctrl.Result{}, fmt.Errorf("could not find LoadBalancerBackend %s", lb.Spec.Backend)
-	} else if err != nil {
-		log.Error(err, "failed to get LoadBalancerBackend")
-		return ctrl.Result{}, err
-	}
-	log.Info("Found backend", "backend", lbBackend.Name)
+	lbBackend := lb.Spec.Provider
 	metric_backends.Inc()
 
 	// Get backend secret
 	credsSecret := &corev1.Secret{}
-	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Spec.Provider.Creds, Namespace: lbBackend.Namespace}, credsSecret)
+	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Creds, Namespace: lb.Namespace}, credsSecret)
 
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("provider credentials Secret not found %v", err)
@@ -208,7 +197,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Create Backend Provider
 	// ----------------------------------------
-	backend, err := controller.CreateBackend(ctx, lbBackend, username, password)
+	backend, err := controller.CreateBackend(ctx, &lbBackend, username, password)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -297,11 +286,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	_ = r.Get(ctx, req.NamespacedName, lb)
 	lb.Status = lbv1.ExternalLoadBalancerStatus{
-		VIPs:    vips,
-		Monitor: monitor,
-		Ports:   lb.Spec.Ports,
-		Nodes:   nodes,
-		Pools:   pools,
+		VIPs:     vips,
+		Monitor:  monitor,
+		Ports:    lb.Spec.Ports,
+		Nodes:    nodes,
+		Pools:    pools,
+		Provider: lb.Spec.Provider,
 	}
 
 	if err := r.Status().Update(ctx, lb); err != nil {

@@ -13,15 +13,6 @@ resources:
   kind: ExternalLoadBalancer
   path: github.com/carlosedp/lbconfig-operator/api/v1
   version: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: lbconfig.carlosedp.com
-  group: lb
-  kind: LoadBalancerBackend
-  path: github.com/carlosedp/lbconfig-operator/api/v1
-  version: v1
 version: "3"
 plugins:
   manifests.sdk.operatorframework.io/v2: {}

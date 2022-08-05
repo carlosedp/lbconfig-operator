@@ -37,11 +37,11 @@ type ExternalLoadBalancerSpec struct {
 	// NodeLabels are the node labels used for router sharding or exposed service. Optional.
 	NodeLabels map[string]string `json:"nodelabels,omitempty"`
 	// Backend is the LoadBalancer used
-	Backend string `json:"backend"`
-	// Ports are the list of ports used for this Vip
 	Ports []int `json:"ports"`
 	// Monitor is the path and port to monitor the LoadBalancer members
 	Monitor Monitor `json:"monitor"`
+	// Provider is the LoadBalancer backend provider (F5, Netscaler, etc)
+	Provider Provider `json:"provider"`
 }
 
 // Monitor defines a monitor object in the LoadBalancer.
@@ -99,11 +99,12 @@ type VIP struct {
 
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
-	VIPs    []VIP   `json:"vips"`
-	Ports   []int   `json:"ports"`
-	Monitor Monitor `json:"monitor"`
-	Nodes   []Node  `json:"nodes,omitempty"`
-	Pools   []Pool  `json:"pools,omitempty"`
+	VIPs     []VIP    `json:"vips"`
+	Ports    []int    `json:"ports"`
+	Monitor  Monitor  `json:"monitor"`
+	Nodes    []Node   `json:"nodes,omitempty"`
+	Pools    []Pool   `json:"pools,omitempty"`
+	Provider Provider `json:"provider,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -130,4 +131,21 @@ type ExternalLoadBalancerList struct {
 
 func init() {
 	SchemeBuilder.Register(&ExternalLoadBalancer{}, &ExternalLoadBalancerList{})
+}
+
+// Provider is a backend provider for F5 Big IP Load Balancers
+type Provider struct {
+	// Vendor is the backend provider vendor (F5, NSX, Netscaler)
+	Vendor string `json:"vendor"`
+	// Host is the Load Balancer API IP or Hostname.
+	Host string `json:"host"`
+	// Port is the Load Balancer API Port.
+	Port int `json:"port"`
+	// Creds credentials secret holding the username and password keys.
+	Creds string `json:"creds"`
+	// Partition is the F5 partition to create the Load Balancer instances.
+	Partition string `json:"partition,omitempty"`
+	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
+	// +optional
+	ValidateCerts *bool `json:"validatecerts,omitempty"`
 }

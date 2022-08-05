@@ -36,6 +36,7 @@ import (
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
@@ -112,17 +113,38 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 	Context("When using a netscaler backend", func() {
 		var ctx = context.TODO()
 		var falseVar bool = false
-		backend := &lbv1.LoadBalancerBackend{
+
+		// Create the backend Secret
+		credsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "username",
+				Namespace: "password",
+			},
+			Data: map[string][]byte{
+				"username": []byte("testuser"),
+				"password": []byte("testpassword"),
+			},
+		}
+		// Create the ExternalLoadBalancer CRD
+		loadBalancer := &lbv1.ExternalLoadBalancer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "netscaler-backend",
 				Namespace: "default",
 			},
-			Spec: lbv1.LoadBalancerBackendSpec{
+			Spec: lbv1.ExternalLoadBalancerSpec{
+				Vip:   "10.0.0.1",
+				Type:  "master",
+				Ports: []int{443},
+				Monitor: lbv1.Monitor{
+					Path:        "/",
+					Port:        80,
+					MonitorType: "http",
+				},
 				Provider: lbv1.Provider{
 					Vendor:        "netscaler",
-					Host:          "127.0.0.1",
+					Host:          "http://127.0.0.1",
 					Port:          HTTP_PORT,
-					Creds:         "creds-secret",
+					Creds:         credsSecret.Name,
 					Partition:     "Common",
 					ValidateCerts: &falseVar,
 				},
@@ -130,7 +152,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 		}
 
 		It("Should create the backend", func() {
-			createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
 			Expect(ListProviders()).To(ContainElement("netscaler"))
@@ -139,7 +161,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 		})
 
 		It("Should connect to the backend", func() {
-			createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			err = createdBackend.Provider.Connect()
 			Expect(err).To(BeNil())
@@ -147,7 +169,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 
 		Context("when handling load balancer monitors", func() {
 			It("Should get a monitor", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -158,7 +180,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			})
 
 			It("Should create a monitor", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -187,7 +209,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			})
 
 			It("Should delete the monitor", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -198,7 +220,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			})
 
 			It("Should edit the monitor", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -226,7 +248,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 
 		Context("when handling load balancer pools", func() {
 			It("Should get a pool", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -238,7 +260,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			})
 
 			It("Should create a pool", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -256,7 +278,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			})
 
 			It("Should delete the monitor", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())
@@ -268,7 +290,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			})
 
 			It("Should edit the monitor", func() {
-				createdBackend, err := CreateBackend(ctx, backend, "username", "password")
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).To(BeNil())

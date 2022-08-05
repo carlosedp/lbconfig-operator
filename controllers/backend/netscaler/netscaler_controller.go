@@ -61,22 +61,22 @@ func init() {
 }
 
 // Create creates a new Load Balancer backend provider
-func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.LoadBalancerBackend, username string, password string) error {
+func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("backend", lbBackend.Name, "provider", "netscaler")
+	log.WithValues("provider", "netscaler")
 
-	if lbBackend.Spec.Provider.ValidateCerts == nil {
+	if lbBackend.ValidateCerts == nil {
 		return fmt.Errorf("validateCerts is required")
 	}
 	p.log = log
-	p.host = lbBackend.Spec.Provider.Host
-	p.hostport = lbBackend.Spec.Provider.Port
-	p.validatecerts = *lbBackend.Spec.Provider.ValidateCerts
+	p.host = lbBackend.Host
+	p.hostport = lbBackend.Port
+	p.validatecerts = *lbBackend.ValidateCerts
 	p.username = username
 	p.password = password
 
 	var params = &service.NitroParams{
-		Url:       "http://" + p.host + ":" + strconv.Itoa(p.hostport),
+		Url:       p.host + ":" + strconv.Itoa(p.hostport),
 		Username:  p.username,
 		Password:  p.password,
 		SslVerify: p.validatecerts,

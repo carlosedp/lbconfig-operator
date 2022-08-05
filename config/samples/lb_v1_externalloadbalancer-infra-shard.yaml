@@ -6,7 +6,6 @@ metadata:
 spec:
   vip: "192.168.1.46"
   type: "infra"
-  backend: "backend-f5-sample"
   nodelabels:
     "node.kubernetes.io/region": "production"
   ports:
@@ -16,3 +15,10 @@ spec:
     path: "/healthz"
     port: 1936
     monitortype: "http"
+  provider:
+    vendor: F5
+    host: "192.168.1.35"
+    port: 443
+    creds: f5-creds
+    partition: "Common"
+    validatecerts: no

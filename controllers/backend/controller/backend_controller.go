@@ -38,7 +38,7 @@ import (
 // Provider interface method signatures
 type Provider interface {
 	// Create a new backend provider
-	Create(context.Context, lbv1.LoadBalancerBackend, string, string) error
+	Create(context.Context, lbv1.Provider, string, string) error
 	// Connect initializes a connection to the backend provider
 	Connect() error
 	// Close closes the connection to the backend provider
@@ -106,16 +106,16 @@ func RegisterProvider(name string, provider Provider) {
 	providers[name] = provider
 }
 
-func CreateBackend(ctx context.Context, lbBackend *lbv1.LoadBalancerBackend, username string, password string) (*BackendController, error) {
+func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username string, password string) (*BackendController, error) {
 	backend := &BackendController{}
 	backend.log = ctrllog.FromContext(ctx)
 	backend.log.WithValues("backend_controller", "RegisterProvider")
-	name := strings.ToLower(lbBackend.Spec.Provider.Vendor)
+	name := strings.ToLower(lbBackend.Vendor)
 	if provider, ok := providers[name]; ok {
 		if err := provider.Create(ctx, *lbBackend, username, password); err != nil {
 			return nil, err
 		}
-		backend.log.Info("Created backend", "provider", lbBackend.Spec.Provider.Vendor)
+		backend.log.Info("Created backend", "provider", lbBackend.Vendor)
 		backend.Provider = provider
 		return backend, nil
 	}

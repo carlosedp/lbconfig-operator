@@ -103,14 +103,21 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(credsSecret.Data["username"]).Should(Equal([]byte("testuser")))
 
-			// Create the dummy backend
-			By("By creating a new LoadBalancer backend")
-			backend := &lbv1.LoadBalancerBackend{
+			By("By creating a new ExternalLoadBalancer")
+			loadBalancer := &lbv1.ExternalLoadBalancer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dummy-backend",
+					Name:      "test-load-balancer",
 					Namespace: Namespace,
 				},
-				Spec: lbv1.LoadBalancerBackendSpec{
+				Spec: lbv1.ExternalLoadBalancerSpec{
+					Vip:   "10.0.0.1",
+					Type:  "master",
+					Ports: []int{443},
+					Monitor: lbv1.Monitor{
+						Path:        "/",
+						Port:        80,
+						MonitorType: "http",
+					},
 					Provider: lbv1.Provider{
 						Vendor: "dummy",
 						Host:   "1.2.3.4",
@@ -119,33 +126,8 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 					},
 				},
 			}
-			Expect(k8sClient.Create(ctx, backend)).Should(Succeed())
-			backendLookupKey := types.NamespacedName{Name: backend.Name, Namespace: Namespace}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, backendLookupKey, backend)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(backend.Spec.Provider.Vendor).Should(Equal("dummy"))
-
-			By("By creating a new ExternalLoadBalancer")
-			loadBalancer := &lbv1.ExternalLoadBalancer{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-load-balancer",
-					Namespace: Namespace,
-				},
-				Spec: lbv1.ExternalLoadBalancerSpec{
-					Vip:     "10.0.0.1",
-					Type:    "master",
-					Backend: backend.Name,
-					Ports:   []int{443},
-					Monitor: lbv1.Monitor{
-						Path:        "/",
-						Port:        80,
-						MonitorType: "http",
-					},
-				},
-			}
 			Expect(k8sClient.Create(ctx, loadBalancer)).Should(Succeed())
+			Expect(loadBalancer.Spec.Provider.Vendor).Should(Equal("dummy"))
 
 			By("By checking the ExternalLoadBalancer has zero Nodes")
 			loadBalancerLookupKey := types.NamespacedName{Name: loadBalancer.Name, Namespace: Namespace}
@@ -183,7 +165,12 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				return len(loadBalancer.Status.Nodes), nil
 			}, timeout, interval).Should(Equal(1))
 
-			Expect(loadBalancer.Status.Nodes[len(loadBalancer.Status.Nodes)-1].Host).Should(Equal("1.1.1.1"))
+			Expect(loadBalancer.Status.Provider.Vendor).Should(Equal("dummy"))
+			var nodeAddresses []string = []string{}
+			for _, node := range loadBalancer.Status.Nodes {
+				nodeAddresses = append(nodeAddresses, node.Host)
+			}
+			Expect(nodeAddresses).Should(ContainElement("1.1.1.1"))
 
 			By("By creating a Worker Node")
 			node = createReadyNode("infra-node-1", map[string]string{"node-role.kubernetes.io/infra": ""}, "1.1.1.5")
@@ -204,7 +191,7 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				return len(loadBalancer.Status.Nodes), nil
 			}, timeout, interval).Should(Equal(1))
 
-			var nodeAddresses []string = []string{}
+			nodeAddresses = []string{}
 			for _, node := range loadBalancer.Status.Nodes {
 				nodeAddresses = append(nodeAddresses, node.Host)
 			}
@@ -233,7 +220,7 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			for _, node := range loadBalancer.Status.Nodes {
 				nodeAddresses = append(nodeAddresses, node.Host)
 			}
-			Expect(nodeAddresses).Should(ContainElement("1.1.1.2"))
+			Expect(nodeAddresses).Should(ContainElements("1.1.1.1", "1.1.1.2"))
 
 			By("By creating an additional Master Node that is not ready")
 			node = createNotReadyNode("master-node-3", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.3")
