@@ -95,15 +95,16 @@ func ListProviders() []string {
 }
 
 func RegisterProvider(name string, provider Provider) {
+	name_slug := strings.ToLower(name)
 	var ctx = context.Background()
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend_controller", "RegisterProvider")
-	if _, exists := providers[name]; exists {
+	if _, exists := providers[name_slug]; exists {
 		log.Error(fmt.Errorf("provider already exists"), "Provider '%s' tried to register twice", name)
 		return
 	}
 	log.Info("Registering provider", "provider", name)
-	providers[name] = provider
+	providers[name_slug] = provider
 }
 
 func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username string, password string) (*BackendController, error) {
@@ -119,7 +120,7 @@ func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username strin
 		backend.Provider = provider
 		return backend, nil
 	}
-	return nil, fmt.Errorf("no such provider: %s", name)
+	return nil, fmt.Errorf("no such provider: %s. Available vendor providers are %s", name, ListProviders())
 }
 
 // HandleMonitors manages the Monitor validation, update and creation

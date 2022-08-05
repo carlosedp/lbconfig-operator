@@ -26,7 +26,9 @@ package controllers
 
 import (
 	"context"
+	"math/rand"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -91,7 +93,8 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
+		Scheme:             scheme.Scheme,
+		MetricsBindAddress: ":" + strconv.Itoa(rand.Intn(35000-30000)+30000),
 	})
 	Expect(err).ToNot(HaveOccurred())
 

@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -141,7 +142,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 					MonitorType: "http",
 				},
 				Provider: lbv1.Provider{
-					Vendor:        "netscaler",
+					Vendor:        "Citrix_ADC",
 					Host:          "http://127.0.0.1",
 					Port:          HTTP_PORT,
 					Creds:         credsSecret.Name,
@@ -155,7 +156,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
-			Expect(ListProviders()).To(ContainElement("netscaler"))
+			Expect(ListProviders()).To(ContainElement(strings.ToLower("Citrix_ADC")))
 			Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&NetscalerProvider{})))
 
 		})

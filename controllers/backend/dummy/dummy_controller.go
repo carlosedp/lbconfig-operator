@@ -49,13 +49,13 @@ type DummyProvider struct {
 }
 
 func init() {
-	backend.RegisterProvider("dummy", new(DummyProvider))
+	backend.RegisterProvider("Dummy", new(DummyProvider))
 }
 
 // Create creates a new Load Balancer backend provider
 func (p *DummyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("provider", "dummy")
+	log.WithValues("provider", "Dummy")
 
 	p.log = log
 	p.host = lbBackend.Host

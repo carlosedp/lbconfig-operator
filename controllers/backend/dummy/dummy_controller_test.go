@@ -27,6 +27,7 @@ package dummy_test
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -75,7 +76,7 @@ var _ = Describe("Controllers/Backend/dummy/dummy_controller", func() {
 					MonitorType: "http",
 				},
 				Provider: lbv1.Provider{
-					Vendor: "dummy",
+					Vendor: "Dummy",
 					Host:   "1.2.3.4",
 					Port:   443,
 					Creds:  credsSecret.Name,
@@ -87,7 +88,7 @@ var _ = Describe("Controllers/Backend/dummy/dummy_controller", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
-			Expect(ListProviders()).To(ContainElement("dummy"))
+			Expect(ListProviders()).To(ContainElement(strings.ToLower("dummy")))
 			Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&DummyProvider{})))
 		})
 	})

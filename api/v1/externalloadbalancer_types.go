@@ -40,7 +40,7 @@ type ExternalLoadBalancerSpec struct {
 	Ports []int `json:"ports"`
 	// Monitor is the path and port to monitor the LoadBalancer members
 	Monitor Monitor `json:"monitor"`
-	// Provider is the LoadBalancer backend provider (F5, Netscaler, etc)
+	// Provider is the LoadBalancer backend provider
 	Provider Provider `json:"provider"`
 }
 
@@ -135,7 +135,7 @@ func init() {
 
 // Provider is a backend provider for F5 Big IP Load Balancers
 type Provider struct {
-	// Vendor is the backend provider vendor (F5, NSX, Netscaler)
+	// Vendor is the backend provider vendor
 	Vendor string `json:"vendor"`
 	// Host is the Load Balancer API IP or Hostname.
 	Host string `json:"host"`

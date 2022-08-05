@@ -13,7 +13,7 @@ spec:
     port: 6443
     monitortype: "https"
   provider:
-    vendor: netscaler
+    vendor: Citrix_ADC
     host: "https://192.168.1.36"
     port: 443
     creds: netscaler-creds

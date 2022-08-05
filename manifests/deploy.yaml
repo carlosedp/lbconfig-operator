@@ -68,7 +68,7 @@ spec:
                   type: integer
                 type: array
               provider:
-                description: Provider is the LoadBalancer backend provider (F5, Netscaler, etc)
+                description: Provider is the LoadBalancer backend provider
                 properties:
                   creds:
                     description: Creds credentials secret holding the username and password keys.
@@ -86,7 +86,7 @@ spec:
                     description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
                     type: boolean
                   vendor:
-                    description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
+                    description: Vendor is the backend provider vendor
                     type: string
                 required:
                 - creds
@@ -215,7 +215,7 @@ spec:
                     description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
                     type: boolean
                   vendor:
-                    description: Vendor is the backend provider vendor (F5, NSX, Netscaler)
+                    description: Vendor is the backend provider vendor
                     type: string
                 required:
                 - creds

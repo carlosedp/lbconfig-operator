@@ -12,7 +12,6 @@ metadata:
             "namespace": "lbconfig-operator-system"
           },
           "spec": {
-            "backend": "backend-f5-sample",
             "monitor": {
               "monitortype": "http",
               "path": "/healthz",
@@ -28,7 +27,7 @@ metadata:
               "partition": "Common",
               "port": 443,
               "validatecerts": false,
-              "vendor": "F5"
+              "vendor": "F5_BigIP"
             },
             "type": "infra",
             "vip": "192.168.1.45"
@@ -42,7 +41,6 @@ metadata:
             "namespace": "lbconfig-operator-system"
           },
           "spec": {
-            "backend": "backend-f5-sample",
             "monitor": {
               "monitortype": "http",
               "path": "/healthz",
@@ -55,6 +53,14 @@ metadata:
               80,
               443
             ],
+            "provider": {
+              "creds": "f5-creds",
+              "host": "192.168.1.35",
+              "partition": "Common",
+              "port": 443,
+              "validatecerts": false,
+              "vendor": "F5_BigIP"
+            },
             "type": "infra",
             "vip": "192.168.1.46"
           }
@@ -67,7 +73,6 @@ metadata:
             "namespace": "lbconfig-operator-system"
           },
           "spec": {
-            "backend": "backend-netscaler-sample",
             "monitor": {
               "monitortype": "https",
               "path": "/healthz",
@@ -78,10 +83,10 @@ metadata:
             ],
             "provider": {
               "creds": "netscaler-creds",
-              "host": "192.168.1.36",
+              "host": "https://192.168.1.36",
               "port": 443,
               "validatecerts": false,
-              "vendor": "netscaler"
+              "vendor": "Citrix_ADC"
             },
             "type": "master",
             "vip": "192.168.1.40"

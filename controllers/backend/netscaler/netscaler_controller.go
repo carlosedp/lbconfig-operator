@@ -45,7 +45,7 @@ import (
 // Provider creation and connection
 // ----------------------------------------
 
-// NetscalerProvider is the object for the Citrix Netscaler NetscalerProvider implementing the NetscalerProvider interface
+// NetscalerProvider is the object for the Citrix ADC (Netscaler) NetscalerProvider implementing the Provider interface
 type NetscalerProvider struct {
 	log           logr.Logger
 	client        *service.NitroClient
@@ -57,13 +57,13 @@ type NetscalerProvider struct {
 }
 
 func init() {
-	backend.RegisterProvider("netscaler", new(NetscalerProvider))
+	backend.RegisterProvider("Citrix_ADC", new(NetscalerProvider))
 }
 
 // Create creates a new Load Balancer backend provider
 func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("provider", "netscaler")
+	log.WithValues("provider", "Citrix_ADC")
 
 	if lbBackend.ValidateCerts == nil {
 		return fmt.Errorf("validateCerts is required")

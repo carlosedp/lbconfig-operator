@@ -25,13 +25,48 @@ SOFTWARE.
 package controller_test
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
+	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 )
 
 func TestBackendController(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Backend Controller Suite")
 }
+
+var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
+
+	Context("When using a creating backends", func() {
+		var ctx = context.TODO()
+
+		It("Should return error if backend provider does not exist", func() {
+			loadBalancer := &lbv1.ExternalLoadBalancer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dummy-backend",
+					Namespace: "default",
+				},
+				Spec: lbv1.ExternalLoadBalancerSpec{
+					Vip: "10.0.0.1",
+					Provider: lbv1.Provider{
+						Vendor: "unknown",
+						Host:   "1.2.3.4",
+						Port:   443,
+						Creds:  "secretname",
+					},
+				},
+			}
+			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+			Expect(err).Should(HaveOccurred())
+			Expect(err).To(MatchError(MatchRegexp("no such provider.*")))
+			Expect(createdBackend).To(BeNil())
+		})
+	})
+})

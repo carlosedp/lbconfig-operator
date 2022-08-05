@@ -42,7 +42,7 @@ import (
 // Provider creation and connection
 // ----------------------------------------
 
-// F5Provider is the object for the F5 Big IP F5Provider implementing the F5Provider interface
+// F5Provider is the object for the F5 Big IP F5Provider implementing the Provider interface
 type F5Provider struct {
 	log           logr.Logger
 	f5            *bigip.BigIP
@@ -55,13 +55,13 @@ type F5Provider struct {
 }
 
 func init() {
-	backend.RegisterProvider("f5", new(F5Provider))
+	backend.RegisterProvider("F5_BigIP", new(F5Provider))
 }
 
 // Create creates a new Load Balancer backend provider
 func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("provider", "F5")
+	log.WithValues("provider", "F5_BigIP")
 
 	if lbBackend.Partition == "" || lbBackend.ValidateCerts == nil {
 		return fmt.Errorf("partition or validateCerts is required")

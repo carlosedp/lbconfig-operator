@@ -38,22 +38,23 @@ kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/master/manif
 
 ### Create ExternalLoadBalancer instances
 
-Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes):
+Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
 
-The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected only by the `nodelabels` labels.
+The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected by the `nodelabels` labels array.
 
-The provider `vendor` field can be:
+The provider `vendor` field can be (case-insensitive):
 
-* F5
-* netscaler
-* dummy
+* F5_BigIP
+* Citrix_ADC
+* Dummy
 
-And the secret holding the Load Balancer API user and password:
+Create the secret holding the Load Balancer API user and password:
 
 ```sh
 oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig-operator-system
 ```
 
+#### Sample CRDs
 
 Master Nodes:
 

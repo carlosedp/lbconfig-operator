@@ -27,6 +27,7 @@ package f5_test
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -78,7 +79,7 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 					MonitorType: "http",
 				},
 				Provider: lbv1.Provider{
-					Vendor:        "f5",
+					Vendor:        "F5_BigIP",
 					Host:          "1.2.3.4",
 					Port:          443,
 					Creds:         credsSecret.Name,
@@ -90,7 +91,7 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 
 		It("Should create the backend", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(ListProviders()).To(ContainElement("f5"))
+			Expect(ListProviders()).To(ContainElement(strings.ToLower("F5_BigIP")))
 			Expect(err).To(BeNil())
 			Expect(createdBackend).NotTo(BeNil())
 			Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&F5Provider{})))
