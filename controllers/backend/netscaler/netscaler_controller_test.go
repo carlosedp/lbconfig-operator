@@ -142,7 +142,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 				},
 				Provider: lbv1.Provider{
 					Vendor:        "netscaler",
-					Host:          "127.0.0.1",
+					Host:          "http://127.0.0.1",
 					Port:          HTTP_PORT,
 					Creds:         credsSecret.Name,
 					Partition:     "Common",
