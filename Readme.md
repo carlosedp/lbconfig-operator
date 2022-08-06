@@ -68,7 +68,7 @@ spec:
   vip: "192.168.1.40"
   type: "master"
   provider:
-    vendor: F5
+    vendor: F5_BigIP
     host: "192.168.1.35"
     port: 443
     creds: f5-creds
@@ -94,7 +94,7 @@ spec:
   vip: "10.0.0.6"
   type: "infra"
   provider:
-    vendor: F5
+    vendor: F5_BigIP
     host: "192.168.1.35"
     port: 443
     creds: f5-creds
