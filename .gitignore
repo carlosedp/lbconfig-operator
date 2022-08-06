@@ -26,5 +26,5 @@ testbin/*
 
 # local builds
 lbconfig-operator
-./output
+output/*
 .vscode

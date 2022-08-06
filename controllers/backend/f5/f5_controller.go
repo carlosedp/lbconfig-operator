@@ -83,18 +83,6 @@ func (p *F5Provider) Connect() error {
 	host := p.host + ":" + strconv.Itoa(p.hostport)
 	p.f5 = bigip.NewSession(host, p.username, p.password, nil)
 
-	if err := p.HealthCheck(); err != nil {
-		return fmt.Errorf("could not connect to f5 host '%s': %v", host, err)
-	}
-	return nil
-}
-
-// HealthCheck checks if a connection to the Load Balancer is established
-func (p *F5Provider) HealthCheck() error {
-	_, err := p.f5.Pools()
-	if err != nil {
-		return fmt.Errorf("failed to list f5 pools: %v", err)
-	}
 	return nil
 }
 

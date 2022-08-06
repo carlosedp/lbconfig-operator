@@ -50,7 +50,13 @@ func TestNetscaler(t *testing.T) {
 	RunSpecs(t, "Netscaler Backend Suite")
 }
 
-var HTTP_PORT = rand.Intn(65000-35000) + 35000
+var HTTP_PORT int
+
+func init() {
+	rand.Seed(GinkgoRandomSeed())
+	HTTP_PORT = rand.Intn(65000-35000) + 35000
+}
+
 var httpurl string
 var httpop string
 var httppost = make(map[string][]string)
@@ -107,6 +113,12 @@ var pool = &lbv1.Pool{
 			},
 			Port: 80},
 	},
+}
+
+var VIP = &lbv1.VIP{
+	Name: "test-vip",
+	Pool: pool.Name,
+	IP:   "1.2.3.4",
 }
 
 var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
@@ -278,7 +290,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 				Expect(m).NotTo(BeNil())
 			})
 
-			It("Should delete the monitor", func() {
+			It("Should delete the pool", func() {
 				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
@@ -290,7 +302,7 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 				Expect(err).To(BeNil())
 			})
 
-			It("Should edit the monitor", func() {
+			It("Should edit the pool", func() {
 				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
@@ -305,6 +317,91 @@ var _ = Describe("Controllers/Backend/netscaler/netscaler_controller", func() {
 				// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
 				Expect(httpdata["servicegroup_lbmonitor_binding"].(map[string]interface{})["servicegroupname"]).To(Equal("test-pool"))
 				Expect(err).To(BeNil())
+			})
+
+			Context("when handling load balancer VIPs", func() {
+				It("Should get a VIP", func() {
+					createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+					Expect(err).NotTo(HaveOccurred())
+					err = createdBackend.Provider.Connect()
+					Expect(err).NotTo(HaveOccurred())
+
+					_, _ = createdBackend.Provider.GetVIP(VIP)
+					Expect(httpurl).To(Equal("/nitro/v1/config/lbvserver/test-vip"))
+					Expect(httpop).To(Equal("GET"))
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("Should create a VIP", func() {
+					createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+					Expect(err).NotTo(HaveOccurred())
+					err = createdBackend.Provider.Connect()
+					Expect(err).NotTo(HaveOccurred())
+
+					m, err := createdBackend.Provider.CreateVIP(VIP)
+					Expect(httpurl).To(Equal("/nitro/v1/config/lbvserver_servicegroup_binding"))
+					Expect(httpop).To(Equal("POST"))
+
+					// <map[string]interface {} | len:5>: {
+					// 	"lbmonitor": <map[string]interface {} | len:6>{
+					// 		"interval": <float64>5,
+					// 		"downtime": <float64>16,
+					// 		"destport": <float64>80,
+					// 		"monitorname": <string>"test-monitor",
+					// 		"type": <string>"HTTP",
+					// 		"httprequest": <string>"GET /health",
+					// 	},
+					// 	"servicegroup": <map[string]interface {} | len:2>{
+					// 		"servicegroupname": <string>"test-pool",
+					// 		"servicetype": <string>"TCP",
+					// 	},
+					// 	"servicegroup_lbmonitor_binding": <map[string]interface {} | len:1>{
+					// 		"servicegroupname": <string>"test-pool",
+					// 	},
+					// 	"lbvserver": <map[string]interface {} | len:4>{
+					// 		"name": <string>"test-vip",
+					// 		"servicetype": <string>"TCP",
+					// 		"ipv46": <string>"1.2.3.4",
+					// 		"lbmethod": <string>"ROUNDROBIN",
+					// 	},
+					// 	"lbvserver_servicegroup_binding": <map[string]interface {} | len:2>{
+					// 		"name": <string>"test-vip",
+					// 		"servicegroupname": <string>"test-pool",
+					// 	},
+					// }
+
+					// Expect(httpdata).To(Equal(""))
+					Expect(httpdata["lbvserver"].(map[string]interface{})["name"]).To(Equal("test-vip"))
+					Expect(httpdata["lbvserver"].(map[string]interface{})["ipv46"]).To(Equal("1.2.3.4"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(m).NotTo(BeNil())
+				})
+
+				It("Should delete the VIP", func() {
+					createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+					Expect(err).NotTo(HaveOccurred())
+					err = createdBackend.Provider.Connect()
+					Expect(err).NotTo(HaveOccurred())
+
+					err = createdBackend.Provider.DeleteVIP(VIP)
+					Expect(httpurl).To(Equal("/nitro/v1/config/lbvserver/test-vip"))
+					Expect(httpop).To(Equal("DELETE"))
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("Should edit the VIP", func() {
+					createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+					Expect(err).NotTo(HaveOccurred())
+					err = createdBackend.Provider.Connect()
+					Expect(err).NotTo(HaveOccurred())
+
+					err = createdBackend.Provider.EditVIP(VIP)
+					Expect(httpurl).To(Equal("/nitro/v1/config/lbvserver_servicegroup_binding"))
+					Expect(httpop).To(Equal("POST"))
+					Expect(httpdata["lbvserver"].(map[string]interface{})["name"]).To(Equal("test-vip"))
+					Expect(httpdata["lbvserver"].(map[string]interface{})["ipv46"]).To(Equal("1.2.3.4"))
+					Expect(err).NotTo(HaveOccurred())
+				})
 			})
 		})
 	})
