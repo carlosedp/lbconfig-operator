@@ -3,7 +3,8 @@ pull_request_rules:
     conditions:
       - base=main
       - label="Please Merge"
-      - status-success=build
+      - check-success=bundle-check-changed
+      - check-success=go-test
       - "#review-requested=0"
     actions:
       merge:
@@ -14,7 +15,8 @@ pull_request_rules:
       - base=main
       - author=dependabot[bot]
       - label="github_actions"
-      - status-success=build
+      - check-success=bundle-check-changed
+      - check-success=go-test
       - "#review-requested=0"
     actions:
       merge:
