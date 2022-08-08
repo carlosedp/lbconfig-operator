@@ -46,7 +46,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v24
+        uses: tj-actions/changed-files@v25
 
       - name: Bundle files changed, failed run
         if: steps.changed-files-specific.outputs.any_changed == 'true'
