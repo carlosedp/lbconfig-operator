@@ -30,101 +30,145 @@ import (
 	"strconv"
 	"time"
 
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var metricsPort = "38081"
-var loadBalancer *lbv1.ExternalLoadBalancer
-var credsSecret *corev1.Secret
+// Define utility constants for object names and testing timeouts/durations and intervals.
+const (
+	// 	JobName          = "test-job"
+	SecretName = "backend-creds"
+	Namespace  = "default"
+
+	timeout  = time.Second * 10
+	duration = time.Second * 10
+	interval = time.Millisecond * 250
+)
+
+// var loadBalancer *lbv1.ExternalLoadBalancer
+// var credsSecret *corev1.Secret
 var node *corev1.Node
 var nodeList corev1.NodeList
 var loadBalancerLookupKey types.NamespacedName
 var nodeAddresses []string = []string{}
 
+var credsSecret = &corev1.Secret{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      SecretName,
+		Namespace: Namespace,
+	},
+	Data: map[string][]byte{
+		"username": []byte("testuser"),
+		"password": []byte("testpassword"),
+	},
+}
+
+var loadBalancer = &lbv1.ExternalLoadBalancer{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "test-load-balancer",
+		Namespace: "default",
+	},
+	Spec: lbv1.ExternalLoadBalancerSpec{
+		Vip:   "10.0.0.1",
+		Type:  "master",
+		Ports: []int{443},
+		Monitor: lbv1.Monitor{
+			Path:        "/",
+			Port:        80,
+			MonitorType: "http",
+		},
+		Provider: lbv1.Provider{
+			Vendor: "dummy",
+			Host:   "1.2.3.4",
+			Port:   443,
+			Creds:  credsSecret.Name,
+		},
+	},
+}
+
 var _ = Describe("ExternalLoadBalancer controller", func() {
 
-	// Define utility constants for object names and testing timeouts/durations and intervals.
-	const (
-		// 	JobName          = "test-job"
-		SecretName = "backend-creds"
-		Namespace  = "default"
-
-		timeout  = time.Second * 10
-		duration = time.Second * 10
-		interval = time.Millisecond * 250
-	)
-
 	Context("When managing an external load balancer", Ordered, func() {
-		BeforeAll(func() {
-			By("By creating a new Secret")
-			ctx := context.Background()
+		ctx := context.Background()
+		secretLookupKey := types.NamespacedName{Name: SecretName, Namespace: Namespace}
+		loadBalancerLookupKey = types.NamespacedName{Name: loadBalancer.Name, Namespace: Namespace}
 
-			// Create the backend Secret
-			credsSecret = &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      SecretName,
-					Namespace: Namespace,
-				},
-				Data: map[string][]byte{
-					"username": []byte("testuser"),
-					"password": []byte("testpassword"),
-				},
-			}
+		It("should return error creating a new ExternalLoadBalancer without a secret", func() {
+			// Modified the load balancer to create before having a secret.
+			lb2 := loadBalancer.DeepCopy()
+			lb2.ObjectMeta.Name = "test-load-balancer-err1"
+			// Check it was created
+			Expect(k8sClient.Create(ctx, lb2)).Should(Succeed())
+			// Trigger the reconcile loop
+			result, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb2.Name, Namespace: Namespace}})
+			// Check the results and error
+			Expect(err).To(MatchError(MatchRegexp("provider credentials Secret not found")))
+			Expect(result.Requeue).Should(BeFalse())
+			Expect(result.RequeueAfter).Should(BeZero())
+			// Delete the created load balancer
+			Expect(k8sClient.Delete(ctx, lb2, &client.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})).Should(Succeed())
+			Consistently(func() (int, error) {
+				lblist := &lbv1.ExternalLoadBalancerList{}
+				err := k8sClient.List(ctx, lblist)
+				if err != nil {
+					return -1, err
+				}
+				return len(lblist.Items), nil
+			}, duration, interval).Should(Equal(0))
+		})
+
+		It("should create a backend secret", func() {
 			Expect(k8sClient.Create(ctx, credsSecret)).Should(Succeed())
-
-			secretLookupKey := types.NamespacedName{Name: SecretName, Namespace: Namespace}
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, secretLookupKey, credsSecret)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			Expect(credsSecret.Data["username"]).Should(Equal([]byte("testuser")))
-
-			By("By creating a new ExternalLoadBalancer")
-			loadBalancer = &lbv1.ExternalLoadBalancer{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-load-balancer",
-					Namespace: Namespace,
-				},
-				Spec: lbv1.ExternalLoadBalancerSpec{
-					Vip:   "10.0.0.1",
-					Type:  "master",
-					Ports: []int{443},
-					Monitor: lbv1.Monitor{
-						Path:        "/",
-						Port:        80,
-						MonitorType: "http",
-					},
-					Provider: lbv1.Provider{
-						Vendor: "dummy",
-						Host:   "1.2.3.4",
-						Port:   443,
-						Creds:  credsSecret.Name,
-					},
-				},
-			}
 		})
+
+		// It("should return error creating a new ExternalLoadBalancer without labels", func() {
+		// 	lb3 := loadBalancer.DeepCopy()
+		// 	lb3.ObjectMeta.Name = "test-load-balancer-err2"
+		// 	lb3.Spec.Type = ""
+		// 	Expect(k8sClient.Create(ctx, lb3)).Should(Succeed())
+		// 	result, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb3.Name, Namespace: Namespace}})
+
+		// 	Expect(result.Requeue).Should(BeFalse())
+		// 	Expect(result.RequeueAfter).Should(BeZero())
+		// 	Expect(err).To(MatchError(MatchRegexp("undefined loadbalancer type or no nodelabels defined")))
+		// 	Expect(k8sClient.Delete(ctx, lb3, &client.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})).Should(Succeed())
+		// 	Consistently(func() (int, error) {
+		// 		lblist := &lbv1.ExternalLoadBalancerList{}
+		// 		err := k8sClient.List(ctx, lblist)
+		// 		if err != nil {
+		// 			return -1, err
+		// 		}
+		// 		return len(lblist.Items), nil
+		// 	}, duration, interval).Should(Equal(0))
+		// })
 
 		It("should create a new ExternalLoadBalancer", func() {
 			Expect(k8sClient.Create(ctx, loadBalancer)).Should(Succeed())
-			Expect(loadBalancer.Spec.Provider.Vendor).Should(Equal("dummy"))
-
+			Eventually(func() string {
+				k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
+				return loadBalancer.Status.Provider.Vendor
+			}, timeout, interval).Should(Equal("dummy"))
 		})
 
 		It("should check ExternalLoadBalancer metric is 1", func() {
-			// Check metrics
-			metricsBody := getMetricsBody(metricsPort)
-			Expect(metricsBody).To(ContainSubstring("externallb_total 1"))
+			Expect(getMetricsBody(metricsPort)).To(ContainSubstring("externallb_total 1"))
 		})
 
 		It("should create a node to be managed", func() {
 			By("By checking the ExternalLoadBalancer has zero Nodes")
-			loadBalancerLookupKey = types.NamespacedName{Name: loadBalancer.Name, Namespace: Namespace}
+
 			Consistently(func() (int, error) {
 				err := k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 				if err != nil {
@@ -133,17 +177,14 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				return len(loadBalancer.Status.Nodes), nil
 			}, duration, interval).Should(Equal(0))
 
-			err := k8sClient.List(ctx, &nodeList)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 			Expect(len(nodeList.Items)).Should(Equal(0))
 
 			By("By creating a Master Node")
 			node := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
 
 			Expect(k8sClient.Create(ctx, node)).Should(Succeed())
-
-			err = k8sClient.List(ctx, &nodeList)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 			Expect(len(nodeList.Items)).Should(Equal(1))
 
 			By("By checking the ExternalLoadBalancer has one Node")
@@ -154,8 +195,6 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				}
 				return len(loadBalancer.Status.Nodes), nil
 			}, timeout, interval).Should(Equal(1))
-
-			Expect(loadBalancer.Status.Provider.Vendor).Should(Equal("dummy"))
 
 			for _, node := range loadBalancer.Status.Nodes {
 				nodeAddresses = append(nodeAddresses, node.Host)
@@ -174,9 +213,7 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			node := createReadyNode("infra-node-1", map[string]string{"node-role.kubernetes.io/infra": ""}, "1.1.1.5")
 
 			Expect(k8sClient.Create(ctx, node)).Should(Succeed())
-
-			err := k8sClient.List(ctx, &nodeList)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 			Expect(len(nodeList.Items)).Should(Equal(2))
 
 			By("By checking the ExternalLoadBalancer still has one Node")
@@ -205,9 +242,7 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			node = createReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
 
 			Expect(k8sClient.Create(ctx, node)).Should(Succeed())
-
-			err := k8sClient.List(ctx, &nodeList)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 			Expect(len(nodeList.Items)).Should(Equal(3))
 
 			By("By checking the ExternalLoadBalancer has two Nodes")
@@ -236,9 +271,7 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			node = createNotReadyNode("master-node-3", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.3")
 
 			Expect(k8sClient.Create(ctx, node)).Should(Succeed())
-
-			err := k8sClient.List(ctx, &nodeList)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 			Expect(len(nodeList.Items)).Should(Equal(4))
 
 			By("By checking the ExternalLoadBalancer still has two Nodes")
@@ -264,11 +297,9 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 
 		It("should remove a master node from load balancer instance", func() {
 			By("By removing one Master Node")
-			k8sClient.Get(ctx, types.NamespacedName{Name: "master-node-1"}, node)
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "master-node-1"}, node)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
-
-			err := k8sClient.List(ctx, &nodeList)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 			Expect(len(nodeList.Items)).Should(Equal(3))
 
 			By("By checking the ExternalLoadBalancer has one Node")
@@ -291,5 +322,24 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 			metricsOutput := fmt.Sprintf(`externallb_nodes{backend_vendor="%s",name="%s",namespace="%s",port="%s",type="%s",vip="%s"} %d`, loadBalancer.Spec.Provider.Vendor, loadBalancer.Name, Namespace, strconv.Itoa(loadBalancer.Spec.Provider.Port), loadBalancer.Spec.Type, loadBalancer.Spec.Vip, 1)
 			Expect(metricsBody).To(ContainSubstring(metricsOutput))
 		})
+
+		// It("should delete the external load balancer instance", func() {
+		// 	By("By removing the instance")
+		// 	Expect(k8sClient.Delete(ctx, loadBalancer)).Should(Succeed())
+		// 	Consistently(func() (int, error) {
+		// 		lblist := &lbv1.ExternalLoadBalancerList{}
+		// 		err := k8sClient.List(ctx, lblist)
+		// 		if err != nil {
+		// 			return -1, err
+		// 		}
+		// 		return len(lblist.Items), nil
+		// 	}, duration, interval).Should(Equal(0))
+		// })
+
+		// It("should check ExternalLoadBalancer metric is 0", func() {
+		// 	metricsBody := getMetricsBody(metricsPort)
+		// 	Expect(metricsBody).ToNot(ContainSubstring("externallb_nodes"))
+		// 	Expect(metricsBody).To(ContainSubstring("externallb_total 0"))
+		// })
 	})
 })

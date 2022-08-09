@@ -39,6 +39,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
@@ -125,7 +126,6 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 
 	Context("When using a f5 backend", func() {
 		var ctx = context.TODO()
-		var validate bool = true
 
 		// Create the backend Secret
 		credsSecret := &corev1.Secret{
@@ -160,7 +160,7 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 					Port:          HTTP_PORT,
 					Creds:         credsSecret.Name,
 					Partition:     "Common",
-					ValidateCerts: &validate,
+					ValidateCerts: pointer.BoolPtr(false),
 				},
 			},
 		}

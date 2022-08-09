@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -413,75 +412,4 @@ func (r *ExternalLoadBalancerReconciler) addFinalizer(reqLogger logr.Logger, m *
 		return err
 	}
 	return nil
-}
-
-// Auxiliary functions
-
-// contains check if string s is in array list
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-// hasNodeChanged checks two instances of node and compares if some fields have changed
-func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
-	var oldCond corev1.ConditionStatus
-	var newCond corev1.ConditionStatus
-	var oldIP string
-	var newIP string
-
-	for _, cond := range o.Status.Conditions {
-		if cond.Type == "Ready" {
-			oldCond = cond.Status
-		}
-	}
-	for _, cond := range n.Status.Conditions {
-		if cond.Type == "Ready" {
-			newCond = cond.Status
-		}
-	}
-	for _, addr := range o.Status.Addresses {
-		if addr.Type == LoadBalancerIPType {
-			oldIP = addr.Address
-		}
-	}
-	for _, addr := range n.Status.Addresses {
-		if addr.Type == LoadBalancerIPType {
-			newIP = addr.Address
-		}
-	}
-
-	if (oldCond == newCond) && (oldIP == newIP) && reflect.DeepEqual(o.Labels, n.Labels) {
-		return false
-	}
-	return true
-}
-
-// computeLabels builds a label map with node role and additional labels
-func computeLabels(lb lbv1.ExternalLoadBalancer) map[string]string {
-	labels := make(map[string]string)
-	if lb.Spec.Type != "" {
-		labels["node-role.kubernetes.io/"+lb.Spec.Type] = ""
-	}
-	if lb.Spec.NodeLabels != nil {
-		for k, v := range lb.Spec.NodeLabels {
-			labels[k] = v
-		}
-	}
-	return labels
-}
-
-// containsLabels checks if label map `as` contains labels from map `bs`
-func containsLabels(as, bs map[string]string) bool {
-	labels := make(map[string]string)
-	for k, v := range bs {
-		if _, ok := as[k]; ok {
-			labels[k] = v
-		}
-	}
-	return reflect.DeepEqual(bs, labels)
 }

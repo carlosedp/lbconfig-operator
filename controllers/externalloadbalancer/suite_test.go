@@ -26,7 +26,9 @@ package controllers
 
 import (
 	"context"
+	"math/rand"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -50,11 +52,13 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	cfg       *rest.Config
-	k8sClient client.Client // You'll be using this client in your tests.
-	testEnv   *envtest.Environment
-	ctx       context.Context
-	cancel    context.CancelFunc
+	cfg         *rest.Config
+	k8sClient   client.Client // You'll be using this client in your tests.
+	testEnv     *envtest.Environment
+	r           *ExternalLoadBalancerReconciler
+	ctx         context.Context
+	cancel      context.CancelFunc
+	metricsPort string = strconv.Itoa(rand.Intn(35000-30000) + 30000)
 )
 
 func TestBackendController(t *testing.T) {
@@ -90,17 +94,18 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	var metricsPort = "38081"
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: ":" + metricsPort,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&ExternalLoadBalancerReconciler{
+	r = &ExternalLoadBalancerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr)
+	}
+
+	err = r.SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {

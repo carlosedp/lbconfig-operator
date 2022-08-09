@@ -28,7 +28,7 @@ import (
 	"io"
 	"net/http"
 
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -66,10 +66,10 @@ func createTestNode(name string, labels map[string]string, address string, ready
 
 func getMetricsBody(metricsPort string) string {
 	resp, err := http.Get("http://localhost:" + metricsPort + "/metrics")
-	Expect(err).NotTo(HaveOccurred())
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(resp.StatusCode).To(Equal(200))
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	gomega.Expect(resp.StatusCode).To(gomega.Equal(200))
 	return string(body)
 }
