@@ -42,12 +42,12 @@ spec:
   - network
   links:
   - name: Lbconfig Operator
-    url: https://lbconfig-operator.domain
+    url: https://github.com/carlosedp/lbconfig-operator
   maintainers:
   - email: carlosedp@gmail.com
-    name: CarlosEDP
+    name: Carlos Eduardo de Paula
   maturity: alpha
   provider:
     name: carlosedp.com
-    url: https://github.com/carlosedp/lbconfig-operator
+    url: https://github.com/carlosedp/
   version: 0.0.0

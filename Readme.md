@@ -37,6 +37,8 @@ Apply the operator manifest into the cluster:
 kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/master/manifests/deploy.yaml
 ```
 
+The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
+
 ### Create ExternalLoadBalancer instances
 
 Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
