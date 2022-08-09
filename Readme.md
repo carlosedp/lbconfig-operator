@@ -5,13 +5,14 @@
 [![Bundle](https://github.com/carlosedp/lbconfig-operator/actions/workflows/check-bundle.yml/badge.svg)](https://github.com/carlosedp/lbconfig-operator/actions/workflows/check-bundle.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/carlosedp/lbconfig-operator)](https://goreportcard.com/report/github.com/carlosedp/lbconfig-operator)
 
-**This is still a work-in-progress project.**
 
-This operator manages external Load Balancer instances and creates VIPs and IP Pools with Monitors for the Master and Infra nodes based on it's roles and/or labels.
+The LBConfig Operator, manages the configuration of External Load Balancer instances (on third-party equipment via it's API) and creates VIPs and IP Pools with Monitors for a set of OpenShift or Kubernetes nodes like Master-nodes (Control-Plane), Infra nodes (where the Routers or Ingress controllers are located) or based on it's roles and/or labels.
 
-The IPs are updated automatically based on the Node IPs for each role or label. The objective is to have a modular architecture to allow plugging additional backends for different load balancer providers.
+The operator dynamically handles creating, updating or deleting the IPs of the pools in the Load Balancer based on the Node IPs for each role or label. On every change of the operator configuration (CRDs) or addition/change/removal or cluster Nodes, the operator updates the Load Balancer properly.
 
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
+The objective is to have a modular architecture allowing pluggable backends for different load balancer providers.
+
+To use the operator, you will need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
 **Note:** Your controller will automatically use the current context in your kubeconfig file (`~/.kube/config`) (i.e. whatever cluster `kubectl cluster-info` shows).
 
 Quick demo:
@@ -26,7 +27,7 @@ The main users for this operator is enterprise deployments or clusters composed 
 
 ![High Level Architecture](./docs/LBOperator-Arch.drawio.png)
 
-## Install
+## Using the Operator
 
 ### Deploy the Operator to your cluster
 
@@ -42,7 +43,7 @@ Create the instances for each Load Balancer instance you need (for example one f
 
 The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected by the `nodelabels` labels array.
 
-The provider `vendor` field can be (case-insensitive):
+**The provider `vendor` field can be (case-insensitive):**
 
 * F5_BigIP
 * Citrix_ADC
@@ -54,9 +55,9 @@ Create the secret holding the Load Balancer API user and password:
 oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig-operator-system
 ```
 
-#### Sample CRDs
+#### Sample CRDs and Available Fields
 
-Master Nodes:
+Master Nodes using an F5 BigIP LB:
 
 ```yaml
 apiVersion: lb.lbconfig.io/v1
@@ -82,7 +83,7 @@ spec:
     monitortype: "https"
 ```
 
-Infra Nodes:
+Infra Nodes using a Citrix ADC LB:
 
 ```yaml
 apiVersion: lb.lbconfig.io/v1
@@ -94,11 +95,10 @@ spec:
   vip: "10.0.0.6"
   type: "infra"
   provider:
-    vendor: F5_BigIP
-    host: "192.168.1.35"
+    vendor: Citrix_ADC
+    host: "https://192.168.1.36"
     port: 443
-    creds: f5-creds
-    partition: "Common"
+    creds: netscaler-creds
     validatecerts: no
   ports:
     - 80
@@ -108,15 +108,46 @@ spec:
     port: 1936
 ```
 
-Nodes with sharded routers or arbitrary labels are also supported. Create the YAML adding the `nodelabels` field with your node labels.
+Clusters with sharded routers or using arbitrary labels to determine where the Ingress Controllers run are also supported. Create the YAML adding the `nodelabels` field with your node labels.
 
 ```yaml
 spec:
   vip: "10.0.0.6"
   nodelabels:
-    "node.kubernetes.io/region": "production"
+    - "node.kubernetes.io/ingress-controller": "production"
   ...
 ```
+
+CRD Fields:
+
+```yaml
+apiVersion: lb.lbconfig.io/v1       # This is the API used by the operator (mandatory)
+kind: ExternalLoadBalancer          # This is the object the operator manages (mandatory)
+metadata:
+  name: externalloadbalancer-master-sample  # Load Balancer instance configuration name (mandatory)
+  namespace: lbconfig-operator-system       # The instance namespace (same as the operator runs) (mandatory)
+spec:
+  vip: "192.168.1.40"     # This is the VIP that will be created on the Load Balancer for this instance (mandatory)
+  type: "master"          # Type could be "master" or "infra" that maps to OpenShift labels (optional)
+  nodelabels:             # List of labels to be used instead of "type" field (optional)
+    - "node.kubernetes.io/ingress": "production"   # Example label used to fetch the Node IPs by this instance (optional)
+  provider:               # This section defines the backend provider or vendor of the Load Balancer
+    vendor: F5_BigIP      # See supported vendors in the section above (mandatory)
+    host: "192.168.1.35"  # The IP of the API for the Load Balancer to be managed (mandatory)
+    port: 443             # The port of the API for the Load Balancer to be managed (mandatory)
+    creds: f5-creds       # The name of the Kubernetes Secret created with username and password to the API (mandatory)
+    partition: "Common"   # The partition for the F5 Load Balancer to be used (optional, only for F5_BigIP provider)
+    validatecerts: no     # Should check the certificates if API uses HTTPS (optional)
+  ports:
+    - 6443                # Port list which the Load Balancer will be forwarding the traffic (mandatory)
+  monitor:
+    path: "/healthz"      # Monitor URL to be configured in the Load Balancer instance
+    port: 6443            # Monitor port to be configured in the Load Balancer instance
+    monitortype: "https"  # Monitor protocol to be configured in the Load Balancer instance
+```
+
+For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#pkg-types>.
+
 
 ## Developing and Building
 

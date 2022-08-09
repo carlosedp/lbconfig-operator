@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
 )
 
 // -----------------------------------------
