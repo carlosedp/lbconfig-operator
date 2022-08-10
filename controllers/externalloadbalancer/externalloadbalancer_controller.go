@@ -157,8 +157,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// Get Nodes by role and label for infra router sharding or service exposure
 	// ----------------------------------------
 	if lb.Spec.Type == "" && lb.Spec.NodeLabels == nil {
-		log.Error(err, "undefined loadbalancer type or no nodelabels defined")
-		return ctrl.Result{}, err
+		err = fmt.Errorf("undefined loadbalancer type or no nodelabels defined")
+		return ctrl.Result{Requeue: false}, err
 	}
 
 	labels := computeLabels(*lb)
