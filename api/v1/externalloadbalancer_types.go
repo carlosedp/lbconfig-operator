@@ -31,29 +31,45 @@ import (
 // ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
 type ExternalLoadBalancerSpec struct {
 	// Vip is the Virtual IP configured in  this LoadBalancer instance
+	// +kubebuilder:validation:Required
+	// kubebuilder:validation:MinLength=7
+	// kubebuilder:validation:MaxLength=15
 	Vip string `json:"vip"`
 	// Type is the node role type (master or infra) for the LoadBalancer instance
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=`master`;`infra`
 	Type string `json:"type,omitempty"`
 	// NodeLabels are the node labels used for router sharding or exposed service. Optional.
+	// +kubebuilder:validation:Optional
 	NodeLabels map[string]string `json:"nodelabels,omitempty"`
 	// Backend is the LoadBalancer used
+	// +kubebuilder:validation:Required
+	//+kubebuilder:validation:MinItems=1
+	//+kubebuilder:validation:MaxItems=128
 	Ports []int `json:"ports"`
 	// Monitor is the path and port to monitor the LoadBalancer members
+	// +kubebuilder:validation:Required
 	Monitor Monitor `json:"monitor"`
 	// Provider is the LoadBalancer backend provider
+	// +kubebuilder:validation:Required
 	Provider Provider `json:"provider"`
 }
 
 // Monitor defines a monitor object in the LoadBalancer.
 type Monitor struct {
 	// Name is the monitor name, it is set by the controller
+	// +kubebuilder:validation:Optional
 	Name string `json:"name,omitempty"`
 	// Path is the path URL to check for the pool members
+	// +kubebuilder:validation:Required
 	Path string `json:"path"`
 	// Port is the port this monitor should check the pool members
+	// +kubebuilder:validation:Required
 	Port int `json:"port"`
 	// MonitorType is the monitor parent type. <monitorType> must be one of "http", "https",
-	// "icmp", "gateway icmp", "inband", "postgresql", "mysql", "udp" or "tcp".
+	// "icmp".
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=`http`;`https`;`icmp`
 	MonitorType string `json:"monitortype"`
 }
 
@@ -136,16 +152,21 @@ func init() {
 // Provider is a backend provider for F5 Big IP Load Balancers
 type Provider struct {
 	// Vendor is the backend provider vendor
+	// +kubebuilder:validation:Required
 	Vendor string `json:"vendor"`
 	// Host is the Load Balancer API IP or Hostname.
+	// +kubebuilder:validation:Required
 	Host string `json:"host"`
 	// Port is the Load Balancer API Port.
+	// +kubebuilder:validation:Required
 	Port int `json:"port"`
 	// Creds credentials secret holding the username and password keys.
+	// +kubebuilder:validation:Required
 	Creds string `json:"creds"`
 	// Partition is the F5 partition to create the Load Balancer instances.
+	// +kubebuilder:validation:Optional
 	Partition string `json:"partition,omitempty"`
 	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
-	// +optional
+	// +kubebuilder:validation:Optional
 	ValidateCerts *bool `json:"validatecerts,omitempty"`
 }

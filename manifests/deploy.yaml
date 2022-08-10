@@ -41,7 +41,11 @@ spec:
                 description: Monitor is the path and port to monitor the LoadBalancer members
                 properties:
                   monitortype:
-                    description: MonitorType is the monitor parent type. <monitorType> must be one of "http", "https", "icmp", "gateway icmp", "inband", "postgresql", "mysql", "udp" or "tcp".
+                    description: MonitorType is the monitor parent type. <monitorType> must be one of "http", "https", "icmp".
+                    enum:
+                    - http
+                    - https
+                    - icmp
                     type: string
                   name:
                     description: Name is the monitor name, it is set by the controller
@@ -66,6 +70,8 @@ spec:
                 description: Backend is the LoadBalancer used
                 items:
                   type: integer
+                maxItems: 128
+                minItems: 1
                 type: array
               provider:
                 description: Provider is the LoadBalancer backend provider
@@ -96,9 +102,12 @@ spec:
                 type: object
               type:
                 description: Type is the node role type (master or infra) for the LoadBalancer instance
+                enum:
+                - master
+                - infra
                 type: string
               vip:
-                description: Vip is the Virtual IP configured in  this LoadBalancer instance
+                description: Vip is the Virtual IP configured in  this LoadBalancer instance kubebuilder:validation:MinLength=7 kubebuilder:validation:MaxLength=15
                 type: string
             required:
             - monitor
@@ -113,7 +122,11 @@ spec:
                 description: Monitor defines a monitor object in the LoadBalancer.
                 properties:
                   monitortype:
-                    description: MonitorType is the monitor parent type. <monitorType> must be one of "http", "https", "icmp", "gateway icmp", "inband", "postgresql", "mysql", "udp" or "tcp".
+                    description: MonitorType is the monitor parent type. <monitorType> must be one of "http", "https", "icmp".
+                    enum:
+                    - http
+                    - https
+                    - icmp
                     type: string
                   name:
                     description: Name is the monitor name, it is set by the controller
