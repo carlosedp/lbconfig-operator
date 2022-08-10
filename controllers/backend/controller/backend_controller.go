@@ -94,17 +94,17 @@ func ListProviders() []string {
 	return p
 }
 
-func RegisterProvider(name string, provider Provider) {
+func RegisterProvider(name string, provider Provider) error {
 	name_slug := strings.ToLower(name)
 	var ctx = context.Background()
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("backend_controller", "RegisterProvider")
 	if _, exists := providers[name_slug]; exists {
-		log.Error(fmt.Errorf("provider already exists"), "Provider '%s' tried to register twice", name)
-		return
+		return fmt.Errorf("provider already exists, provider '%s' tried to register twice", name)
 	}
 	log.Info("Registering provider", "provider", name)
 	providers[name_slug] = provider
+	return nil
 }
 
 func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username string, password string) (*BackendController, error) {
@@ -182,14 +182,14 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 
 		// Check members that need to be added
 		for _, m := range pool.Members {
-			if !containsMember(configuredPool.Members, m) {
+			if !ContainsMember(configuredPool.Members, m) {
 				// Add member to configuration
 				addMembers = append(addMembers, m)
 			}
 		}
 		// Check members that need to be removed
 		for _, m := range configuredPool.Members {
-			if !containsMember(pool.Members, m) {
+			if !ContainsMember(pool.Members, m) {
 				// Remove member from configuration
 				delMembers = append(delMembers, m)
 			}
@@ -344,7 +344,7 @@ func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
 	return nil
 }
 
-func containsMember(arr []lbv1.PoolMember, m lbv1.PoolMember) bool {
+func ContainsMember(arr []lbv1.PoolMember, m lbv1.PoolMember) bool {
 	for _, a := range arr {
 		if a.Node.Host == m.Node.Host && a.Port == m.Port {
 			return true

@@ -57,6 +57,8 @@ spec:
                   port:
                     description: Port is the port this monitor should check the pool
                       members
+                    maximum: 65535
+                    minimum: 1
                     type: integer
                 required:
                 - monitortype
@@ -85,6 +87,8 @@ spec:
                     type: string
                   host:
                     description: Host is the Load Balancer API IP or Hostname.
+                    maxLength: 255
+                    minLength: 1
                     type: string
                   partition:
                     description: Partition is the F5 partition to create the Load
@@ -92,6 +96,8 @@ spec:
                     type: string
                   port:
                     description: Port is the Load Balancer API Port.
+                    maximum: 65535
+                    minimum: 1
                     type: integer
                   validatecerts:
                     description: ValidateCerts is a flag to validate or not the Load
@@ -115,7 +121,9 @@ spec:
                 type: string
               vip:
                 description: Vip is the Virtual IP configured in  this LoadBalancer
-                  instance kubebuilder:validation:MinLength=7 kubebuilder:validation:MaxLength=15
+                  instance
+                maxLength: 15
+                minLength: 7
                 type: string
             required:
             - monitor
@@ -147,6 +155,8 @@ spec:
                   port:
                     description: Port is the port this monitor should check the pool
                       members
+                    maximum: 65535
+                    minimum: 1
                     type: integer
                 required:
                 - monitortype
@@ -231,6 +241,8 @@ spec:
                     type: string
                   host:
                     description: Host is the Load Balancer API IP or Hostname.
+                    maxLength: 255
+                    minLength: 1
                     type: string
                   partition:
                     description: Partition is the F5 partition to create the Load
@@ -238,6 +250,8 @@ spec:
                     type: string
                   port:
                     description: Port is the Load Balancer API Port.
+                    maximum: 65535
+                    minimum: 1
                     type: integer
                   validatecerts:
                     description: ValidateCerts is a flag to validate or not the Load

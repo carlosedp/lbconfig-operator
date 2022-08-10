@@ -35,6 +35,7 @@ import (
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+	d "github.com/carlosedp/lbconfig-operator/controllers/backend/dummy"
 )
 
 func TestBackendController(t *testing.T) {
@@ -46,6 +47,11 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 
 	Context("When using a creating backends", func() {
 		var ctx = context.TODO()
+
+		It("Should return error if backend provider tries to register again", func() {
+			err := RegisterProvider("Dummy", new(d.DummyProvider))
+			Expect(err).To(MatchError(MatchRegexp("provider already exists.*")))
+		})
 
 		It("Should return error if backend provider does not exist", func() {
 			loadBalancer := &lbv1.ExternalLoadBalancer{
@@ -67,6 +73,34 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 			Expect(err).Should(HaveOccurred())
 			Expect(err).To(MatchError(MatchRegexp("no such provider.*")))
 			Expect(createdBackend).To(BeNil())
+		})
+
+		It("Should return true if array contains member", func() {
+			m := lbv1.PoolMember{
+				Node: lbv1.Node{
+					Name: "node1",
+					Host: "1.1.1.1",
+				},
+				Port: 80,
+			}
+			a := []lbv1.PoolMember{m}
+			output := ContainsMember(a, m)
+			Expect(output).To(BeTrue())
+		})
+
+		It("Should return false if array doesn't contain member", func() {
+			m := lbv1.PoolMember{
+				Node: lbv1.Node{
+					Name: "node1",
+					Host: "1.1.1.1",
+				},
+				Port: 80,
+			}
+			m2 := m.DeepCopy()
+			m2.Node.Host = "1.1.1.2"
+			a := []lbv1.PoolMember{m}
+			output := ContainsMember(a, *m2)
+			Expect(output).To(BeFalse())
 		})
 	})
 })

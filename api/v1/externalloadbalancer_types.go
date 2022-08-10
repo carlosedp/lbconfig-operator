@@ -28,28 +28,52 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func init() {
+	SchemeBuilder.Register(&ExternalLoadBalancer{}, &ExternalLoadBalancerList{})
+}
+
+// User-side configuration for an external load balancer via CRDs
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+
+// ExternalLoadBalancer is the Schema for the externalloadbalancers API
+// +kubebuilder:subresource:status
+type ExternalLoadBalancer struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ExternalLoadBalancerSpec   `json:"spec,omitempty"`
+	Status ExternalLoadBalancerStatus `json:"status,omitempty"`
+}
+
 // ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
 type ExternalLoadBalancerSpec struct {
 	// Vip is the Virtual IP configured in  this LoadBalancer instance
 	// +kubebuilder:validation:Required
-	// kubebuilder:validation:MinLength=7
-	// kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:MinLength=7
+	// +kubebuilder:validation:MaxLength=15
 	Vip string `json:"vip"`
+
 	// Type is the node role type (master or infra) for the LoadBalancer instance
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=`master`;`infra`
 	Type string `json:"type,omitempty"`
+
 	// NodeLabels are the node labels used for router sharding or exposed service. Optional.
 	// +kubebuilder:validation:Optional
 	NodeLabels map[string]string `json:"nodelabels,omitempty"`
+
 	// Backend is the LoadBalancer used
 	// +kubebuilder:validation:Required
-	//+kubebuilder:validation:MinItems=1
-	//+kubebuilder:validation:MaxItems=128
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=128
 	Ports []int `json:"ports"`
+
 	// Monitor is the path and port to monitor the LoadBalancer members
 	// +kubebuilder:validation:Required
 	Monitor Monitor `json:"monitor"`
+
 	// Provider is the LoadBalancer backend provider
 	// +kubebuilder:validation:Required
 	Provider Provider `json:"provider"`
@@ -60,18 +84,56 @@ type Monitor struct {
 	// Name is the monitor name, it is set by the controller
 	// +kubebuilder:validation:Optional
 	Name string `json:"name,omitempty"`
+
 	// Path is the path URL to check for the pool members
 	// +kubebuilder:validation:Required
 	Path string `json:"path"`
+
 	// Port is the port this monitor should check the pool members
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
 	Port int `json:"port"`
+
 	// MonitorType is the monitor parent type. <monitorType> must be one of "http", "https",
 	// "icmp".
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=`http`;`https`;`icmp`
 	MonitorType string `json:"monitortype"`
 }
+
+// Provider is a backend provider for F5 Big IP Load Balancers
+type Provider struct {
+	// Vendor is the backend provider vendor
+	// +kubebuilder:validation:Required
+	Vendor string `json:"vendor"`
+
+	// Host is the Load Balancer API IP or Hostname.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	Host string `json:"host"`
+
+	// Port is the Load Balancer API Port.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int `json:"port"`
+
+	// Creds credentials secret holding the username and password keys.
+	// +kubebuilder:validation:Required
+	Creds string `json:"creds"`
+
+	// Partition is the F5 partition to create the Load Balancer instances.
+	// +kubebuilder:validation:Optional
+	Partition string `json:"partition,omitempty"`
+
+	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
+	// +kubebuilder:validation:Optional
+	ValidateCerts *bool `json:"validatecerts,omitempty"`
+}
+
+// Internal types
 
 // Pool defines a pool object in the LoadBalancer.
 type Pool struct {
@@ -124,49 +186,10 @@ type ExternalLoadBalancerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-
-// ExternalLoadBalancer is the Schema for the externalloadbalancers API
-// +kubebuilder:subresource:status
-type ExternalLoadBalancer struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   ExternalLoadBalancerSpec   `json:"spec,omitempty"`
-	Status ExternalLoadBalancerStatus `json:"status,omitempty"`
-}
-
-// +kubebuilder:object:root=true
 
 // ExternalLoadBalancerList contains a list of ExternalLoadBalancer
 type ExternalLoadBalancerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ExternalLoadBalancer `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&ExternalLoadBalancer{}, &ExternalLoadBalancerList{})
-}
-
-// Provider is a backend provider for F5 Big IP Load Balancers
-type Provider struct {
-	// Vendor is the backend provider vendor
-	// +kubebuilder:validation:Required
-	Vendor string `json:"vendor"`
-	// Host is the Load Balancer API IP or Hostname.
-	// +kubebuilder:validation:Required
-	Host string `json:"host"`
-	// Port is the Load Balancer API Port.
-	// +kubebuilder:validation:Required
-	Port int `json:"port"`
-	// Creds credentials secret holding the username and password keys.
-	// +kubebuilder:validation:Required
-	Creds string `json:"creds"`
-	// Partition is the F5 partition to create the Load Balancer instances.
-	// +kubebuilder:validation:Optional
-	Partition string `json:"partition,omitempty"`
-	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
-	// +kubebuilder:validation:Optional
-	ValidateCerts *bool `json:"validatecerts,omitempty"`
 }
