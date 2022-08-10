@@ -262,17 +262,18 @@ var _ = Describe("Controllers/Backend/haproxy/haproxy_controller", func() {
 		// })
 
 		Context("when handling load balancer pools", func() {
-			// It("Should get a pool", func() {
-			// 	createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			// 	Expect(err).To(BeNil())
-			// 	err = createdBackend.Provider.Connect()
-			// 	Expect(err).To(BeNil())
+			It("Should get a pool", func() {
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+				Expect(err).To(BeNil())
+				err = createdBackend.Provider.Connect()
+				Expect(err).To(BeNil())
 
-			// 	_, err = createdBackend.Provider.GetPool(pool)
-			// 	Expect(httpurl).To(Equal("/nitro/v1/config/servicegroup/test-pool"))
-			// 	Expect(httpop).To(Equal("GET"))
-			// 	Expect(err).To(BeNil())
-			// })
+				_, _ = createdBackend.Provider.GetPool(pool)
+				Expect(httpurl).To(Equal("/v2/services/haproxy/configuration/backends/test-pool"))
+				Expect(httpop).To(Equal("GET"))
+				// Our mock returns an empty map, so we can't check for equality
+				// Expect(err).To(BeNil())
+			})
 
 			It("Should create a pool", func() {
 				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
@@ -286,7 +287,6 @@ var _ = Describe("Controllers/Backend/haproxy/haproxy_controller", func() {
 				//   <map[string]interface {} | len:1>: {
 				//       "name": <string>"test-pool",
 				//   }
-				// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
 				Expect(httpdata["name"]).To(Equal("test-pool"))
 				// We get an error because the lib expects a specific return and our mock server don't do this.
 				// Lets just check the status code.
@@ -295,35 +295,34 @@ var _ = Describe("Controllers/Backend/haproxy/haproxy_controller", func() {
 				// Expect(m).NotTo(BeNil())
 			})
 
-			// 	It("Should delete the pool", func() {
-			// 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			// 		Expect(err).To(BeNil())
-			// 		err = createdBackend.Provider.Connect()
-			// 		Expect(err).To(BeNil())
+			It("Should delete the pool", func() {
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+				Expect(err).To(BeNil())
+				err = createdBackend.Provider.Connect()
+				Expect(err).To(BeNil())
 
-			// 		err = createdBackend.Provider.DeletePool(pool)
-			// 		Expect(httpurl).To(Equal("/nitro/v1/config/servicegroup/test-pool"))
-			// 		Expect(httpop).To(Equal("DELETE"))
-			// 		Expect(err).To(BeNil())
-			// 	})
+				err = createdBackend.Provider.DeletePool(pool)
+				Expect(httpurl).To(Equal("/v2/services/haproxy/configuration/backends/test-pool"))
+				Expect(httpop).To(Equal("DELETE"))
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+				// Expect(err).To(BeNil())
+			})
 
-			// 	It("Should edit the pool", func() {
-			// 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			// 		Expect(err).To(BeNil())
-			// 		err = createdBackend.Provider.Connect()
-			// 		Expect(err).To(BeNil())
+			It("Should edit the pool", func() {
+				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+				Expect(err).To(BeNil())
+				err = createdBackend.Provider.Connect()
+				Expect(err).To(BeNil())
 
-			// 		err = createdBackend.Provider.EditPool(pool)
-			// 		Expect(httpurl).To(Equal("/nitro/v1/config/servicegroup_lbmonitor_binding"))
-			// 		Expect(httpop).To(Equal("POST"))
-			// 		// <map[string]interface {} | len:1>: {
-			// 		// 	"servicegroupname": <string>"test-pool",
-			// 		// }
-			// 		// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
-			// 		Expect(httpdata["servicegroup_lbmonitor_binding"].(map[string]interface{})["servicegroupname"]).To(Equal("test-pool"))
-			// 		Expect(err).To(BeNil())
-			// })
+				err = createdBackend.Provider.EditPool(pool)
+				Expect(httpurl).To(Equal("/v2/services/haproxy/configuration/backends"))
+				Expect(httpop).To(Equal("POST"))
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+				Expect(httpdata["name"]).To(Equal("test-pool"))
+				// Expect(err).To(BeNil())
+			})
 		})
+
 		// 	Context("when handling load balancer VIPs", func() {
 		// 		It("Should get a VIP", func() {
 		// 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")

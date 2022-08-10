@@ -37,6 +37,7 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/haproxytech/client-native/v4/models"
+	"k8s.io/utils/pointer"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
@@ -55,6 +56,7 @@ type HAProxyProvider struct {
 	hostport int
 	username string
 	password string
+	monitor  *models.HTTPCheck
 }
 
 func init() {
@@ -71,10 +73,10 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 	p.username = username
 	p.password = password
 
-	// auth := httptransport.BasicAuth(p.username, p.password)
+	auth := httptransport.BasicAuth(p.username, p.password)
 	transport := httptransport.New(fmt.Sprintf("%s:%d", strings.TrimSpace(p.host), p.hostport), "/v2", []string{"http"})
-	// transport.DefaultAuthentication = auth
-	transport.Debug = true
+	transport.DefaultAuthentication = auth
+	transport.Debug = false
 
 	// create the API client, with the transport
 	p.haproxy = client.New(transport, strfmt.Default)
@@ -106,92 +108,53 @@ func (p *HAProxyProvider) Close() error {
 
 // GetMonitor gets a monitor in the IP Load Balancer
 func (p *HAProxyProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
-	// m, err := p.f5.GetMonitor(monitor.Name, monitor.MonitorType)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error getting F5 Monitor %s: %v", monitor.Name, err)
-	// }
+	// Return in case monitor is not set
+	if p.monitor == nil {
+		return nil, nil
+	}
 
-	// // Return in case monitor does not exist
-	// if m == nil {
-	// 	return nil, nil
-	// }
+	// Return monitor details in case it exists
+	mon := &lbv1.Monitor{
+		Name:        "no-name-monitor",
+		MonitorType: p.monitor.Proto,
+		Path:        p.monitor.URI,
+		Port:        int(*p.monitor.Port),
+	}
 
-	// // Return monitor details in case it exists
-	// s := strings.Split(m.Destination, ".")[1]
-	// port, err := strconv.Atoi(s)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error converting F5 monitor port: %v", err)
-	// }
-
-	// parent := strings.Split(m.ParentMonitor, "/")[2]
-	// mon := &lbv1.Monitor{
-	// 	Name:        m.Name,
-	// 	MonitorType: parent,
-	// 	Path:        strings.TrimLeft(m.SendString, "GET "),
-	// 	Port:        port,
-	// }
-
-	// return mon, nil
-	return nil, nil
+	return mon, nil
 }
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *HAProxyProvider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 
-	// config := &bigip.Monitor{
-	// 	Name:          m.Name,
-	// 	ParentMonitor: partition + m.MonitorType,
-	// 	Interval:      5,
-	// 	Timeout:       16,
-	// 	SendString:    "GET " + m.Path,
-	// 	ReceiveString: "",
-	// }
-
-	// if m.Port != 0 {
-	// 	destination := "*." + strconv.Itoa(m.Port)
-	// 	config.Destination = destination
-	// }
-	// err := p.f5.AddMonitor(config, m.MonitorType)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error creating F5 monitor %s: %v", m.Name, err)
-	// }
-
-	// return m, nil
-	return nil, nil
+	p.monitor = &models.HTTPCheck{
+		URI:    m.Path,
+		Port:   pointer.Int64(int64(m.Port)),
+		Method: "GET",
+		Proto:  m.MonitorType,
+	}
+	return m, nil
 }
 
 // EditMonitor edits a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *HAProxyProvider) EditMonitor(m *lbv1.Monitor) error {
-	// config := &bigip.Monitor{
-	// 	Name:          m.Name,
-	// 	ParentMonitor: partition + m.MonitorType,
-	// 	Interval:      5,
-	// 	Timeout:       16,
-	// 	SendString:    "GET " + m.Path,
-	// 	ReceiveString: "",
-	// }
-
-	// Cannot update monitor port.
-	// TODO: Return error to be treated by the controller
-	// if m.Port != 0 {
-	// 	destination := "*." + strconv.Itoa(m.Port)
-	// 	config.Destination = destination
-	// }
-	// err := p.f5.PatchMonitor(m.Name, m.MonitorType, config)
-	// if err != nil {
-	// 	return fmt.Errorf("error patching F5 monitor  %s: %v", m.Name, err)
-	// }
+	p.monitor = &models.HTTPCheck{
+		URI:    m.Path,
+		Port:   pointer.Int64(int64(m.Port)),
+		Method: "GET",
+		Proto:  m.MonitorType,
+	}
+	// Maybe call EditPool?
 	return nil
+
 }
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
 func (p *HAProxyProvider) DeleteMonitor(m *lbv1.Monitor) error {
-	// err := p.f5.DeleteMonitor(m.Name, m.MonitorType)
-	// if err != nil {
-	// 	return fmt.Errorf("error deleting F5 monitor %s: %v", m.Name, err)
-	// }
+	p.monitor = nil
+	// Maybe call EditPool?
 	return nil
 }
 
@@ -201,7 +164,6 @@ func (p *HAProxyProvider) DeleteMonitor(m *lbv1.Monitor) error {
 
 // GetPool gets a server pool from the Load Balancer
 func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
-
 	newPool, err := p.haproxy.Backend.GetBackend(&backend.GetBackendParams{
 		Name:    pool.Name,
 		Context: context.Background(),
@@ -253,10 +215,15 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 // CreatePool creates a server pool in the Load Balancer
 func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
-	// Create Pool
+	m := &models.HTTPCheck{}
+	// Create Pool with pre-existing monitor
+	if p.monitor != nil {
+		m = p.monitor
+	}
 	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
 		Data: &models.Backend{
-			Name: pool.Name,
+			Name:      pool.Name,
+			HTTPCheck: m,
 		},
 		Context: context.Background(),
 	}, nil)
@@ -264,35 +231,40 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		return nil, fmt.Errorf("error creating pool(ERR) %s: %v", pool.Name, err)
 	}
 
-	// // Add monitor to Pool
-	// err = p.f5.AddMonitorToPool(pool.Monitor, pool.Name)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
-	// }
 	return pool, nil
-	// return nil, nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
 func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
-	// newPool := &bigip.Pool{
-	// 	Name:    pool.Name,
-	// 	Monitor: pool.Monitor,
-	// }
+	m := &models.HTTPCheck{}
+	// Create Pool with pre-existing monitor
+	if p.monitor != nil {
+		m = p.monitor
+	}
+	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
+		Data: &models.Backend{
+			Name:      pool.Name,
+			HTTPCheck: m,
+		},
+		Context: context.Background(),
+	}, nil)
+	if err != nil {
+		return fmt.Errorf("error editing pool(ERR) %s: %v", pool.Name, err)
+	}
 
-	// err := p.f5.ModifyPool(pool.Name, newPool)
-	// if err != nil {
-	// 	return fmt.Errorf("error editing pool %s: %v", pool.Name, err)
-	// }
 	return nil
 }
 
 // DeletePool removes a server pool in the Load Balancer
 func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
-	// err := p.f5.DeletePool(pool.Name)
-	// if err != nil {
-	// 	return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
-	// }
+	_, _, err := p.haproxy.Backend.DeleteBackend(&backend.DeleteBackendParams{
+		Name:    pool.Name,
+		Context: context.Background(),
+	}, nil)
+
+	if err != nil {
+		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
+	}
 	return nil
 }
 
