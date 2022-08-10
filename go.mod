@@ -3,13 +3,15 @@ module github.com/carlosedp/lbconfig-operator
 go 1.18
 
 require (
+	github.com/carlosedp/haproxy-go-client v1.0.1
 	github.com/citrix/adc-nitro-go v0.0.0-20220729103504-dcff5ad76fcd
 	github.com/go-logr/logr v1.2.3
 	github.com/go-openapi/runtime v0.24.1
 	github.com/go-openapi/strfmt v0.21.3
+	github.com/gorilla/mux v1.8.0
+	github.com/haproxytech/client-native/v4 v4.0.0
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.0
-	github.com/practical-coder/hdc v1.0.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/scottdware/go-bigip v0.0.0-20220517145708-9fe3e2f9f005
 	github.com/tidwall/gjson v1.14.3
@@ -58,7 +60,6 @@ require (
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/haproxytech/client-native/v4 v4.0.0 // indirect
 	github.com/hashicorp/go-hclog v1.2.2 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2022 Carlos Eduardo de Paula
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 package haproxy
 
 import (
@@ -5,16 +29,18 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/carlosedp/haproxy-go-client/client"
+	"github.com/carlosedp/haproxy-go-client/client/backend"
+	"github.com/carlosedp/haproxy-go-client/client/frontend"
+	"github.com/carlosedp/haproxy-go-client/client/server"
 	"github.com/go-logr/logr"
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-	"github.com/practical-coder/hdc/client"
-	"github.com/practical-coder/hdc/client/backend"
-	"github.com/practical-coder/hdc/client/frontend"
-	"github.com/practical-coder/hdc/client/server"
+	"github.com/haproxytech/client-native/v4/models"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	backend_controller "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 )
 
 // ----------------------------------------
@@ -24,35 +50,39 @@ import (
 // Provider is the object for the HAProxy Provider implementing the Provider interface
 type HAProxyProvider struct {
 	log      logr.Logger
-	haproxy  *client.HaproxyDataplaneClient
+	haproxy  *client.DataPlane
 	host     string
 	hostport int
 	username string
 	password string
 }
 
+func init() {
+	backend_controller.RegisterProvider("HAProxy", new(HAProxyProvider))
+}
+
 // Create creates a new Load Balancer backend provider
 func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("provider", "HAProxy")
-
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port
 	p.username = username
 	p.password = password
+
+	// auth := httptransport.BasicAuth(p.username, p.password)
+	transport := httptransport.New(fmt.Sprintf("%s:%d", strings.TrimSpace(p.host), p.hostport), "/v2", []string{"http"})
+	// transport.DefaultAuthentication = auth
+	transport.Debug = true
+
+	// create the API client, with the transport
+	p.haproxy = client.New(transport, strfmt.Default)
 	return nil
 }
 
 // Connect creates a connection to the IP Load Balancer
 func (p *HAProxyProvider) Connect() error {
-	auth := httptransport.BasicAuth(p.username, p.password)
-	transport := httptransport.New(fmt.Sprintf("%s:%d", strings.TrimSpace(p.host), p.hostport), "/v2", nil)
-	transport.DefaultAuthentication = auth
-	transport.Debug = false
-
-	// create the API client, with the transport
-	p.haproxy = client.New(transport, strfmt.Default)
 	return nil
 }
 
@@ -223,29 +253,24 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 // CreatePool creates a server pool in the Load Balancer
 func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
-	// // Create Pool
-
-	// _, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
-	// 	Name:    pool.Name,
-	// 	Context: context.Background(),
-	// }, nil)
-
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error getting pool: %v", err)
-	// }
-
-	// err := p.f5.CreatePool(pool.Name)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error creating pool %s: %v", pool.Name, err)
-	// }
+	// Create Pool
+	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
+		Data: &models.Backend{
+			Name: pool.Name,
+		},
+		Context: context.Background(),
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating pool(ERR) %s: %v", pool.Name, err)
+	}
 
 	// // Add monitor to Pool
 	// err = p.f5.AddMonitorToPool(pool.Monitor, pool.Name)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
 	// }
-	// return pool, nil
-	return nil, nil
+	return pool, nil
+	// return nil, nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
