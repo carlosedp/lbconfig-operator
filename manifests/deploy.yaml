@@ -37,6 +37,10 @@ spec:
       jsonPath: .spec.provider.vendor
       name: Provider
       type: string
+    - description: Amount of nodes in the load balancer
+      jsonPath: .status.numnodes
+      name: Nodes
+      type: string
     - description: Type of nodes in this Load Balancer
       jsonPath: .spec.type
       name: Type
@@ -91,7 +95,7 @@ spec:
               nodelabels:
                 additionalProperties:
                   type: string
-                description: NodeLabels are the node labels used for router sharding or exposed service. Optional.
+                description: NodeLabels are the node labels used for router sharding as an alternative to "type". Optional.
                 type: object
               ports:
                 description: Ports is the ports exposed by this LoadBalancer instance
@@ -201,6 +205,8 @@ spec:
                   - host
                   type: object
                 type: array
+              numnodes:
+                type: integer
               pools:
                 items:
                   description: Pool defines a pool object in the LoadBalancer.

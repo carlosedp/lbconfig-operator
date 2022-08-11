@@ -42,6 +42,7 @@ func init() {
 // +kubebuilder:printcolumn:name="VIP",type="string",JSONPath=".spec.vip",description="Load Balancer VIP"
 // +kubebuilder:printcolumn:name="Ports",type="string",JSONPath=".spec.ports",description="Load Balancer Ports"
 // +kubebuilder:printcolumn:name="Provider",type="string",JSONPath=".spec.provider.vendor",description="Load Balancer Provider Backend"
+// +kubebuilder:printcolumn:name="Nodes",type="string",JSONPath=".status.numnodes",description="Amount of nodes in the load balancer"
 // +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="Type of nodes in this Load Balancer"
 // +kubebuilder:printcolumn:name="Matching Node Labels",type="string",JSONPath=".status.labels",description="Node Labels matching this Load Balancer"
 type ExternalLoadBalancer struct {
@@ -65,7 +66,7 @@ type ExternalLoadBalancerSpec struct {
 	// +kubebuilder:validation:Enum=`master`;`infra`
 	Type string `json:"type,omitempty"`
 
-	// NodeLabels are the node labels used for router sharding or exposed service. Optional.
+	// NodeLabels are the node labels used for router sharding as an alternative to "type". Optional.
 	// +kubebuilder:validation:Optional
 	NodeLabels map[string]string `json:"nodelabels,omitempty"`
 
@@ -190,6 +191,7 @@ type ExternalLoadBalancerStatus struct {
 	Pools    []Pool            `json:"pools,omitempty"`
 	Provider Provider          `json:"provider,omitempty"`
 	Labels   map[string]string `json:"labels,omitempty"`
+	NumNodes int               `json:"numnodes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

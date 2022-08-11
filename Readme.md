@@ -43,8 +43,6 @@ This creates the operator Namespace, CRD and deployment using the latest contain
 
 Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
 
-To choose the nodes which will be part of the server pool, you can set either `type` or `nodelabels` fields. The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field `nodelabels` list is used instead, the operator will use nodes which match all labels.
-
 **The provider `vendor` field can be (case-insensitive):**
 
 * **F5_BigIP** - Tested on F5 BigIP version 15
@@ -104,14 +102,16 @@ spec:
     monitortype: http
   provider:
     vendor: F5_BigIP
-    host: "192.168.1.35"
+    host: "https://192.168.1.35"
     port: 443
     creds: f5-creds
     partition: "Common"
     validatecerts: no
 ```
 
-Clusters with sharded routers or using arbitrary labels to determine where the Ingress Controllers run are also supported. Create the YAML adding the `nodelabels` field with your node labels.
+To choose the nodes which will be part of the server pool, you can set either `type` or `nodelabels` fields. The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field `nodelabels` array is used instead, the operator will use nodes which match all labels.
+
+Clusters with sharded routers or using arbitrary labels to determine where the Ingress Controllers run can be configured like:
 
 ```yaml
 spec:
@@ -119,7 +119,8 @@ spec:
   ports:
     - 80
   nodelabels:
-    - "node.kubernetes.io/ingress-controller": "production"
+    "node.kubernetes.io/ingress-controller": "production"
+    "kubernetes.io/region": "DC1"
   ...
 ```
 

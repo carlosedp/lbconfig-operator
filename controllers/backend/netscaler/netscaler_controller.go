@@ -76,7 +76,7 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	p.password = password
 
 	var params = &service.NitroParams{
-		Url:       p.host + ":" + strconv.Itoa(p.hostport),
+		Url:       strings.TrimRight(p.host, "/") + ":" + strconv.Itoa(p.hostport),
 		Username:  p.username,
 		Password:  p.password,
 		SslVerify: p.validatecerts,

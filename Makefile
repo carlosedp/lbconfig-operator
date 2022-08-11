@@ -182,7 +182,7 @@ bundle: manifests kustomize deployment-manifests
 	operator-sdk bundle validate ./bundle
 
 .PHONY: dist
-dist: bundle docker-cross ## Build manifests and container image, pushing it to the registry
+dist: bundle docker-cross catalog-push ## Build manifests and container image, pushing it to the registry
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -200,11 +200,12 @@ OPM = $(shell which opm)
 endif
 endif
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION) ifneq ($(origin CATALOG_BASE_IMG), undefined) FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG) endif 
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION) ifneq ($(origin CATALOG_BASE_IMG), undefined) FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG) endif
+
 .PHONY: catalog-build
 catalog-build: opm
 	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 .PHONY: catalog-push
-catalog-push: ## Push the catalog image.
+catalog-push: catalog-build ## Push the catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)

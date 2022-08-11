@@ -80,7 +80,7 @@ func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, userna
 
 // Connect creates a connection to the IP Load Balancer
 func (p *F5Provider) Connect() error {
-	host := p.host + ":" + strconv.Itoa(p.hostport)
+	host := strings.TrimRight(p.host, "/") + ":" + strconv.Itoa(p.hostport)
 	p.f5 = bigip.NewSession(host, p.username, p.password, nil)
 
 	return nil

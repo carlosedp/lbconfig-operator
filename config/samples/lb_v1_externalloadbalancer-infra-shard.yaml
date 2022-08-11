@@ -7,7 +7,8 @@ spec:
   vip: "192.168.1.46"
   type: "infra"
   nodelabels:
-    "node.kubernetes.io/region": "production"
+    "node-role.kubernetes.io/infra": ""
+    "kubernetes.io/region": "DC1"
   ports:
     - 80
     - 443
@@ -17,7 +18,7 @@ spec:
     monitortype: "http"
   provider:
     vendor: F5_BigIP
-    host: "192.168.1.35"
+    host: "https://192.168.1.35"
     port: 443
     creds: f5-creds
     partition: "Common"

@@ -15,7 +15,7 @@ spec:
     monitortype: http
   provider:
     vendor: F5_BigIP
-    host: "192.168.1.35"
+    host: "https://192.168.1.35"
     port: 443
     creds: f5-creds
     partition: "Common"
