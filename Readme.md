@@ -150,7 +150,6 @@ spec:
 
 For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#pkg-types>.
 
-
 ## Developing and Building
 
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
@@ -204,3 +203,7 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
 * [ ] Add Metrics/Tracing/Stats
 * [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
 
+## Disclaimers
+
+* The operator does not check if the requested configuration (names, IPs) already exists and/or conflicts with existing configuration in the Load Balancer. The user is responsible for these checks before deployment;
+* I am not responsible if the operator changes/deletes existing configuration on the Load Balancer if existing names are already configured.

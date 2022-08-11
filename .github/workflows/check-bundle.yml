@@ -10,44 +10,48 @@ jobs:
   bundle-check-changed:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Install operator-sdk
-        run: hack/install_operator-sdk.sh
-
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          fetch-depth: 2
 
-      - name: Cache the binaries
-        uses: actions/cache@v1
+      - name: Install operator-sdk
+        run: hack/install_operator-sdk.sh
+
+      - name: Get values for cache paths to be used in later steps
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      # Cache go build cache, used to speedup go test
+      - name: Go Build Cache
+        uses: actions/cache@v2
         with:
-          path: ~/go/bin/
-          key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-v1-${{ hashFiles(format('{0}/bin', env.GOPATH)) }}
-          restore-keys: |
-            ${{ runner.os }}-go-${{ env.GO_VERSION }}-v1-${{ hashFiles(format('{0}/bin', env.GOPATH)) }}
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      # Cache go mod cache, used to speedup builds
+      - name: Go Mod Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
       - name: Generate bundle
         run: make bundle
 
-      - name: Check for uncommitted changes
-        id: check-changes
-        uses: mskri/check-uncommitted-changes-action@v1.0.1
+      - name: Check if there are changes
+        id: changes
+        uses: UnicornGlobal/has-changes-action@v1.0.11
 
       - name: Bundle files changed, failed run
-        if: steps.check-changes.outputs.outcome == failure()
+        if: steps.changes.outputs.changed == 1
         uses: actions/github-script@v6
         with:
           script: |
