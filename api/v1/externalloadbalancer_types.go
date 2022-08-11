@@ -35,10 +35,15 @@ func init() {
 // User-side configuration for an external load balancer via CRDs
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 
 // ExternalLoadBalancer is the Schema for the externalloadbalancers API
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="VIP",type="string",JSONPath=".spec.vip",description="Load Balancer VIP"
+// +kubebuilder:printcolumn:name="Ports",type="string",JSONPath=".spec.ports",description="Load Balancer Ports"
+// +kubebuilder:printcolumn:name="Provider",type="string",JSONPath=".spec.provider.vendor",description="Load Balancer Provider Backend"
+// +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="Type of nodes in this Load Balancer"
+// +kubebuilder:printcolumn:name="Matching Node Labels",type="string",JSONPath=".status.labels",description="Node Labels matching this Load Balancer"
 type ExternalLoadBalancer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -64,7 +69,7 @@ type ExternalLoadBalancerSpec struct {
 	// +kubebuilder:validation:Optional
 	NodeLabels map[string]string `json:"nodelabels,omitempty"`
 
-	// Backend is the LoadBalancer used
+	// Ports is the ports exposed by this LoadBalancer instance
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=128
@@ -85,8 +90,9 @@ type Monitor struct {
 	// +kubebuilder:validation:Optional
 	Name string `json:"name,omitempty"`
 
-	// Path is the path URL to check for the pool members
+	// Path is the path URL to check for the pool members in the format `/healthz`
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Path string `json:"path"`
 
 	// Port is the port this monitor should check the pool members
@@ -108,7 +114,7 @@ type Provider struct {
 	// +kubebuilder:validation:Required
 	Vendor string `json:"vendor"`
 
-	// Host is the Load Balancer API IP or Hostname.
+	// Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
@@ -124,7 +130,7 @@ type Provider struct {
 	// +kubebuilder:validation:Required
 	Creds string `json:"creds"`
 
-	// Partition is the F5 partition to create the Load Balancer instances.
+	// Partition is the F5 partition to create the Load Balancer instances. (F5 BigIP only)
 	// +kubebuilder:validation:Optional
 	Partition string `json:"partition,omitempty"`
 
@@ -177,12 +183,13 @@ type VIP struct {
 
 // ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
 type ExternalLoadBalancerStatus struct {
-	VIPs     []VIP    `json:"vips"`
-	Ports    []int    `json:"ports"`
-	Monitor  Monitor  `json:"monitor"`
-	Nodes    []Node   `json:"nodes,omitempty"`
-	Pools    []Pool   `json:"pools,omitempty"`
-	Provider Provider `json:"provider,omitempty"`
+	VIPs     []VIP             `json:"vips"`
+	Ports    []int             `json:"ports"`
+	Monitor  Monitor           `json:"monitor"`
+	Nodes    []Node            `json:"nodes,omitempty"`
+	Pools    []Pool            `json:"pools,omitempty"`
+	Provider Provider          `json:"provider,omitempty"`
+	Labels   map[string]string `json:"labels,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -181,6 +181,9 @@ bundle: manifests kustomize deployment-manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
+.PHONY: dist
+dist: bundle docker-cross ## Build manifests and container image, pushing it to the registry
+
 .PHONY: opm
 OPM = ./bin/opm
 opm:

@@ -294,6 +294,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		Nodes:    nodes,
 		Pools:    pools,
 		Provider: lb.Spec.Provider,
+		Labels:   labels,
 	}
 
 	if err := r.Status().Update(ctx, lb); err != nil {

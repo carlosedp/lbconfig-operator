@@ -37,19 +37,19 @@ Apply the operator manifest into the cluster:
 kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/master/manifests/deploy.yaml
 ```
 
-The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
+This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
 
 ### Create ExternalLoadBalancer instances
 
 Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
 
-The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field is ommited, the nodes will be selected by the `nodelabels` labels array.
+To choose the nodes which will be part of the server pool, you can set either `type` or `nodelabels` fields. The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field `nodelabels` list is used instead, the operator will use nodes which match all labels.
 
 **The provider `vendor` field can be (case-insensitive):**
 
-* F5_BigIP
-* Citrix_ADC
-* Dummy
+* **F5_BigIP** - Tested on F5 BigIP version 15
+* **Citrix_ADC** - Tested on Citrix ADC (Netscaler) version 13
+* **Dummy** - Dummy backend used for testing to only print log messages on operations
 
 Create the secret holding the Load Balancer API user and password:
 
@@ -59,10 +59,10 @@ oc create secret generic f5-creds --from-literal=username=admin --from-literal=p
 
 #### Sample CRDs and Available Fields
 
-Master Nodes using an F5 BigIP LB:
+Master Nodes using a Citrix ADC LB:
 
 ```yaml
-apiVersion: lb.lbconfig.io/v1
+apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: ExternalLoadBalancer
 metadata:
   name: externalloadbalancer-master-sample
@@ -70,6 +70,38 @@ metadata:
 spec:
   vip: "192.168.1.40"
   type: "master"
+  ports:
+    - 6443
+  monitor:
+    path: "/healthz"
+    port: 6443
+    monitortype: "https"
+  provider:
+    vendor: Citrix_ADC
+    host: "https://192.168.1.36"
+    port: 443
+    creds: netscaler-creds
+    validatecerts: no
+```
+
+Infra Nodes using a F5 BigIP LB:
+
+```yaml
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-infra-sample
+  namespace: lbconfig-operator-system
+spec:
+  vip: "192.168.1.45"
+  type: "infra"
+  ports:
+    - 80
+    - 443
+  monitor:
+    path: "/healthz"
+    port: 1936
+    monitortype: http
   provider:
     vendor: F5_BigIP
     host: "192.168.1.35"
@@ -77,37 +109,6 @@ spec:
     creds: f5-creds
     partition: "Common"
     validatecerts: no
-  ports:
-    - 6443
-  monitor:
-    path: "/healthz"
-    port: 6443
-    monitortype: "https"
-```
-
-Infra Nodes using a Citrix ADC LB:
-
-```yaml
-apiVersion: lb.lbconfig.io/v1
-kind: ExternalLoadBalancer
-metadata:
-  name: externalloadbalancer-infra-sample-shard
-  namespace: lbconfig-operator-system
-spec:
-  vip: "10.0.0.6"
-  type: "infra"
-  provider:
-    vendor: Citrix_ADC
-    host: "https://192.168.1.36"
-    port: 443
-    creds: netscaler-creds
-    validatecerts: no
-  ports:
-    - 80
-    - 443
-  monitor:
-    path: "/healthz"
-    port: 1936
 ```
 
 Clusters with sharded routers or using arbitrary labels to determine where the Ingress Controllers run are also supported. Create the YAML adding the `nodelabels` field with your node labels.
@@ -115,16 +116,20 @@ Clusters with sharded routers or using arbitrary labels to determine where the I
 ```yaml
 spec:
   vip: "10.0.0.6"
+  ports:
+    - 80
   nodelabels:
     - "node.kubernetes.io/ingress-controller": "production"
   ...
 ```
 
+Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
+
 CRD Fields:
 
 ```yaml
-apiVersion: lb.lbconfig.io/v1       # This is the API used by the operator (mandatory)
-kind: ExternalLoadBalancer          # This is the object the operator manages (mandatory)
+apiVersion: lb.lbconfig.carlosedp.com/v1  # This is the API used by the operator (mandatory)
+kind: ExternalLoadBalancer                # This is the object the operator manages (mandatory)
 metadata:
   name: externalloadbalancer-master-sample  # Load Balancer instance configuration name (mandatory)
   namespace: lbconfig-operator-system       # The instance namespace (same as the operator runs) (mandatory)
@@ -133,6 +138,12 @@ spec:
   type: "master"          # Type could be "master" or "infra" that maps to OpenShift labels (optional)
   nodelabels:             # List of labels to be used instead of "type" field (optional)
     - "node.kubernetes.io/ingress": "production"   # Example label used to fetch the Node IPs by this instance (optional)
+  ports:
+    - 6443                # Port list which the Load Balancer will be forwarding the traffic (mandatory)
+  monitor:
+    path: "/healthz"      # Monitor URL to be configured in the Load Balancer instance
+    port: 6443            # Monitor port to be configured in the Load Balancer instance
+    monitortype: "https"  # Monitor protocol to be configured in the Load Balancer instance
   provider:               # This section defines the backend provider or vendor of the Load Balancer
     vendor: F5_BigIP      # See supported vendors in the section above (mandatory)
     host: "192.168.1.35"  # The IP of the API for the Load Balancer to be managed (mandatory)
@@ -140,12 +151,6 @@ spec:
     creds: f5-creds       # The name of the Kubernetes Secret created with username and password to the API (mandatory)
     partition: "Common"   # The partition for the F5 Load Balancer to be used (optional, only for F5_BigIP provider)
     validatecerts: no     # Should check the certificates if API uses HTTPS (optional)
-  ports:
-    - 6443                # Port list which the Load Balancer will be forwarding the traffic (mandatory)
-  monitor:
-    path: "/healthz"      # Monitor URL to be configured in the Load Balancer instance
-    port: 6443            # Monitor port to be configured in the Load Balancer instance
-    monitortype: "https"  # Monitor protocol to be configured in the Load Balancer instance
 ```
 
 For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#pkg-types>.
@@ -161,14 +166,14 @@ There are multiple `make` targets available to ease development.
 
 1. Build binary: `make`
 2. Install CRDs in the cluster: `make install`
-3. Deploy the operator manifests to the cluster: `make deploy`
-4. Create CRs in cluster (secret, backend and LB)
+3. Deploy the operator manifests to the cluster (CRDs + Namespace + Operator Container): `make deploy`
+4. Create CRs in cluster (secret and Load Balancer instance)
 
 To run the operator in your dev machine without deploying it to the cluster (using configurations use the defined in the `$HOME/.kube/config`), do not use `make deploy`, instead do:
 
 1. Run `make install` to create the CRDs as above;
 2. Create the operator namespace with `kubectl create namespace lbconfig-operator-system`;
-3. Create CRs (secret, backend, LB) as normal in the same namespace.
+3. Create CRs (secret, backend, LB) as before in the same namespace.
 4. Use `make run` to run the operator locally;
 
 To remove the manifests to the cluster: `make undeploy`

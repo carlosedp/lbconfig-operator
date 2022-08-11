@@ -21,7 +21,31 @@ spec:
     singular: externalloadbalancer
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    - description: Load Balancer VIP
+      jsonPath: .spec.vip
+      name: VIP
+      type: string
+    - description: Load Balancer Ports
+      jsonPath: .spec.ports
+      name: Ports
+      type: string
+    - description: Load Balancer Provider Backend
+      jsonPath: .spec.provider.vendor
+      name: Provider
+      type: string
+    - description: Type of nodes in this Load Balancer
+      jsonPath: .spec.type
+      name: Type
+      type: string
+    - description: Node Labels matching this Load Balancer
+      jsonPath: .status.labels
+      name: Matching Node Labels
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: ExternalLoadBalancer is the Schema for the externalloadbalancers API
@@ -51,7 +75,8 @@ spec:
                     description: Name is the monitor name, it is set by the controller
                     type: string
                   path:
-                    description: Path is the path URL to check for the pool members
+                    description: Path is the path URL to check for the pool members in the format `/healthz`
+                    minLength: 1
                     type: string
                   port:
                     description: Port is the port this monitor should check the pool members
@@ -69,7 +94,7 @@ spec:
                 description: NodeLabels are the node labels used for router sharding or exposed service. Optional.
                 type: object
               ports:
-                description: Backend is the LoadBalancer used
+                description: Ports is the ports exposed by this LoadBalancer instance
                 items:
                   type: integer
                 maxItems: 128
@@ -82,12 +107,12 @@ spec:
                     description: Creds credentials secret holding the username and password keys.
                     type: string
                   host:
-                    description: Host is the Load Balancer API IP or Hostname.
+                    description: Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
                     maxLength: 255
                     minLength: 1
                     type: string
                   partition:
-                    description: Partition is the F5 partition to create the Load Balancer instances.
+                    description: Partition is the F5 partition to create the Load Balancer instances. (F5 BigIP only)
                     type: string
                   port:
                     description: Port is the Load Balancer API Port.
@@ -126,6 +151,10 @@ spec:
           status:
             description: ExternalLoadBalancerStatus defines the observed state of ExternalLoadBalancer
             properties:
+              labels:
+                additionalProperties:
+                  type: string
+                type: object
               monitor:
                 description: Monitor defines a monitor object in the LoadBalancer.
                 properties:
@@ -140,7 +169,8 @@ spec:
                     description: Name is the monitor name, it is set by the controller
                     type: string
                   path:
-                    description: Path is the path URL to check for the pool members
+                    description: Path is the path URL to check for the pool members in the format `/healthz`
+                    minLength: 1
                     type: string
                   port:
                     description: Port is the port this monitor should check the pool members
@@ -226,12 +256,12 @@ spec:
                     description: Creds credentials secret holding the username and password keys.
                     type: string
                   host:
-                    description: Host is the Load Balancer API IP or Hostname.
+                    description: Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
                     maxLength: 255
                     minLength: 1
                     type: string
                   partition:
-                    description: Partition is the F5 partition to create the Load Balancer instances.
+                    description: Partition is the F5 partition to create the Load Balancer instances. (F5 BigIP only)
                     type: string
                   port:
                     description: Port is the Load Balancer API Port.
