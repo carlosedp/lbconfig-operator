@@ -103,9 +103,9 @@ func (p *DummyProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error)
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *DummyProvider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *DummyProvider) CreateMonitor(m *lbv1.Monitor) error {
 	p.log.Info("Request to create a monitor in the dummy backend", "monitor", m)
-	return m, nil
+	return nil
 }
 
 // EditMonitor edits a monitor in the IP Load Balancer
@@ -133,9 +133,9 @@ func (p *DummyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // CreatePool creates a server pool in the Load Balancer
-func (p *DummyProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *DummyProvider) CreatePool(pool *lbv1.Pool) error {
 	p.log.Info("Creating Pool", "pool", pool.Name)
-	return pool, nil
+	return nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
@@ -154,7 +154,13 @@ func (p *DummyProvider) DeletePool(pool *lbv1.Pool) error {
 // Pool Member Management
 // ----------------------------------------
 
-// CreatePoolMember creates a member to be added to pool in the Load Balancer
+func (p *DummyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
+	p.log.Info("Get dummy backend server pool")
+
+	return nil, nil
+}
+
+// GetPoolMembers gets the pool members and return them in Pool object
 func (p *DummyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
 	return nil
@@ -184,9 +190,9 @@ func (p *DummyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // CreateVIP creates a Virtual Server in the Load Balancer
-func (p *DummyProvider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *DummyProvider) CreateVIP(v *lbv1.VIP) error {
 	p.log.Info("Creating VIP", "vip", v.Name)
-	return v, nil
+	return nil
 }
 
 // EditVIP modifies a Virtual Server in the Load Balancer

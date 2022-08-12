@@ -265,12 +265,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			Port: p,
 		}
 
-		newVIP, err := backend.HandleVIP(&vip)
+		err := backend.HandleVIP(&vip)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			return ctrl.Result{}, err
 		}
-		vips = append(vips, *newVIP)
+		vips = append(vips, vip)
 	}
 
 	// ----------------------------------------

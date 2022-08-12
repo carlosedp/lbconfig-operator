@@ -47,7 +47,7 @@ type Provider interface {
 	// GetMonitor returns a monitor if it exists
 	GetMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
 	// CreateMonitor creates a new monitor
-	CreateMonitor(*lbv1.Monitor) (*lbv1.Monitor, error)
+	CreateMonitor(*lbv1.Monitor) error
 	// EditMonitor updates a monitor
 	EditMonitor(*lbv1.Monitor) error
 	// DeleteMonitor deletes a monitor
@@ -56,12 +56,14 @@ type Provider interface {
 	//	GetPool returns a pool if it exists
 	GetPool(*lbv1.Pool) (*lbv1.Pool, error)
 	// CreatePool creates a new pool
-	CreatePool(*lbv1.Pool) (*lbv1.Pool, error)
+	CreatePool(*lbv1.Pool) error
 	// EditPool updates a pool
 	EditPool(*lbv1.Pool) error
 	// DeletePool deletes a pool
 	DeletePool(*lbv1.Pool) error
 	// GetPoolMembers returns a pool members if it exists
+	GetPoolMembers(*lbv1.Pool) (*lbv1.Pool, error)
+	// CreatePoolMember returns a pool if it exists
 	CreatePoolMember(*lbv1.PoolMember, *lbv1.Pool) error
 	// EditPoolMember updates a pool member
 	EditPoolMember(*lbv1.PoolMember, *lbv1.Pool, string) error
@@ -71,7 +73,7 @@ type Provider interface {
 	// GetVIP returns a virtual server if it exists
 	GetVIP(*lbv1.VIP) (*lbv1.VIP, error)
 	// CreateVIP creates a new virtual server
-	CreateVIP(*lbv1.VIP) (*lbv1.VIP, error)
+	CreateVIP(*lbv1.VIP) error
 	// EditVIP updates a virtual server
 	EditVIP(*lbv1.VIP) error
 	// DeleteVIP deletes a virtual server
@@ -154,7 +156,7 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 
 	// Create Monitor
 	b.log.Info("Monitor does not exist. Creating...", "name", monitor.Name)
-	_, err = b.Provider.CreateMonitor(monitor)
+	err = b.Provider.CreateMonitor(monitor)
 	if err != nil {
 		return err
 	}
@@ -166,12 +168,15 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) error {
 	// Check if pool exists
 	configuredPool, err := b.Provider.GetPool(pool)
-
-	// Error getting pool
 	if err != nil {
 		return err
 	}
 
+	// Check if pool have members and update the object
+	configuredPool, err = b.Provider.GetPoolMembers(configuredPool)
+	if err != nil {
+		return err
+	}
 	// Pool is not empty so update it's data if needed
 	if configuredPool != nil {
 		// Exists, so check to Update pool parameters and members
@@ -239,7 +244,7 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 
 	// Creating pool
 	b.log.Info("Pool does not exist. Creating...", "name", pool.Name)
-	_, err = b.Provider.CreatePool(pool)
+	err = b.Provider.CreatePool(pool)
 	if err != nil {
 		return err
 	}
@@ -256,12 +261,12 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 }
 
 //HandleVIP manages the VIP validation, update and creation
-func (b *BackendController) HandleVIP(v *lbv1.VIP) (vip *lbv1.VIP, err error) {
+func (b *BackendController) HandleVIP(v *lbv1.VIP) error {
 	// Check if VIP exists
 	vs, err := b.Provider.GetVIP(v)
 	// Error getting VIP
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// VIP is not empty so update it's data if needed
@@ -275,23 +280,23 @@ func (b *BackendController) HandleVIP(v *lbv1.VIP) (vip *lbv1.VIP, err error) {
 			b.log.Info("Have", "params", vs)
 			err = b.Provider.EditVIP(v)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			b.log.Info("VIP updated successfully", "name", vs.Name)
 		} else {
 			b.log.Info("VIP does not need update", "name", vs.Name)
 		}
-		return vs, nil
+		return nil
 	}
 
 	// Create VIP
 	b.log.Info("VIP does not exist. Creating...", "name", v.Name)
-	newVIP, err := b.Provider.CreateVIP(v)
+	err = b.Provider.CreateVIP(v)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	b.log.Info("Created VIP", "name", newVIP.Name, "port", newVIP.Port, "VIP", newVIP.IP, "pool", newVIP.Pool)
-	return newVIP, nil
+	b.log.Info("Created VIP", "name", v.Name, "port", v.Port, "VIP", v.IP, "pool", v.Pool)
+	return nil
 }
 
 // HandleCleanup removes all elements when ExternalLoadBalancer is deleted

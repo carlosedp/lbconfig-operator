@@ -135,7 +135,7 @@ var VIP = &lbv1.VIP{
 	IP:   "1.2.3.4",
 }
 
-var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
+var _ = Describe("Controllers/Backend/f5/f5_controller", Ordered, func() {
 
 	Context("When using a f5 backend", func() {
 		var ctx = context.TODO()
@@ -211,7 +211,7 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
-				m, err := createdBackend.Provider.CreateMonitor(monitor)
+				err = createdBackend.Provider.CreateMonitor(monitor)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/monitor/http"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
 
@@ -235,7 +235,6 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-monitor"))
 				Eventually(mon_type, timeout, interval).Should(Equal("http"))
 				Expect(err).NotTo(HaveOccurred())
-				Expect(m).NotTo(BeNil())
 			})
 
 			It("Should delete the monitor", func() {
@@ -287,11 +286,10 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 
-				m, err := createdBackend.Provider.CreatePool(pool)
+				err = createdBackend.Provider.CreatePool(pool)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("PATCH"))
 				Expect(err).NotTo(HaveOccurred())
-				Expect(m).NotTo(BeNil())
 			})
 
 			It("Should delete the pool", func() {
@@ -339,14 +337,13 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 
-				m, err := createdBackend.Provider.CreateVIP(VIP)
+				err = createdBackend.Provider.CreateVIP(VIP)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/virtual"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
 
 				// Expect(httpdata["servicegroup_lbmonitor_binding"]).Should(Equal(""))
 				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-vip"))
 				Expect(err).NotTo(HaveOccurred())
-				Expect(m).NotTo(BeNil())
 			})
 
 			It("Should delete the VIP", func() {

@@ -127,7 +127,7 @@ func (p *F5Provider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) error {
 
 	config := &bigip.Monitor{
 		Name:          m.Name,
@@ -144,10 +144,10 @@ func (p *F5Provider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
 	}
 	err := p.f5.AddMonitor(config, m.MonitorType)
 	if err != nil {
-		return nil, fmt.Errorf("error creating F5 monitor %s: %v", m.Name, err)
+		return fmt.Errorf("error creating F5 monitor %s: %v", m.Name, err)
 	}
 
-	return m, nil
+	return nil
 }
 
 // EditMonitor edits a monitor in the IP Load Balancer
@@ -202,47 +202,29 @@ func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		return nil, nil
 	}
 
-	// Get pool members
-	var members []lbv1.PoolMember
-	poolMembers, _ := p.f5.PoolMembers(pool.Name)
-	for _, member := range poolMembers.PoolMembers {
-		ip := strings.Split(member.Address, ":")[0]
-		port, _ := strconv.Atoi(strings.Split(member.FullPath, ":")[1])
-		node := &lbv1.Node{
-			Name: member.Name,
-			Host: ip,
-		}
-		mem := &lbv1.PoolMember{
-			Node: *node,
-			Port: port,
-		}
-		members = append(members, *mem)
-	}
-
 	retPool := &lbv1.Pool{
 		Name:    newPool.Name,
 		Monitor: strings.Trim(newPool.Monitor, p.partition),
-		Members: members,
 	}
 
 	return retPool, nil
 }
 
 // CreatePool creates a server pool in the Load Balancer
-func (p *F5Provider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *F5Provider) CreatePool(pool *lbv1.Pool) error {
 
 	// Create Pool
 	err := p.f5.CreatePool(pool.Name)
 	if err != nil {
-		return nil, fmt.Errorf("error creating pool %s: %v", pool.Name, err)
+		return fmt.Errorf("error creating pool %s: %v", pool.Name, err)
 	}
 
 	// Add monitor to Pool
 	err = p.f5.AddMonitorToPool(pool.Monitor, pool.Name)
 	if err != nil {
-		return nil, fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
+		return fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
 	}
-	return pool, nil
+	return nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
@@ -272,6 +254,33 @@ func (p *F5Provider) DeletePool(pool *lbv1.Pool) error {
 // Pool Member Management
 // ----------------------------------------
 
+// GetPoolMembers gets the pool members and return them in Pool object
+func (p *F5Provider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
+
+	// // Get pool members
+	var members []lbv1.PoolMember
+	poolMembers, err := p.f5.PoolMembers(pool.Name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting F5 pool members: %v", err)
+	}
+	for _, member := range poolMembers.PoolMembers {
+		ip := strings.Split(member.Address, ":")[0]
+		port, _ := strconv.Atoi(strings.Split(member.FullPath, ":")[1])
+		node := &lbv1.Node{
+			Name: member.Name,
+			Host: ip,
+		}
+		mem := &lbv1.PoolMember{
+			Node: *node,
+			Port: port,
+		}
+		members = append(members, *mem)
+	}
+
+	pool.Members = members
+	return pool, nil
+}
+
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
 func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
@@ -280,7 +289,10 @@ func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 		Address: m.Node.Host,
 	}
 	// Query node by IP
-	n, _ := p.f5.GetNode(m.Node.Host)
+	n, err := p.f5.GetNode(m.Node.Host)
+	if err != nil {
+		return err
+	}
 	if n != nil {
 		p.f5.ModifyNode(m.Node.Host, &config)
 	} else {
@@ -290,7 +302,7 @@ func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 		}
 	}
 
-	err := p.f5.AddPoolMember(pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
+	err = p.f5.AddPoolMember(pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
 	if err != nil {
 		return fmt.Errorf("error adding member %s to pool %s: %v", m.Node.Host, pool.Name, err)
 	}
@@ -358,7 +370,7 @@ func (p *F5Provider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // CreateVIP creates a Virtual Server in the Load Balancer
-func (p *F5Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *F5Provider) CreateVIP(v *lbv1.VIP) error {
 	// The second parameter is our destination, and the third is the mask. You can use CIDR notation if you wish (as shown here)
 
 	config := &bigip.VirtualServer{
@@ -384,9 +396,9 @@ func (p *F5Provider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	}
 	err := p.f5.AddVirtualServer(config)
 	if err != nil {
-		return nil, fmt.Errorf("error creating VIP %s, %+v: %v", v.Name, config, err)
+		return fmt.Errorf("error creating VIP %s, %+v: %v", v.Name, config, err)
 	}
-	return v, nil
+	return nil
 }
 
 // EditVIP modifies a Virtual Server in the Load Balancer
