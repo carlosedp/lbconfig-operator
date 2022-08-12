@@ -26,17 +26,19 @@ package f5_test
 
 import (
 	"context"
-	"encoding/json"
+	"io"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/tidwall/gjson"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -44,6 +46,13 @@ import (
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/f5"
+)
+
+// Define utility constants for object names and testing timeouts/durations and intervals.
+const (
+	timeout  = time.Second * 10
+	duration = time.Second * 10
+	interval = time.Millisecond * 250
 )
 
 func TestF5(t *testing.T) {
@@ -58,21 +67,25 @@ func init() {
 	HTTP_PORT = rand.Intn(65000-35000) + 35000
 }
 
-var httpurl string
-var httpop string
-var httppost = make(map[string][]string)
-var httpdata map[string]interface{}
+type httpdataStruct struct {
+	url    string
+	method string
+	post   map[string][]string
+	data   string
+}
+
+var httpdata httpdataStruct
 
 func pageHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
-	httpurl = r.URL.String()
-	httpop = r.Method
-	decoder := json.NewDecoder(r.Body)
-	decoder.Decode(&httpdata)
+	httpdata.url = r.URL.String()
+	httpdata.method = r.Method
+	d, _ := io.ReadAll(r.Body)
+	httpdata.data = string(d)
 	r.ParseForm()
 
 	for k, v := range r.Form {
-		httppost[k] = v
+		httpdata.post[k] = v
 	}
 }
 
@@ -167,10 +180,10 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 
 		It("Should create the backend", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(ListProviders()).To(ContainElement(strings.ToLower("F5_BigIP")))
+			Expect(ListProviders()).Should(ContainElement(strings.ToLower("F5_BigIP")))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(createdBackend).NotTo(BeNil())
-			Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&F5Provider{})))
+			Expect(reflect.TypeOf(createdBackend.Provider)).Should(Equal(reflect.TypeOf(&F5Provider{})))
 		})
 
 		It("Should connect to the backend", func() {
@@ -187,8 +200,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 				_, _ = createdBackend.Provider.GetMonitor(monitor)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
-				Expect(httpop).To(Equal("GET"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
 				// Getting error "error getting F5 Monitor test-monitor: invalid character 'O' looking for beginning of value"
 				// Expect(err).NotTo(HaveOccurred())
 			})
@@ -199,8 +212,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 				m, err := createdBackend.Provider.CreateMonitor(monitor)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/monitor/http"))
-				Expect(httpop).To(Equal("POST"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/monitor/http"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
 
 				// <map[string]interface {} | len:11>: {
 				// 	"defaultsFrom": <string>"/Common/http",
@@ -215,12 +228,12 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				// 	"send": <string>"GET /health",
 				// 	"transparent": <string>"disabled",
 				// }
-				port := strings.Split(httpdata["destination"].(string), ".")[1]
-				mon_type := strings.Split(httpdata["defaultsFrom"].(string), "/")[2]
-				Expect(port).To(Equal("80"))
-				Expect(httpdata["send"]).To(Equal("GET /health"))
-				Expect(httpdata["name"]).To(Equal("test-monitor"))
-				Expect(mon_type).To(Equal("http"))
+				port := strings.Split(gjson.Get(httpdata.data, "destination").String(), ".")[1]
+				mon_type := strings.Split(gjson.Get(httpdata.data, "defaultsFrom").String(), "/")[2]
+				Eventually(port, timeout, interval).Should(Equal("80"))
+				Eventually(gjson.Get(httpdata.data, "send").String(), timeout, interval).Should(Equal("GET /health"))
+				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-monitor"))
+				Eventually(mon_type, timeout, interval).Should(Equal("http"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(m).NotTo(BeNil())
 			})
@@ -231,8 +244,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 				err = createdBackend.Provider.DeleteMonitor(monitor)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
-				Expect(httpop).To(Equal("DELETE"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -242,14 +255,14 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 				err = createdBackend.Provider.EditMonitor(monitor)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
-				Expect(httpop).To(Equal("PATCH"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("PATCH"))
 
 				// fmt.Fprintf(GinkgoWriter, "%s", httpdata)
-				mon_type := strings.Split(httpdata["defaultsFrom"].(string), "/")[2]
-				Expect(mon_type).To(Equal("http"))
-				Expect(httpdata["send"]).To(Equal("GET /health"))
-				Expect(httpdata["name"]).To(Equal("test-monitor"))
+				mon_type := strings.Split(gjson.Get(httpdata.data, "defaultsFrom").String(), "/")[2]
+				Eventually(mon_type, timeout, interval).Should(Equal("http"))
+				Eventually(gjson.Get(httpdata.data, "send").String(), timeout, interval).Should(Equal("GET /health"))
+				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-monitor"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -262,8 +275,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				_, _ = createdBackend.Provider.GetPool(pool)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/pool/test-pool"))
-				Expect(httpop).To(Equal("GET"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
 				// Getting error "error getting F5 Monitor test-monitor: invalid character 'O' looking for beginning of value"
 				// Expect(err).NotTo(HaveOccurred())
 			})
@@ -275,11 +288,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				m, err := createdBackend.Provider.CreatePool(pool)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/pool/test-pool"))
-				Expect(httpop).To(Equal("PATCH"))
-
-				// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
-				Expect(httpdata["name"]).To(Equal("test-pool"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("PATCH"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(m).NotTo(BeNil())
 			})
@@ -291,8 +301,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				err = createdBackend.Provider.DeletePool(pool)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/pool/test-pool"))
-				Expect(httpop).To(Equal("DELETE"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -303,9 +313,9 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				err = createdBackend.Provider.EditPool(pool)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/pool/test-pool"))
-				Expect(httpop).To(Equal("PUT"))
-				Expect(httpdata["name"]).To(Equal("test-pool"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
+				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-pool"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -318,10 +328,9 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				_, _ = createdBackend.Provider.GetVIP(VIP)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/virtual/test-vip"))
-				Expect(httpop).To(Equal("GET"))
-				// Getting error "error getting F5 Monitor test-monitor: invalid character 'O' looking for beginning of value"
-				// Expect(err).NotTo(HaveOccurred())
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/virtual/test-vip"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("Should create a VIP", func() {
@@ -331,11 +340,11 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				m, err := createdBackend.Provider.CreateVIP(VIP)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/virtual"))
-				Expect(httpop).To(Equal("POST"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/virtual"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
 
-				// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
-				Expect(httpdata["name"]).To(Equal("test-vip"))
+				// Expect(httpdata["servicegroup_lbmonitor_binding"]).Should(Equal(""))
+				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-vip"))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(m).NotTo(BeNil())
 			})
@@ -347,8 +356,8 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				err = createdBackend.Provider.DeleteVIP(VIP)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/virtual/test-vip"))
-				Expect(httpop).To(Equal("DELETE"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/virtual/test-vip"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -359,9 +368,9 @@ var _ = Describe("Controllers/Backend/f5/f5_controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				err = createdBackend.Provider.EditVIP(VIP)
-				Expect(httpurl).To(Equal("/mgmt/tm/ltm/virtual/~Common~test-vip"))
-				Expect(httpop).To(Equal("PATCH"))
-				Expect(httpdata["name"]).To(Equal("test-vip"))
+				Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/virtual/~Common~test-vip"))
+				Eventually(httpdata.method, timeout, interval).Should(Equal("PATCH"))
+				Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-vip"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})

@@ -41,7 +41,6 @@ import (
 
 // Define utility constants for object names and testing timeouts/durations and intervals.
 const (
-	// 	JobName          = "test-job"
 	SecretName = "backend-creds"
 	Namespace  = "default"
 
@@ -50,8 +49,6 @@ const (
 	interval = time.Millisecond * 250
 )
 
-// var loadBalancer *lbv1.ExternalLoadBalancer
-// var credsSecret *corev1.Secret
 var node *corev1.Node
 var nodeList corev1.NodeList
 var loadBalancerLookupKey types.NamespacedName
