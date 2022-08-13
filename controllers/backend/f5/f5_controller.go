@@ -388,8 +388,8 @@ func (p *F5Provider) CreateVIP(v *lbv1.VIP) error {
 		Profiles: []bigip.Profile{
 			{
 				Name:      "fastL4",
-				FullPath:  "/Common/fastL4",
-				Partition: "Common",
+				FullPath:  p.partition + "fastL4",
+				Partition: strings.Trim(p.partition, "/"),
 				Context:   "all",
 			},
 		},
@@ -418,8 +418,8 @@ func (p *F5Provider) EditVIP(v *lbv1.VIP) error {
 		Profiles: []bigip.Profile{
 			{
 				Name:      "fastL4",
-				FullPath:  "/Common/fastL4",
-				Partition: "Common",
+				FullPath:  p.partition + "fastL4",
+				Partition: strings.Trim(p.partition, "/"),
 				Context:   "all",
 			},
 		},
