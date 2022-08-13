@@ -138,6 +138,12 @@ type Provider struct {
 	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
 	// +kubebuilder:validation:Optional
 	ValidateCerts *bool `json:"validatecerts,omitempty"`
+
+	// Type is the Load-Balancing method for Netstscaler LB. (Netscaler ADC Only)
+	// Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=`ROUNDROBIN`;`LEASTCONNECTION`;`LEASTRESPONSETIME`;`LEASTBANDWIDTH`;`LEASTPACKETS`
+	NetscalerLBMethod string `json:"type,omitempty"`
 }
 
 // Internal types

@@ -54,6 +54,7 @@ type NetscalerProvider struct {
 	username      string
 	password      string
 	validatecerts bool
+	lbmethod      string
 }
 
 func init() {
@@ -68,6 +69,13 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	if lbBackend.ValidateCerts == nil {
 		return fmt.Errorf("validateCerts is required")
 	}
+
+	if lbBackend.NetscalerLBMethod == "" {
+		p.lbmethod = "ROUNDROBIN"
+	} else {
+		p.lbmethod = lbBackend.NetscalerLBMethod
+	}
+
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port
@@ -430,6 +438,7 @@ func (p *NetscalerProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 		Port: int(vs["port"].(float64)),
 		Pool: v.Pool,
 	}
+
 	poolBinding, err := p.client.FindResource(service.Lbvserver_servicegroup_binding.Type(), v.Name)
 
 	if err != nil && len(poolBinding) != 0 {
@@ -447,8 +456,7 @@ func (p *NetscalerProvider) CreateVIP(v *lbv1.VIP) error {
 		Ipv46:       v.IP,
 		Port:        v.Port,
 		Servicetype: "TCP",
-		Lbmethod:    "ROUNDROBIN",
-		// Lbmethod        : "LEASTCONNECTION",
+		Lbmethod:    p.lbmethod,
 	}
 	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)
 
@@ -477,7 +485,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 		Ipv46:       v.IP,
 		Port:        v.Port,
 		Servicetype: "TCP",
-		Lbmethod:    "ROUNDROBIN",
+		Lbmethod:    p.lbmethod,
 		// Lbmethod        : "LEASTCONNECTION",
 	}
 	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)

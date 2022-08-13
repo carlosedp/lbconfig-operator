@@ -193,7 +193,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 			Expect(err).To(BeNil())
 			err = createdBackend.Provider.Connect()
 			Expect(err).To(BeNil())
-			_, err = createdBackend.Provider.GetMonitor(monitor)
+			_, _ = createdBackend.Provider.GetMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor/test-monitor"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
 			// Expect(err).To(BeNil())
