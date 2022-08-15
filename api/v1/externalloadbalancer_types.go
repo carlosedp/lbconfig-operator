@@ -127,7 +127,8 @@ type Provider struct {
 	// +kubebuilder:validation:Maximum=65535
 	Port int `json:"port"`
 
-	// Creds credentials secret holding the username and password keys.
+	// Creds is the credentials secret holding the "username" and "password" keys.
+	// Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username> --from-literal=password=<password>`
 	// +kubebuilder:validation:Required
 	Creds string `json:"creds"`
 

@@ -111,8 +111,9 @@ spec:
                 description: Provider is the LoadBalancer backend provider
                 properties:
                   creds:
-                    description: Creds credentials secret holding the username and
-                      password keys.
+                    description: 'Creds is the credentials secret holding the "username"
+                      and "password" keys. Generate with: `kubectl create secret generic
+                      <secret-name> --from-literal=username=<username> --from-literal=password=<password>`'
                     type: string
                   host:
                     description: Host is the Load Balancer API IP or Hostname in URL
@@ -122,13 +123,24 @@ spec:
                     type: string
                   partition:
                     description: Partition is the F5 partition to create the Load
-                      Balancer instances. (F5 BigIP only)
+                      Balancer instances. Defaults to "Common". (F5 BigIP only)
                     type: string
                   port:
                     description: Port is the Load Balancer API Port.
                     maximum: 65535
                     minimum: 1
                     type: integer
+                  type:
+                    description: 'Type is the Load-Balancing method for Netstscaler
+                      LB. (Netscaler ADC Only) Options are: ROUNDROBIN, LEASTCONNECTION,
+                      LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS'
+                    enum:
+                    - ROUNDROBIN
+                    - LEASTCONNECTION
+                    - LEASTRESPONSETIME
+                    - LEASTBANDWIDTH
+                    - LEASTPACKETS
+                    type: string
                   validatecerts:
                     description: ValidateCerts is a flag to validate or not the Load
                       Balancer API certificate. Defaults to false.
@@ -274,8 +286,9 @@ spec:
                 description: Provider is a backend provider for F5 Big IP Load Balancers
                 properties:
                   creds:
-                    description: Creds credentials secret holding the username and
-                      password keys.
+                    description: 'Creds is the credentials secret holding the "username"
+                      and "password" keys. Generate with: `kubectl create secret generic
+                      <secret-name> --from-literal=username=<username> --from-literal=password=<password>`'
                     type: string
                   host:
                     description: Host is the Load Balancer API IP or Hostname in URL
@@ -285,13 +298,24 @@ spec:
                     type: string
                   partition:
                     description: Partition is the F5 partition to create the Load
-                      Balancer instances. (F5 BigIP only)
+                      Balancer instances. Defaults to "Common". (F5 BigIP only)
                     type: string
                   port:
                     description: Port is the Load Balancer API Port.
                     maximum: 65535
                     minimum: 1
                     type: integer
+                  type:
+                    description: 'Type is the Load-Balancing method for Netstscaler
+                      LB. (Netscaler ADC Only) Options are: ROUNDROBIN, LEASTCONNECTION,
+                      LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS'
+                    enum:
+                    - ROUNDROBIN
+                    - LEASTCONNECTION
+                    - LEASTRESPONSETIME
+                    - LEASTBANDWIDTH
+                    - LEASTPACKETS
+                    type: string
                   validatecerts:
                     description: ValidateCerts is a flag to validate or not the Load
                       Balancer API certificate. Defaults to false.
