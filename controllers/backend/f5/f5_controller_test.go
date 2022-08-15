@@ -148,7 +148,6 @@ type httpdataStruct struct {
 
 var _ = Describe("When using a f5 backend", func() {
 	var server *httptest.Server
-	var https_port int
 	var httpdata httpdataStruct
 	var ctx = context.TODO()
 
@@ -164,8 +163,10 @@ var _ = Describe("When using a f5 backend", func() {
 			}
 
 		}))
-		https_port, _ = strconv.Atoi(strings.Split(server.URL, ":")[2])
-		loadBalancer.Spec.Provider.Port = https_port
+		connection := strings.Split(server.URL, ":")
+		port, _ := strconv.Atoi(connection[len(connection)-1])
+		loadBalancer.Spec.Provider.Host = connection[0] + ":" + connection[1]
+		loadBalancer.Spec.Provider.Port = port
 	})
 
 	AfterEach(func() {
