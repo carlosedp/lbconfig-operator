@@ -131,7 +131,7 @@ type Provider struct {
 	// +kubebuilder:validation:Required
 	Creds string `json:"creds"`
 
-	// Partition is the F5 partition to create the Load Balancer instances. (F5 BigIP only)
+	// Partition is the F5 partition to create the Load Balancer instances. Defaults to "Common". (F5 BigIP only)
 	// +kubebuilder:validation:Optional
 	Partition string `json:"partition,omitempty"`
 

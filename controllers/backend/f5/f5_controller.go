@@ -63,15 +63,22 @@ func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, userna
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("provider", "F5_BigIP")
 
-	if lbBackend.Partition == "" || lbBackend.ValidateCerts == nil {
-		return fmt.Errorf("partition or validateCerts is required")
+	if lbBackend.Partition == "" {
+		p.partition = "/Common/"
+		p.log.Info("Partition not set, will use default as /Common")
+	} else {
+		p.partition = "/" + lbBackend.Partition + "/"
+	}
+	if lbBackend.ValidateCerts == nil {
+		p.validatecerts = false
+		p.log.Info("ValidateCerts not set, will use default as false")
+	} else {
+		p.validatecerts = *lbBackend.ValidateCerts
 	}
 
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port
-	p.partition = "/" + lbBackend.Partition + "/"
-	p.validatecerts = *lbBackend.ValidateCerts
 	p.username = username
 	p.password = password
 
