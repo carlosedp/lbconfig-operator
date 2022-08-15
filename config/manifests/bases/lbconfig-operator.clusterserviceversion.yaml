@@ -15,7 +15,7 @@ metadata:
     k8sMinVersion: ""
     repository: ""
     support: ""
-  name: lbconfig-operator.v0.1.0
+  name: lbconfig-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -252,7 +252,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: docker.io/carlosedp/lbconfig-operator:v0.1.0
+                image: docker.io/carlosedp/lbconfig-operator:v0.0.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -341,4 +341,4 @@ spec:
   provider:
     name: Carlos Eduardo de Paula
   selector: {}
-  version: 0.1.0
+  version: 0.0.0

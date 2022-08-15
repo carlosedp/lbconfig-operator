@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.1.0
+VERSION ?= 0.2.0
 # Operator repository
 REPO ?= docker.io/carlosedp
 
@@ -7,6 +7,12 @@ REPO ?= docker.io/carlosedp
 IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
 IMAGE_TAG_BASE ?= ${REPO}/lbconfig-operator
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
+BUNDLE_IMGS ?= $(BUNDLE_IMG)
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+# Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
+ifneq ($(origin CATALOG_BASE_IMG), undefined)
+FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
+endif
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.1
 
@@ -183,30 +189,42 @@ bundle: manifests kustomize deployment-manifests
 	operator-sdk bundle validate ./bundle
 
 .PHONY: dist
-dist: bundle docker-cross catalog-push ## Build manifests and container image, pushing it to the registry
+dist: bundle docker-cross catalog-push bundle-push ## Build manifests and container image, pushing it to the registry
+
+.PHONY: bundle-build
+bundle-build: ## Build the bundle image.
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push: bundle-build ## Push the bundle image.
+	docker push $(BUNDLE_IMG)
 
 .PHONY: opm
 OPM = ./bin/opm
-opm:
+opm: ## Download opm locally if necessary.
 ifeq (,$(wildcard $(OPM)))
 ifeq (,$(shell which opm 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.24.0/$(OS)-$(ARCH)-opm ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.24.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
 OPM = $(shell which opm)
 endif
 endif
-BUNDLE_IMGS ?= $(BUNDLE_IMG)
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION) ifneq ($(origin CATALOG_BASE_IMG), undefined) FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG) endif
 
+# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
+# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
+# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
-catalog-build: opm
+catalog-build: opm ## Build a catalog image.
 	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
+# Push the catalog image.
 .PHONY: catalog-push
-catalog-push: catalog-build ## Push the catalog image.
-	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+catalog-push: catalog-build ## Push a catalog image.
+	docker push $(CATALOG_IMG)
+
