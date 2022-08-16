@@ -156,6 +156,23 @@ spec:
 
 For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#pkg-types>.
 
+## Metrics and Information
+
+The `kubectl get` output shows each ExternalLoadBalancer instance details:
+
+![kubectl get](./docs/kubectl-get.jpg)
+
+The operator exports two metrics. One counts the amount of ExternalLoadBalancers the operator is currently managing and another exposes the amount of nodes managed by each instance of ExternalLoadBalancer with appropriate metric labels.
+
+```sh
+# HELP externallb_total Number of external load balancers configured
+# TYPE externallb_total gauge
+externallb_total 1
+# HELP externallb_nodes Number of nodes for the load balancer instance
+# TYPE externallb_nodes gauge
+externallb_nodes{ip="192.168.1.40",name="externalloadbalancer-master-sample",namespace="lbconfig-operator-system",port="6443",type="master"} 3
+```
+
 ## Developing and Building
 
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
@@ -206,7 +223,7 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
 * [ ] Dynamic port configuration from NodePort services
 * [ ] Check LB configuration on finalizer
 * [ ] Add tests
-* [ ] Add Metrics/Tracing/Stats
+* [x] Add Metrics/Tracing/Stats
 * [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
 
 ## Disclaimers
