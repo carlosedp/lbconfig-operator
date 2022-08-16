@@ -27,4 +27,6 @@ testbin/*
 # local builds
 lbconfig-operator
 output/*
+.vscodecache
 .vscode
+cache
