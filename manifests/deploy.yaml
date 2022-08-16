@@ -582,14 +582,14 @@ spec:
           capabilities:
             drop:
             - ALL
-      - ImagePullPolicy: Always
-        args:
+      - args:
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         command:
         - /manager
         image: docker.io/carlosedp/lbconfig-operator:v0.2.0
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
@@ -619,22 +619,3 @@ spec:
         runAsNonRoot: true
       serviceAccountName: lbconfig-operator-controller-manager
       terminationGracePeriodSeconds: 10
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  labels:
-    control-plane: controller-manager
-  name: lbconfig-operator-controller-manager-metrics-monitor
-  namespace: lbconfig-operator-system
-spec:
-  endpoints:
-  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
-    path: /metrics
-    port: https
-    scheme: https
-    tlsConfig:
-      insecureSkipVerify: true
-  selector:
-    matchLabels:
-      control-plane: controller-manager
