@@ -67,7 +67,10 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	log.WithValues("provider", "Citrix_ADC")
 
 	if lbBackend.ValidateCerts == nil {
-		return fmt.Errorf("validateCerts is required")
+		p.validatecerts = false
+		p.log.Info("ValidateCerts not set, will use default as false")
+	} else {
+		p.validatecerts = *lbBackend.ValidateCerts
 	}
 
 	if lbBackend.NetscalerLBMethod == "" {
@@ -79,7 +82,6 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port
-	p.validatecerts = *lbBackend.ValidateCerts
 	p.username = username
 	p.password = password
 
