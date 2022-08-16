@@ -2,7 +2,6 @@ apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: ExternalLoadBalancer
 metadata:
   name: externalloadbalancer-master-dummy-test
-  namespace: lbconfig-operator-system
 spec:
   vip: "10.0.0.10"
   type: "master"

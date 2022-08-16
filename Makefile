@@ -247,16 +247,19 @@ else
 	$(shell kind create cluster --name test-operator)
 endif
 	kubectl config use-context kind-test-operator
-	operator-sdk olm install || true
-	kubectl create namespace lbconfig-operator-system || true
-	kubectl apply -f hack/monitoring.coreos.com_servicemonitors.yaml
-	operator-sdk run bundle $(BUNDLE_IMG) --namespace lbconfig-operator-system
-	kubectl create secret generic dummy-creds --from-literal=username=nsroot --from-literal=password=nsroot --namespace lbconfig-operator-system
+	operator-sdk olm install --timeout=5m || true
+	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m
+	kubectl create secret generic dummy-creds --from-literal=username=nsroot --from-literal=password=nsroot
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
-	kubectl get elb -n lbconfig-operator-system externalloadbalancer-master-dummy-test
-	operator-sdk cleanup lbconfig-operator --namespace lbconfig-operator-system
-	kubectl delete namespace lbconfig-operator-system
+	kubectl get elb externalloadbalancer-master-dummy-test
+	operator-sdk cleanup lbconfig-operator
+	@echo "===================="
 	@echo "Don't forget to teardown the KIND cluster with 'kind delete cluster --name test-operator'"
+	@echo "===================="
+
+.PHONY: scorecard-run
+scorecard-run: bundle-push ## Runs the scorecard validation (depends on a K8s cluster)
+	operator-sdk scorecard $(BUNDLE_IMG) --wait-time 5m
 
 .PHONY: dist
 dist: docker-cross bundle-push catalog-push  ## Build manifests and container image, pushing it to the registry
