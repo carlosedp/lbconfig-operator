@@ -54,18 +54,17 @@ import (
 
 // Provider is the object for the HAProxy Provider implementing the Provider interface
 type HAProxyProvider struct {
-	log           logr.Logger
-	haproxy       *client.DataPlane
-	host          string
-	hostport      int
-	username      string
-	password      string
-	validatecerts bool
-	auth          runtime.ClientAuthInfoWriter
-	transaction   string
-	version       int64
-	monitor       *models.HTTPCheck
-	ctx           context.Context
+	log         logr.Logger
+	haproxy     *client.DataPlane
+	host        string
+	hostport    int
+	username    string
+	password    string
+	auth        runtime.ClientAuthInfoWriter
+	transaction string
+	version     int64
+	monitor     *models.HTTPCheck
+	ctx         context.Context
 }
 
 func init() {
@@ -82,27 +81,19 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 	p.hostport = lbBackend.Port
 	p.username = username
 	p.password = password
-
-	if lbBackend.ValidateCerts == nil {
-		p.validatecerts = false
-		p.log.Info("ValidateCerts not set, will use default as false")
-	} else {
-		p.validatecerts = *lbBackend.ValidateCerts
-	}
-
 	p.auth = httptransport.BasicAuth(p.username, p.password)
 
 	c, _ := url.Parse(p.host)
 	host := c.Host + ":" + fmt.Sprintf("%d", p.hostport)
 
 	t, _ := httptransport.TLSTransport(httptransport.TLSClientOptions{
-		InsecureSkipVerify: !p.validatecerts,
+		InsecureSkipVerify: !lbBackend.ValidateCerts,
 	})
 
 	transport := httptransport.New(host, "/v2", []string{c.Scheme})
 	transport.Transport = t
 	transport.DefaultAuthentication = p.auth
-	transport.Debug = true
+	transport.Debug = lbBackend.Debug
 
 	// create the API client, with the transport
 	p.haproxy = client.New(transport, strfmt.Default)

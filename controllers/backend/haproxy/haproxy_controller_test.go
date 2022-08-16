@@ -42,7 +42,6 @@ import (
 	"github.com/tidwall/gjson"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
@@ -93,7 +92,8 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 			Host:          "",
 			Port:          0,
 			Creds:         credsSecret.Name,
-			ValidateCerts: pointer.BoolPtr(false),
+			ValidateCerts: false,
+			Debug:         true,
 		},
 	},
 }
