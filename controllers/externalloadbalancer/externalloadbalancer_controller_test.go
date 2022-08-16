@@ -233,7 +233,17 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 	It("should create node not managed by this load balancer", func() {
 		By("By creating an additional Master Node")
 		node = createReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
-
+		IPs := []corev1.NodeAddress{
+			{
+				Type:    corev1.NodeInternalIP,
+				Address: "9.9.9.9",
+			},
+			{
+				Type:    corev1.NodeExternalIP,
+				Address: "1.1.1.2",
+			},
+		}
+		node.Status.Addresses = IPs
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 		Expect(len(nodeList.Items)).Should(Equal(3))
@@ -252,6 +262,8 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 			nodeAddresses = append(nodeAddresses, node.Host)
 		}
 		Expect(nodeAddresses).Should(ContainElements("1.1.1.1", "1.1.1.2"))
+		// Check that even though the node has External and Internal IPs, the External IP is used
+		Expect(nodeAddresses).ShouldNot(ContainElement("9.9.9.9"))
 
 		By("By checking the ExternalLoadBalancer metric instance has 2 nodes")
 		metricsBody := getMetricsBody(metricsPort)
@@ -262,7 +274,6 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 	It("should create a master node not that is not ready", func() {
 		By("By creating an additional Master Node that is not ready")
 		node = createNotReadyNode("master-node-3", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.3")
-
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 		Expect(len(nodeList.Items)).Should(Equal(4))
@@ -284,6 +295,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 
 		By("By checking the ExternalLoadBalancer metric instance still has 2 nodes")
 		metricsBody := getMetricsBody(metricsPort)
+		fmt.Fprintf(GinkgoWriter, "metricsBody: %s\n", metricsBody)
 		metricsOutput := fmt.Sprintf(`externallb_nodes{backend_vendor="%s",name="%s",namespace="%s",port="%s",type="%s",vip="%s"} %d`, loadBalancer.Spec.Provider.Vendor, loadBalancer.Name, Namespace, strconv.Itoa(loadBalancer.Spec.Provider.Port), loadBalancer.Spec.Type, loadBalancer.Spec.Vip, 2)
 		Expect(metricsBody).To(ContainSubstring(metricsOutput))
 	})

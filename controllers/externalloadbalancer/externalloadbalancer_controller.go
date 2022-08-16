@@ -63,9 +63,6 @@ type ExternalLoadBalancerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// LoadBalancerIPType defines the kind of IP that the operator fetches for the node
-var LoadBalancerIPType corev1.NodeAddressType = "ExternalIP"
-
 // ExternalLoadBalancerFinalizer is the finalizer object
 const ExternalLoadBalancerFinalizer = "lb.lbconfig.carlosedp.com/finalizer"
 
@@ -91,10 +88,6 @@ func init() {
 	if _, present := os.LookupEnv("BACKEND_LOGS"); !present {
 		plog.SetOutput(ioutil.Discard)
 		plog.SetFlags(0)
-	}
-	// LoadBalancerIPType defines the kind of IP that the operator fetches for the node
-	if _, KIND := os.LookupEnv("KIND"); KIND {
-		LoadBalancerIPType = "InternalIP"
 	}
 	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(metric_externallb, metric_externallb_nodes)
@@ -174,23 +167,18 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	var nodes []lbv1.Node
 	for _, n := range nodeList.Items {
 		log.Info("Processing node", "node", n.Name, "labels", n.Labels)
-		var nodeReady bool
 		for _, cond := range n.Status.Conditions {
 			if cond.Type == "Ready" && cond.Status == "True" {
-				nodeReady = true
-			}
-		}
-		for _, addr := range n.Status.Addresses {
-			if addr.Type == LoadBalancerIPType && nodeReady {
 				node := &lbv1.Node{
 					Name:   n.Name,
-					Host:   addr.Address,
+					Host:   getNodeIP(&n),
 					Labels: labels,
 				}
 				log.Info("Node matches", "node", node.Name, "labels", node.Labels, "ip", node.Host)
 				nodes = append(nodes, *node)
 			}
 		}
+
 	}
 	// Set metric to the number of nodes found
 	ports := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lb.Spec.Ports)), ","), "[]")

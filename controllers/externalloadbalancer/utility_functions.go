@@ -63,21 +63,35 @@ func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
 			newCond = cond.Status
 		}
 	}
-	for _, addr := range o.Status.Addresses {
-		if addr.Type == LoadBalancerIPType {
-			oldIP = addr.Address
-		}
-	}
-	for _, addr := range n.Status.Addresses {
-		if addr.Type == LoadBalancerIPType {
-			newIP = addr.Address
-		}
-	}
+	oldIP = getNodeIP(o)
+	newIP = getNodeIP(n)
 
 	if (oldCond == newCond) && (oldIP == newIP) && reflect.DeepEqual(o.Labels, n.Labels) {
 		return false
 	}
 	return true
+}
+
+func getNodeIP(node *corev1.Node) string {
+	var nodeReady bool = false
+	var nodeIPs = make(map[corev1.NodeAddressType]string)
+	var IP string
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == "Ready" && cond.Status == "True" {
+			nodeReady = true
+		}
+	}
+	for _, addr := range node.Status.Addresses {
+		if nodeReady {
+			nodeIPs[addr.Type] = addr.Address
+		}
+	}
+	if val, ok := nodeIPs["ExternalIP"]; ok {
+		IP = val
+	} else {
+		IP = nodeIPs["InternalIP"]
+	}
+	return IP
 }
 
 // computeLabels builds a label map with node role and additional labels
