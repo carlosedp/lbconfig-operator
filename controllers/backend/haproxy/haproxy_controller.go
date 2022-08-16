@@ -27,13 +27,17 @@ package haproxy
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/carlosedp/haproxy-go-client/client"
 	"github.com/carlosedp/haproxy-go-client/client/backend"
 	"github.com/carlosedp/haproxy-go-client/client/frontend"
 	"github.com/carlosedp/haproxy-go-client/client/server"
+	"github.com/carlosedp/haproxy-go-client/client/sites"
+	"github.com/carlosedp/haproxy-go-client/client/transactions"
 	"github.com/go-logr/logr"
+	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/haproxytech/client-native/v4/models"
@@ -50,13 +54,17 @@ import (
 
 // Provider is the object for the HAProxy Provider implementing the Provider interface
 type HAProxyProvider struct {
-	log      logr.Logger
-	haproxy  *client.DataPlane
-	host     string
-	hostport int
-	username string
-	password string
-	monitor  *models.HTTPCheck
+	log         logr.Logger
+	haproxy     *client.DataPlane
+	host        string
+	hostport    int
+	username    string
+	password    string
+	auth        runtime.ClientAuthInfoWriter
+	transaction string
+	version     int64
+	monitor     *models.HTTPCheck
+	ctx         context.Context
 }
 
 func init() {
@@ -66,6 +74,7 @@ func init() {
 // Create creates a new Load Balancer backend provider
 func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
 	log := ctrllog.FromContext(ctx)
+	p.ctx = context.Background()
 	log.WithValues("provider", "HAProxy")
 	p.log = log
 	p.host = lbBackend.Host
@@ -73,10 +82,11 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 	p.username = username
 	p.password = password
 
-	auth := httptransport.BasicAuth(p.username, p.password)
-	transport := httptransport.New(fmt.Sprintf("%s:%d", strings.TrimSpace(p.host), p.hostport), "/v2", []string{"http"})
-	transport.DefaultAuthentication = auth
-	transport.Debug = false
+	p.auth = httptransport.BasicAuth(p.username, p.password)
+	host := strings.Split(strings.TrimRight(p.host, "/"), "//")[1] + ":" + strconv.Itoa(p.hostport)
+	transport := httptransport.New(host, "/v2", []string{"http"})
+	transport.DefaultAuthentication = p.auth
+	transport.Debug = true
 
 	// create the API client, with the transport
 	p.haproxy = client.New(transport, strfmt.Default)
@@ -85,20 +95,38 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 
 // Connect creates a connection to the IP Load Balancer
 func (p *HAProxyProvider) Connect() error {
+
+	// Use Sites to grab the current config version of the HAProxy
+	sites, _ := p.haproxy.Sites.GetSites(&sites.GetSitesParams{Context: p.ctx}, p.auth)
+	p.version = sites.Payload.Version
+	p.log.Info("Got HAProxy config version", "version", p.version)
+
+	// Create a new transaction with previous version
+	t, err := p.haproxy.Transactions.StartTransaction(&transactions.StartTransactionParams{
+		Version: p.version,
+		Context: p.ctx,
+	}, p.auth)
+	if err != nil {
+		return err
+	}
+	p.transaction = t.Payload.ID
+
 	return nil
 }
 
 // HealthCheck checks if a connection to the Load Balancer is established
 func (p *HAProxyProvider) HealthCheck() error {
-	// _, err := p.haproxy.Information.GetInfo()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to list f5 pools: %v", err)
-	// }
 	return nil
 }
 
 // Close closes the connection to the Load Balancer
 func (p *HAProxyProvider) Close() error {
+	_, _, err := p.haproxy.Transactions.CommitTransaction(&transactions.CommitTransactionParams{
+		ID: p.transaction,
+	}, p.auth)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -115,7 +143,7 @@ func (p *HAProxyProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, erro
 
 	// Return monitor details in case it exists
 	mon := &lbv1.Monitor{
-		Name:        "no-name-monitor",
+		Name:        "no-name-monitor", // Fix this
 		MonitorType: p.monitor.Proto,
 		Path:        p.monitor.URI,
 		Port:        int(*p.monitor.Port),
@@ -126,15 +154,18 @@ func (p *HAProxyProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, erro
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
-func (p *HAProxyProvider) CreateMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+func (p *HAProxyProvider) CreateMonitor(m *lbv1.Monitor) error {
 
 	p.monitor = &models.HTTPCheck{
 		URI:    m.Path,
 		Port:   pointer.Int64(int64(m.Port)),
+		Index:  pointer.Int64(1),
 		Method: "GET",
 		Proto:  m.MonitorType,
+		Type:   "send",
+		// Add name from m.Name
 	}
-	return m, nil
+	return nil
 }
 
 // EditMonitor edits a monitor in the IP Load Balancer
@@ -143,8 +174,10 @@ func (p *HAProxyProvider) EditMonitor(m *lbv1.Monitor) error {
 	p.monitor = &models.HTTPCheck{
 		URI:    m.Path,
 		Port:   pointer.Int64(int64(m.Port)),
+		Index:  pointer.Int64(1),
 		Method: "GET",
 		Proto:  m.MonitorType,
+		Type:   "send",
 	}
 	// Maybe call EditPool?
 	return nil
@@ -166,10 +199,11 @@ func (p *HAProxyProvider) DeleteMonitor(m *lbv1.Monitor) error {
 func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	newPool, err := p.haproxy.Backend.GetBackend(&backend.GetBackendParams{
 		Name:    pool.Name,
-		Context: context.Background(),
+		Context: p.ctx,
 	}, nil)
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "getBackendNotFound") {
+		p.DeleteTransaction()
 		return nil, fmt.Errorf("error getting pool: %v", err)
 	}
 
@@ -183,9 +217,11 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	var members []lbv1.PoolMember
 	poolMembers, err := p.haproxy.Server.GetServers(&server.GetServersParams{
 		Backend: &pool.Name,
+		Context: p.ctx,
 	}, nil)
 
 	if err != nil {
+		p.DeleteTransaction()
 		return nil, fmt.Errorf("error getting pool members: %v", err)
 	}
 
@@ -204,8 +240,8 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	}
 
 	retPool := &lbv1.Pool{
-		Name:    newPool.Payload.Data.Name,
-		Monitor: newPool.Payload.Data.DefaultServer.Check,
+		// Name: newPool.Payload.Data.Name,
+		// Monitor: newPool.Payload.Data.,
 		Members: members,
 	}
 
@@ -213,25 +249,28 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 }
 
 // CreatePool creates a server pool in the Load Balancer
-func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) (*lbv1.Pool, error) {
+func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 
-	m := &models.HTTPCheck{}
+	// m := &models.HTTPCheck{}
 	// Create Pool with pre-existing monitor
-	if p.monitor != nil {
-		m = p.monitor
-	}
+	// if p.monitor != nil {
+	// m = p.monitor
+	// }
+
 	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
 		Data: &models.Backend{
 			Name:      pool.Name,
-			HTTPCheck: m,
+			HTTPCheck: p.monitor,
 		},
-		Context: context.Background(),
+		Context:       p.ctx,
+		TransactionID: &p.transaction,
 	}, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating pool(ERR) %s: %v", pool.Name, err)
+		p.DeleteTransaction()
+		return fmt.Errorf("error creating pool %s: %v", pool.Name, err)
 	}
 
-	return pool, nil
+	return nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
@@ -241,14 +280,15 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 	if p.monitor != nil {
 		m = p.monitor
 	}
-	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
+	_, _, err := p.haproxy.Backend.ReplaceBackend(&backend.ReplaceBackendParams{
 		Data: &models.Backend{
 			Name:      pool.Name,
 			HTTPCheck: m,
 		},
-		Context: context.Background(),
+		Context: p.ctx,
 	}, nil)
 	if err != nil {
+		p.DeleteTransaction()
 		return fmt.Errorf("error editing pool(ERR) %s: %v", pool.Name, err)
 	}
 
@@ -259,10 +299,11 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
 	_, _, err := p.haproxy.Backend.DeleteBackend(&backend.DeleteBackendParams{
 		Name:    pool.Name,
-		Context: context.Background(),
+		Context: p.ctx,
 	}, nil)
 
 	if err != nil {
+		p.DeleteTransaction()
 		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
 	}
 	return nil
@@ -272,13 +313,26 @@ func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
 // Pool Member Management
 // ----------------------------------------
 
+// GetPoolMembers gets the pool members and return them in Pool object
+func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
+	return nil, nil
+}
+
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
 func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+
+	// _, _, err := p.haproxy.Server.CreateServer(&server.CreateServerParams{
+	// 	Backend: &pool.Name,
+	// 	Data: &models.Server{
+	// 		Name:            m.Node.Name,
+	// 		Address:         m.Node.Host,
+	// 		HealthCheckPort: pointer.Int64(int64(m.Port)),
+	// 	},
+	// 	TransactionID: &p.transaction,
+	// 	Context:       p.ctx,
+	// }, nil)
 	// p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
-	// config := bigip.Node{
-	// 	Name:    m.Node.Host + ":" + strconv.Itoa(m.Port),
-	// 	Address: m.Node.Host,
-	// }
+
 	// // Query node by IP
 	// n, _ := p.f5.GetNode(m.Node.Host)
 	// if n != nil {
@@ -331,10 +385,11 @@ func (p *HAProxyProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	getFrontend, err := p.haproxy.Frontend.GetFrontend(&frontend.GetFrontendParams{
 		Name:    v.Name,
-		Context: context.Background(),
+		Context: p.ctx,
 	}, nil)
 
 	if err != nil {
+		p.DeleteTransaction()
 		return nil, fmt.Errorf("error getting haproxy frontend %s: %v", v.Name, err)
 	}
 
@@ -366,7 +421,7 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 }
 
 // CreateVIP creates a Virtual Server in the Load Balancer
-func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) error {
 	// The second parameter is our destination, and the third is the mask. You can use CIDR notation if you wish (as shown here)
 
 	// config := &bigip.VirtualServer{
@@ -395,7 +450,7 @@ func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	// 	return nil, fmt.Errorf("error creating VIP %s, %+v: %v", v.Name, config, err)
 	// }
 	// return v, nil
-	return nil, nil
+	return nil
 }
 
 // EditVIP modifies a Virtual Server in the Load Balancer
@@ -434,5 +489,12 @@ func (p *HAProxyProvider) DeleteVIP(v *lbv1.VIP) error {
 	// if err != nil {
 	// 	return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
 	// }
+	return nil
+}
+
+func (p *HAProxyProvider) DeleteTransaction() error {
+	p.haproxy.Transactions.DeleteTransaction(&transactions.DeleteTransactionParams{
+		ID: p.transaction,
+	}, p.auth)
 	return nil
 }
