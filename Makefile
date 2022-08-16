@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.2.0
+VERSION ?= 0.2.1
 # Operator repository
 REPO ?= docker.io/carlosedp
 
@@ -192,10 +192,12 @@ $(ENVTEST): $(LOCALBIN)
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
 bundle: manifests kustomize deployment-manifests
+	rm -rf bundle
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i "s|containerImage:.*|containerImage: $(IMG)|g" "bundle/manifests/lbconfig-operator.clusterserviceversion.yaml"
+	cp -rf ./config/kuttl ./bundle/tests/scorecard/
 	operator-sdk bundle validate ./bundle
 
 .PHONY: opm
@@ -253,13 +255,17 @@ endif
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
 	kubectl get elb externalloadbalancer-master-dummy-test
 	operator-sdk cleanup lbconfig-operator
+	kubectl delete secret generic dummy-creds
 	@echo "===================="
 	@echo "Don't forget to teardown the KIND cluster with 'kind delete cluster --name test-operator'"
 	@echo "===================="
 
 .PHONY: scorecard-run
-scorecard-run: bundle-push ## Runs the scorecard validation (depends on a K8s cluster)
-	operator-sdk scorecard $(BUNDLE_IMG) --wait-time 5m
+scorecard-run: ## Runs the scorecard validation (depends on a KIND cluster)
+	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m || true
+	kubectl create namespace lbconfig-operator-system || true
+	kubectl create secret generic -n lbconfig-operator-system dummy-creds --from-literal=username=admin --from-literal=password=admin || true
+	operator-sdk scorecard ./bundle  --wait-time 5m --service-account=lbconfig-operator-controller-manager --namespace=lbconfig-operator-system
 
 .PHONY: dist
-dist: docker-cross bundle-push catalog-push  ## Build manifests and container image, pushing it to the registry
+dist: docker-cross deployment-manifests bundle-push catalog-push  ## Build manifests and container image, pushing it to the registry
