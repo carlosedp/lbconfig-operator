@@ -5,7 +5,7 @@ ARG TARGETARCH
 ARG TARGETOS
 
 WORKDIR /
-COPY output/manager-$TARGETOS-$TARGETARCH /workspace/manager
+COPY output/manager-$TARGETOS-$TARGETARCH /manager
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
