@@ -27,7 +27,7 @@ package haproxy
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"net/url"
 	"strings"
 
 	"github.com/carlosedp/haproxy-go-client/client"
@@ -54,17 +54,18 @@ import (
 
 // Provider is the object for the HAProxy Provider implementing the Provider interface
 type HAProxyProvider struct {
-	log         logr.Logger
-	haproxy     *client.DataPlane
-	host        string
-	hostport    int
-	username    string
-	password    string
-	auth        runtime.ClientAuthInfoWriter
-	transaction string
-	version     int64
-	monitor     *models.HTTPCheck
-	ctx         context.Context
+	log           logr.Logger
+	haproxy       *client.DataPlane
+	host          string
+	hostport      int
+	username      string
+	password      string
+	validatecerts bool
+	auth          runtime.ClientAuthInfoWriter
+	transaction   string
+	version       int64
+	monitor       *models.HTTPCheck
+	ctx           context.Context
 }
 
 func init() {
@@ -82,9 +83,24 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 	p.username = username
 	p.password = password
 
+	if lbBackend.ValidateCerts == nil {
+		p.validatecerts = false
+		p.log.Info("ValidateCerts not set, will use default as false")
+	} else {
+		p.validatecerts = *lbBackend.ValidateCerts
+	}
+
 	p.auth = httptransport.BasicAuth(p.username, p.password)
-	host := strings.Split(strings.TrimRight(p.host, "/"), "//")[1] + ":" + strconv.Itoa(p.hostport)
-	transport := httptransport.New(host, "/v2", []string{"http"})
+
+	c, _ := url.Parse(p.host)
+	host := c.Host + ":" + fmt.Sprintf("%d", p.hostport)
+
+	t, _ := httptransport.TLSTransport(httptransport.TLSClientOptions{
+		InsecureSkipVerify: !p.validatecerts,
+	})
+
+	transport := httptransport.New(host, "/v2", []string{c.Scheme})
+	transport.Transport = t
 	transport.DefaultAuthentication = p.auth
 	transport.Debug = true
 
@@ -97,7 +113,10 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 func (p *HAProxyProvider) Connect() error {
 
 	// Use Sites to grab the current config version of the HAProxy
-	sites, _ := p.haproxy.Sites.GetSites(&sites.GetSitesParams{Context: p.ctx}, p.auth)
+	sites, err := p.haproxy.Sites.GetSites(&sites.GetSitesParams{Context: p.ctx}, p.auth)
+	if err != nil {
+		return err
+	}
 	p.version = sites.Payload.Version
 	p.log.Info("Got HAProxy config version", "version", p.version)
 
@@ -213,36 +232,10 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		return nil, nil
 	}
 
-	// // Get pool members
-	var members []lbv1.PoolMember
-	poolMembers, err := p.haproxy.Server.GetServers(&server.GetServersParams{
-		Backend: &pool.Name,
-		Context: p.ctx,
-	}, nil)
-
-	if err != nil {
-		p.DeleteTransaction()
-		return nil, fmt.Errorf("error getting pool members: %v", err)
-	}
-
-	for _, member := range poolMembers.Payload.Data {
-		ip := member.Address
-		port := int(*member.Port)
-		node := &lbv1.Node{
-			Name: member.Name,
-			Host: ip,
-		}
-		mem := &lbv1.PoolMember{
-			Node: *node,
-			Port: port,
-		}
-		members = append(members, *mem)
-	}
-
 	retPool := &lbv1.Pool{
 		// Name: newPool.Payload.Data.Name,
 		// Monitor: newPool.Payload.Data.,
-		Members: members,
+		// Members: members,
 	}
 
 	return retPool, nil
@@ -315,7 +308,34 @@ func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
 
 // GetPoolMembers gets the pool members and return them in Pool object
 func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
-	return nil, nil
+
+	// // Get pool members
+	var members []lbv1.PoolMember
+	poolMembers, err := p.haproxy.Server.GetServers(&server.GetServersParams{
+		Backend: &pool.Name,
+		Context: p.ctx,
+	}, nil)
+
+	if err != nil {
+		p.DeleteTransaction()
+		return nil, fmt.Errorf("error getting pool members: %v", err)
+	}
+
+	for _, member := range poolMembers.Payload.Data {
+		ip := member.Address
+		port := int(*member.Port)
+		node := &lbv1.Node{
+			Name: member.Name,
+			Host: ip,
+		}
+		mem := &lbv1.PoolMember{
+			Node: *node,
+			Port: port,
+		}
+		members = append(members, *mem)
+	}
+	pool.Members = members
+	return pool, nil
 }
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
