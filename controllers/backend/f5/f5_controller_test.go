@@ -27,8 +27,10 @@ package f5_test
 import (
 	"context"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -88,7 +90,7 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 		},
 		Provider: lbv1.Provider{
 			Vendor:        "F5_BigIP",
-			Host:          "https://127.0.0.1",
+			Host:          "",
 			Port:          0,
 			Creds:         credsSecret.Name,
 			Partition:     "Common",
@@ -163,10 +165,14 @@ var _ = Describe("When using a f5 backend", func() {
 			}
 
 		}))
-		connection := strings.Split(server.URL, ":")
-		port, _ := strconv.Atoi(connection[len(connection)-1])
-		loadBalancer.Spec.Provider.Host = connection[0] + ":" + connection[1]
-		loadBalancer.Spec.Provider.Port = port
+		c, err := url.Parse(server.URL)
+		Expect(err).ToNot(HaveOccurred())
+		host, port, err := net.SplitHostPort(c.Host)
+		Expect(err).ToNot(HaveOccurred())
+		p, err := strconv.Atoi(port)
+		Expect(err).ToNot(HaveOccurred())
+		loadBalancer.Spec.Provider.Host = c.Scheme + "://" + host
+		loadBalancer.Spec.Provider.Port = p
 	})
 
 	AfterEach(func() {
