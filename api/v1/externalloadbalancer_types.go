@@ -156,8 +156,17 @@ type Provider struct {
 
 	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Enum=`true`;`false`
 	// +kubebuilder:validation:Optional
-	ValidateCerts *bool `json:"validatecerts,omitempty"`
+	// +kubebuilder:default=false
+	ValidateCerts bool `json:"validatecerts,omitempty"`
+
+	// Debug is a flag to enable debug on the backend log output. Defaults to false.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=`true`;`false`
+	// +kubebuilder:default=false
+	Debug bool `json:"debug,omitempty"`
 
 	// Type is the Load-Balancing method for Netstscaler LB. (Netscaler ADC Only)
 	// Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS

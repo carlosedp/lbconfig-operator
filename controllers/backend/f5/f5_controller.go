@@ -27,6 +27,7 @@ package f5
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -69,25 +70,22 @@ func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, userna
 	} else {
 		p.partition = "/" + lbBackend.Partition + "/"
 	}
-	if lbBackend.ValidateCerts == nil {
-		p.validatecerts = false
-		p.log.Info("ValidateCerts not set, will use default as false")
-	} else {
-		p.validatecerts = *lbBackend.ValidateCerts
-	}
 
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port
 	p.username = username
 	p.password = password
+	p.validatecerts = lbBackend.ValidateCerts
 
 	return nil
 }
 
 // Connect creates a connection to the IP Load Balancer
 func (p *F5Provider) Connect() error {
-	host := strings.TrimRight(p.host, "/") + ":" + strconv.Itoa(p.hostport)
+
+	c, _ := url.Parse(p.host)
+	host := c.Host + ":" + fmt.Sprintf("%d", p.hostport)
 	p.f5 = bigip.NewSession(host, p.username, p.password, nil)
 
 	return nil

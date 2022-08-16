@@ -27,6 +27,7 @@ package netscaler
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -66,13 +67,6 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("provider", "Citrix_ADC")
 
-	if lbBackend.ValidateCerts == nil {
-		p.validatecerts = false
-		p.log.Info("ValidateCerts not set, will use default as false")
-	} else {
-		p.validatecerts = *lbBackend.ValidateCerts
-	}
-
 	if lbBackend.NetscalerLBMethod == "" {
 		p.lbmethod = "ROUNDROBIN"
 	} else {
@@ -85,11 +79,17 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	p.username = username
 	p.password = password
 
+	c, _ := url.Parse(p.host)
+	host := c.Scheme + "://" + c.Host + ":" + fmt.Sprintf("%d", p.hostport)
+
 	var params = &service.NitroParams{
-		Url:       strings.TrimRight(p.host, "/") + ":" + strconv.Itoa(p.hostport),
+		Url:       host,
 		Username:  p.username,
 		Password:  p.password,
 		SslVerify: p.validatecerts,
+	}
+	if lbBackend.Debug {
+		params.LogLevel = "debug"
 	}
 
 	client, err := service.NewNitroClientFromParams(*params)
