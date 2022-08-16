@@ -3,6 +3,16 @@ VERSION ?= 0.2.0
 # Operator repository
 REPO ?= docker.io/carlosedp
 
+# Publishing channel
+CHANNELS = "beta"
+DEFAULT_CHANNEL = "beta"
+
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.24.1
+
+# Which container runtime to use
+BUILDER = docker
+
 # Image URL to use all building/pushing image targets
 IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
 IMAGE_TAG_BASE ?= ${REPO}/lbconfig-operator
@@ -13,8 +23,6 @@ CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
 ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
 endif
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.24.1
 
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
@@ -24,6 +32,7 @@ ifneq ($(origin DEFAULT_CHANNEL), undefined)
 BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -97,12 +106,12 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test bundle ## Build docker image for the operator locally.
-	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le -f Dockerfile.cross .
+docker-build: test ## Build docker image for the operator locally.
+	$(BUILDER) build -t ${IMG} . --build-arg VERSION=${VERSION} --target local
 
 .PHONY: docker-push
-docker-push: test bundle ## Build and push docker image for the operator.
-	docker buildx build -t ${IMG} --platform linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile.cross .
+docker-push: ## Build and push docker image for the operator.
+	$(BUILDER) push ${IMG}
 
 ARCHS ?= amd64 arm64 ppc64le
 .PHONY: docker-cross
@@ -186,18 +195,8 @@ bundle: manifests kustomize deployment-manifests
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	sed -i "s|containerImage:.*|containerImage: $(IMG)|g" "bundle/manifests/lbconfig-operator.clusterserviceversion.yaml"
 	operator-sdk bundle validate ./bundle
-
-.PHONY: dist
-dist: bundle docker-cross catalog-push bundle-push ## Build manifests and container image, pushing it to the registry
-
-.PHONY: bundle-build
-bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-
-.PHONY: bundle-push
-bundle-push: bundle-build ## Push the bundle image.
-	docker push $(BUNDLE_IMG)
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -216,15 +215,48 @@ OPM = $(shell which opm)
 endif
 endif
 
+.PHONY: bundle-build
+bundle-build: bundle ## Build the bundle image.
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push: bundle-build ## Push the bundle image.
+	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
 # Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
 # This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
-catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: opm bundle-push ## Build a catalog image.
+	$(OPM) index add --container-tool $(BUILDER) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: catalog-build ## Push a catalog image.
-	docker push $(CATALOG_IMG)
+	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
+.PHONY: olm-validate
+olm-validate: bundle-push ## Validates the bundle image.
+	operator-sdk bundle validate $(BUNDLE_IMG)
+
+.PHONY: olm-run
+olm-run: olm-validate  ## Runs the bundle image in a KIND cluster
+ifeq ($(shell kind get clusters), test-operator)
+	@echo "Cluster already running"
+else
+	$(shell kind create cluster --name test-operator)
+endif
+	kubectl config use-context kind-test-operator
+	operator-sdk olm install || true
+	kubectl create namespace lbconfig-operator-system || true
+	kubectl apply -f hack/monitoring.coreos.com_servicemonitors.yaml
+	operator-sdk run bundle $(BUNDLE_IMG) --namespace lbconfig-operator-system
+	kubectl create secret generic dummy-creds --from-literal=username=nsroot --from-literal=password=nsroot --namespace lbconfig-operator-system
+	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
+	kubectl get elb -n lbconfig-operator-system externalloadbalancer-master-dummy-test
+	operator-sdk cleanup lbconfig-operator --namespace lbconfig-operator-system
+	kubectl delete namespace lbconfig-operator-system
+	@echo "Don't forget to teardown the KIND cluster with 'kind delete cluster --name test-operator'"
+
+.PHONY: dist
+dist: docker-cross bundle-push catalog-push  ## Build manifests and container image, pushing it to the registry

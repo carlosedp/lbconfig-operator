@@ -97,8 +97,8 @@ metadata:
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
-    containerImage: ""
-    createdAt: ""
+    containerImage: docker.io/carlosedp/lbconfig-operator:v0.2.0
+    createdAt: "2022-08-15T12:00:00Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
       dynamically via API.
@@ -106,7 +106,7 @@ metadata:
     k8sMinVersion: ""
     operators.operatorframework.io/builder: operator-sdk-v1.22.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-    repository: ""
+    repository: https://github.com/carlosedp/lbconfig-operator
     support: ""
   name: lbconfig-operator.v0.2.0
   namespace: placeholder
@@ -116,9 +116,93 @@ spec:
     owned:
     - description: ExternalLoadBalancer is the Schema for the externalloadbalancers
         API
-      displayName: External Load Balancer
+      displayName: ExternalLoadBalancer Instance
       kind: ExternalLoadBalancer
       name: externalloadbalancers.lb.lbconfig.carlosedp.com
+      resources:
+      - kind: ExternalLoadBalancer
+        name: externalloadbalancer
+        version: lb.lbconfig.carlosedp.com/v1
+      specDescriptors:
+      - description: Monitor is the path and port to monitor the LoadBalancer members
+        displayName: Monitor
+        path: monitor
+      - description: MonitorType is the monitor parent type. <monitorType> must be
+          one of "http", "https", "icmp".
+        displayName: Monitor Type
+        path: monitor.monitortype
+      - description: Name is the monitor name, it is set by the controller
+        displayName: Name
+        path: monitor.name
+      - description: Path is the path URL to check for the pool members in the format
+          `/healthz`
+        displayName: Path
+        path: monitor.path
+      - description: Port is the port this monitor should check the pool members
+        displayName: Port
+        path: monitor.port
+      - description: NodeLabels are the node labels used for router sharding as an
+          alternative to "type". Optional.
+        displayName: Node Labels
+        path: nodelabels
+      - description: Ports is the ports exposed by this LoadBalancer instance
+        displayName: Ports
+        path: ports
+      - description: Provider is the LoadBalancer backend provider
+        displayName: Provider
+        path: provider
+      - description: 'Creds is the credentials secret holding the "username" and "password"
+          keys. Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username>
+          --from-literal=password=<password>`'
+        displayName: Creds
+        path: provider.creds
+      - description: Host is the Load Balancer API IP or Hostname in URL format. Eg.
+          `http://10.25.10.10`.
+        displayName: Host
+        path: provider.host
+      - description: Partition is the F5 partition to create the Load Balancer instances.
+          Defaults to "Common". (F5 BigIP only)
+        displayName: Partition
+        path: provider.partition
+      - description: Port is the Load Balancer API Port.
+        displayName: Port
+        path: provider.port
+      - description: 'Type is the Load-Balancing method for Netstscaler LB. (Netscaler
+          ADC Only) Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME, LEASTBANDWIDTH,
+          LEASTPACKETS'
+        displayName: Netscaler LBMethod
+        path: provider.type
+      - description: ValidateCerts is a flag to validate or not the Load Balancer
+          API certificate. Defaults to false.
+        displayName: Validate Certs
+        path: provider.validatecerts
+      - description: Vendor is the backend provider vendor
+        displayName: Vendor
+        path: provider.vendor
+      - description: Type is the node role type (master or infra) for the LoadBalancer
+          instance
+        displayName: Type
+        path: type
+      - description: Vip is the Virtual IP configured in  this LoadBalancer instance
+        displayName: Vip
+        path: vip
+      statusDescriptors:
+      - displayName: Labels
+        path: labels
+      - displayName: Monitor
+        path: monitor
+      - displayName: Nodes
+        path: nodes
+      - displayName: Num Nodes
+        path: numnodes
+      - displayName: Pools
+        path: pools
+      - displayName: Ports
+        path: ports
+      - displayName: Provider
+        path: provider
+      - displayName: VIPs
+        path: vips
       version: v1
     required:
     - description: ExternalLoadBalancer represents a configured instance of an external
@@ -346,6 +430,7 @@ spec:
                 command:
                 - /manager
                 image: docker.io/carlosedp/lbconfig-operator:v0.2.0
+                imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -411,7 +496,7 @@ spec:
         serviceAccountName: lbconfig-operator-controller-manager
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
   - supported: true
     type: SingleNamespace
@@ -431,6 +516,7 @@ spec:
   - email: carlosedp@gmail.com
     name: Carlos Eduardo de Paula
   maturity: beta
+  minKubeVersion: 1.18.0
   provider:
     name: Carlos Eduardo de Paula
   selector: {}
