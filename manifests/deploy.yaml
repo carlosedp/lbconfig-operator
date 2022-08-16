@@ -112,6 +112,13 @@ spec:
                   creds:
                     description: 'Creds is the credentials secret holding the "username" and "password" keys. Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username> --from-literal=password=<password>`'
                     type: string
+                  debug:
+                    default: false
+                    description: Debug is a flag to enable debug on the backend log output. Defaults to false.
+                    enum:
+                    - "true"
+                    - "false"
+                    type: boolean
                   host:
                     description: Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
                     maxLength: 255
@@ -135,7 +142,11 @@ spec:
                     - LEASTPACKETS
                     type: string
                   validatecerts:
+                    default: false
                     description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
+                    enum:
+                    - "true"
+                    - "false"
                     type: boolean
                   vendor:
                     description: Vendor is the backend provider vendor
@@ -272,6 +283,13 @@ spec:
                   creds:
                     description: 'Creds is the credentials secret holding the "username" and "password" keys. Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username> --from-literal=password=<password>`'
                     type: string
+                  debug:
+                    default: false
+                    description: Debug is a flag to enable debug on the backend log output. Defaults to false.
+                    enum:
+                    - "true"
+                    - "false"
+                    type: boolean
                   host:
                     description: Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
                     maxLength: 255
@@ -295,7 +313,11 @@ spec:
                     - LEASTPACKETS
                     type: string
                   validatecerts:
+                    default: false
                     description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
+                    enum:
+                    - "true"
+                    - "false"
                     type: boolean
                   vendor:
                     description: Vendor is the backend provider vendor

@@ -156,6 +156,10 @@ spec:
           --from-literal=password=<password>`'
         displayName: Creds
         path: provider.creds
+      - description: Debug is a flag to enable debug on the backend log output. Defaults
+          to false.
+        displayName: Debug
+        path: provider.debug
       - description: Host is the Load Balancer API IP or Hostname in URL format. Eg.
           `http://10.25.10.10`.
         displayName: Host
