@@ -52,8 +52,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	controller "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
-	"github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 )
 
 // ExternalLoadBalancerReconciler reconciles a ExternalLoadBalancer object

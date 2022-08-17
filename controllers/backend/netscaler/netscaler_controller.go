@@ -39,7 +39,7 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 )
 
 // ----------------------------------------
@@ -117,10 +117,10 @@ func (p *NetscalerProvider) Close() error {
 
 // GetMonitor gets a monitor in the IP Load Balancer
 func (p *NetscalerProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
-	m, err := p.client.FindResource(service.Lbmonitor.Type(), monitor.Name)
-	if err != nil {
-		return nil, err
-	}
+	m, _ := p.client.FindResource(service.Lbmonitor.Type(), monitor.Name)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// Return in case monitor does not exist
 	if len(m) == 0 {
 		return nil, nil
@@ -226,10 +226,10 @@ func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
 
 // GetPool gets a server pool from the Load Balancer
 func (p *NetscalerProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
-	m, err := p.client.FindResource(service.Servicegroup.Type(), pool.Name)
-	if err != nil {
-		return nil, err
-	}
+	m, _ := p.client.FindResource(service.Servicegroup.Type(), pool.Name)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Return in case pool does not exist
 	if len(m) == 0 {
@@ -349,7 +349,7 @@ func (p *NetscalerProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) 
 
 		pool.Members = members
 	}
-	return nil, nil
+	return pool, nil
 }
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
@@ -423,10 +423,10 @@ func (p *NetscalerProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 
 // GetVIP gets a VIP in the IP Load Balancer
 func (p *NetscalerProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
-	vs, err := p.client.FindResource(service.Lbvserver.Type(), v.Name)
-	if err != nil {
-		return nil, err
-	}
+	vs, _ := p.client.FindResource(service.Lbvserver.Type(), v.Name)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// Return in case VIP does not exist
 	if len(vs) == 0 {
 		return nil, nil

@@ -132,7 +132,7 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 
 	// Error getting monitor
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting monitor: %s", err)
 	}
 
 	// Monitor is not empty so update it's data if needed
@@ -167,20 +167,20 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 // HandlePool manages the Pool validation, update and creation
 func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) error {
 	// Check if pool exists
-	configuredPool, err := b.Provider.GetPool(pool)
+	p, err := b.Provider.GetPool(pool)
 	if err != nil {
 		return err
 	}
 
-	// Check if pool have members and update the object
-	configuredPool, err = b.Provider.GetPoolMembers(configuredPool)
-	if err != nil {
-		return err
-	}
 	// Pool is not empty so update it's data if needed
-	if configuredPool != nil {
-		// Exists, so check to Update pool parameters and members
+	if p != nil {
+		// Check if pool have members and update the object
+		configuredPool, err := b.Provider.GetPoolMembers(p)
+		if err != nil {
+			return err
+		}
 
+		// Exists, so check to Update pool parameters and members
 		b.log.Info("Pool exists, check if needs update", "name", configuredPool.Name)
 		var addMembers []lbv1.PoolMember
 		var delMembers []lbv1.PoolMember

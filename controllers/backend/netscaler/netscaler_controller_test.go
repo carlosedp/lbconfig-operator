@@ -44,7 +44,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+	. "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/netscaler"
 )
 

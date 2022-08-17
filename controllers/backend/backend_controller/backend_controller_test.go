@@ -33,8 +33,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	. "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
-	. "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
 	d "github.com/carlosedp/lbconfig-operator/controllers/backend/dummy"
 )
 
