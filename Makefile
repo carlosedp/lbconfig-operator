@@ -239,7 +239,7 @@ catalog-push: catalog-build ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 .PHONY: olm-validate
-olm-validate: bundle-push ## Validates the bundle image.
+olm-validate: bundle-push catalog-push ## Validates the bundle image.
 	operator-sdk bundle validate $(BUNDLE_IMG)
 
 .PHONY: olm-run
@@ -250,13 +250,14 @@ else
 	$(shell kind create cluster --name test-operator)
 endif
 	kubectl config use-context kind-test-operator
-	operator-sdk olm install --timeout=5m || true
+	operator-sdk olm install --version=0.21.2 --timeout=5m || true
 	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m
-	kubectl create secret generic dummy-creds --from-literal=username=nsroot --from-literal=password=nsroot
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
+	sleep 3
 	kubectl get elb externalloadbalancer-master-dummy-test
 	operator-sdk cleanup lbconfig-operator
-	kubectl delete secret generic dummy-creds
+	kubectl delete secret dummy-creds
 	@echo "===================="
 	@echo "Don't forget to teardown the KIND cluster with 'kind delete cluster --name test-operator'"
 	@echo "===================="
@@ -264,9 +265,12 @@ endif
 .PHONY: scorecard-run
 scorecard-run: ## Runs the scorecard validation (depends on a KIND cluster)
 	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m || true
-	kubectl create namespace lbconfig-operator-system || true
-	kubectl create secret generic -n lbconfig-operator-system dummy-creds --from-literal=username=admin --from-literal=password=admin || true
-	operator-sdk scorecard ./bundle  --wait-time 5m --service-account=lbconfig-operator-controller-manager --namespace=lbconfig-operator-system
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin || true
+	operator-sdk scorecard ./bundle  --wait-time 5m --service-account=lbconfig-operator-controller-manager
+
+.PHONY: testenv-teardown
+testenv-teardown:
+	kind delete cluster --name test-operator
 
 .PHONY: dist
-dist: docker-cross deployment-manifests bundle-push catalog-push  ## Build manifests and container image, pushing it to the registry
+dist: docker-cross bundle olm-validate  ## Build manifests and container image, pushing it to the registry

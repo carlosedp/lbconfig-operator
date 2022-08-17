@@ -45,7 +45,7 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
-	backend_controller "github.com/carlosedp/lbconfig-operator/controllers/backend/controller"
+	backend_controller "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 )
 
 // ----------------------------------------
