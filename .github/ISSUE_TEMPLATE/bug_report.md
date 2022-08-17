@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
+title: '[Bug] '
 labels: ''
 assignees: ''
 
@@ -30,6 +30,7 @@ If applicable, add the CRs and manifests used to deploy the operator and it's ma
  - Cluster type: [e.g. Kubernetes, OpenShift, K3s]
  - OS: [e.g. Ubuntu, CoreOS, Fedora]
  - Cluster Version [e.g. 1.20.4 (for Kubernetes), 4.7.3 (for OpenShift)]
+ - Operator version (check the first operator log message)
 
 **Additional context**
 Add any other context about the problem here.

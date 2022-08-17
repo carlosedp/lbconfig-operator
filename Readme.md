@@ -34,7 +34,7 @@ The main users for this operator is enterprise deployments or clusters composed 
 Apply the operator manifest into the cluster:
 
 ```sh
-kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/master/manifests/deploy.yaml
+kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/main/manifests/deploy.yaml
 ```
 
 This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
@@ -232,3 +232,4 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
 
 * The operator does not check if the requested configuration (names, IPs) already exists and/or conflicts with existing configuration in the Load Balancer. The user is responsible for these checks before deployment;
 * I am not responsible if the operator changes/deletes existing configuration on the Load Balancer if existing names are already configured.
+* The operator creates the entries(Pools, VIPs, Monitors) in the provided Load Balancer with the `name` of the instance configured in the CustomResource prefixed with the type. Eg. For a CR with name `externalloadbalancer-master-sample`, the operator creates a server pool named `Pool-externalloadbalancer-master-sample-6443` (suffixed with the port), a monitor named `Monitor-externalloadbalancer-master-sample` and a VIP named `VIP-externalloadbalancer-master-sample-6443` (suffixed with the port).

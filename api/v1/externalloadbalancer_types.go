@@ -37,7 +37,7 @@ func init() {
 // ExternalLoadBalancer is the Schema for the externalloadbalancers API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-//+operator-sdk:csv:customresourcedefinitions:displayName="ExternalLoadBalancer Instance",resources={{ExternalLoadBalancer,lb.lbconfig.carlosedp.com/v1,externalloadbalancer},}
+// +operator-sdk:csv:customresourcedefinitions:displayName="ExternalLoadBalancer Instance",resources={{ExternalLoadBalancer,lb.lbconfig.carlosedp.com/v1,externalloadbalancer},}
 // +kubebuilder:resource:path="externalloadbalancers"
 // +kubebuilder:resource:singular="externalloadbalancer"
 // +kubebuilder:resource:shortName="elb"

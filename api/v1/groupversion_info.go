@@ -23,8 +23,8 @@ SOFTWARE.
 */
 
 // Package v1 contains API Schema definitions for the lb v1 API group
-//+kubebuilder:object:generate=true
-//+groupName=lb.lbconfig.carlosedp.com
+// +kubebuilder:object:generate=true
+// +groupName=lb.lbconfig.carlosedp.com
 package v1
 
 import (

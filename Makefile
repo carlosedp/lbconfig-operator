@@ -99,7 +99,9 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -a -installsuffix cgo \
+		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
+		-o output/manager main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -122,7 +124,7 @@ docker-cross: ## Build operator binaries locally and then build/push the Docker 
 		echo "Building binary for $$ARCH at output/manager-$$OS-$$ARCH" ; \
 		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=0 \
 		go build -a -installsuffix cgo \
-		-ldflags '-s -w -extldflags "-static"' \
+		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
 		-o output/manager-$$OS-$$ARCH main.go ; \
 	done
 	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile .

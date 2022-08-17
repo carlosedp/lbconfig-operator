@@ -260,7 +260,7 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 	return nil
 }
 
-//HandleVIP manages the VIP validation, update and creation
+// HandleVIP manages the VIP validation, update and creation
 func (b *BackendController) HandleVIP(v *lbv1.VIP) error {
 	// Check if VIP exists
 	vs, err := b.Provider.GetVIP(v)
