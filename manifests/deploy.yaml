@@ -116,8 +116,8 @@ spec:
                     default: false
                     description: Debug is a flag to enable debug on the backend log output. Defaults to false.
                     enum:
-                    - "true"
-                    - "false"
+                    - true
+                    - false
                     type: boolean
                   host:
                     description: Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
@@ -145,8 +145,8 @@ spec:
                     default: false
                     description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
                     enum:
-                    - "true"
-                    - "false"
+                    - true
+                    - false
                     type: boolean
                   vendor:
                     description: Vendor is the backend provider vendor
@@ -287,8 +287,8 @@ spec:
                     default: false
                     description: Debug is a flag to enable debug on the backend log output. Defaults to false.
                     enum:
-                    - "true"
-                    - "false"
+                    - true
+                    - false
                     type: boolean
                   host:
                     description: Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.
@@ -316,8 +316,8 @@ spec:
                     default: false
                     description: ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
                     enum:
-                    - "true"
-                    - "false"
+                    - true
+                    - false
                     type: boolean
                   vendor:
                     description: Vendor is the backend provider vendor
@@ -604,14 +604,14 @@ spec:
           capabilities:
             drop:
             - ALL
-      - ImagePullPolicy: Always
-        args:
+      - args:
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         command:
         - /manager
         image: docker.io/carlosedp/lbconfig-operator:v0.2.1
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz

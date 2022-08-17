@@ -68,7 +68,7 @@ type ExternalLoadBalancerSpec struct {
 	// Type is the node role type (master or infra) for the LoadBalancer instance
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=`master`;`infra`
+	// +kubebuilder:validation:Enum=master;infra
 	Type string `json:"type,omitempty"`
 
 	// NodeLabels are the node labels used for router sharding as an alternative to "type". Optional.
@@ -118,7 +118,7 @@ type Monitor struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// "icmp".
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=`http`;`https`;`icmp`
+	// +kubebuilder:validation:Enum=http;https;icmp
 	MonitorType string `json:"monitortype"`
 }
 
@@ -156,7 +156,7 @@ type Provider struct {
 
 	// ValidateCerts is a flag to validate or not the Load Balancer API certificate. Defaults to false.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	// +kubebuilder:validation:Enum=`true`;`false`
+	// +kubebuilder:validation:Enum=true;false
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
 	ValidateCerts bool `json:"validatecerts,omitempty"`
@@ -164,7 +164,7 @@ type Provider struct {
 	// Debug is a flag to enable debug on the backend log output. Defaults to false.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=`true`;`false`
+	// +kubebuilder:validation:Enum=true;false
 	// +kubebuilder:default=false
 	Debug bool `json:"debug,omitempty"`
 
@@ -172,7 +172,7 @@ type Provider struct {
 	// Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=`ROUNDROBIN`;`LEASTCONNECTION`;`LEASTRESPONSETIME`;`LEASTBANDWIDTH`;`LEASTPACKETS`
+	// +kubebuilder:validation:Enum=ROUNDROBIN;LEASTCONNECTION;LEASTRESPONSETIME;LEASTBANDWIDTH;LEASTPACKETS
 	NetscalerLBMethod string `json:"type,omitempty"`
 }
 
