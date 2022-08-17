@@ -132,6 +132,15 @@ spec:
                     maxLength: 255
                     minLength: 1
                     type: string
+                  lbmethod:
+                    default: ROUNDROBIN
+                    description: 'Type is the Load-Balancing method. Defaults to "round-robin".
+                      Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME'
+                    enum:
+                    - ROUNDROBIN
+                    - LEASTCONNECTION
+                    - LEASTRESPONSETIME
+                    type: string
                   partition:
                     description: Partition is the F5 partition to create the Load
                       Balancer instances. Defaults to "Common". (F5 BigIP only)
@@ -141,17 +150,6 @@ spec:
                     maximum: 65535
                     minimum: 1
                     type: integer
-                  type:
-                    description: 'Type is the Load-Balancing method for Netstscaler
-                      LB. (Netscaler ADC Only) Options are: ROUNDROBIN, LEASTCONNECTION,
-                      LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS'
-                    enum:
-                    - ROUNDROBIN
-                    - LEASTCONNECTION
-                    - LEASTRESPONSETIME
-                    - LEASTBANDWIDTH
-                    - LEASTPACKETS
-                    type: string
                   validatecerts:
                     default: false
                     description: ValidateCerts is a flag to validate or not the Load
@@ -319,6 +317,15 @@ spec:
                     maxLength: 255
                     minLength: 1
                     type: string
+                  lbmethod:
+                    default: ROUNDROBIN
+                    description: 'Type is the Load-Balancing method. Defaults to "round-robin".
+                      Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME'
+                    enum:
+                    - ROUNDROBIN
+                    - LEASTCONNECTION
+                    - LEASTRESPONSETIME
+                    type: string
                   partition:
                     description: Partition is the F5 partition to create the Load
                       Balancer instances. Defaults to "Common". (F5 BigIP only)
@@ -328,17 +335,6 @@ spec:
                     maximum: 65535
                     minimum: 1
                     type: integer
-                  type:
-                    description: 'Type is the Load-Balancing method for Netstscaler
-                      LB. (Netscaler ADC Only) Options are: ROUNDROBIN, LEASTCONNECTION,
-                      LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS'
-                    enum:
-                    - ROUNDROBIN
-                    - LEASTCONNECTION
-                    - LEASTRESPONSETIME
-                    - LEASTBANDWIDTH
-                    - LEASTPACKETS
-                    type: string
                   validatecerts:
                     default: false
                     description: ValidateCerts is a flag to validate or not the Load

@@ -94,6 +94,7 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 			Creds:         credsSecret.Name,
 			Partition:     "Common",
 			ValidateCerts: false,
+			LBMethod:      "LEASTCONNECTION",
 		},
 	},
 }
@@ -287,7 +288,8 @@ var _ = Describe("When using a f5 backend", func() {
 
 			err = createdBackend.Provider.CreatePool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
-			Eventually(httpdata.method, timeout, interval).Should(Equal("PATCH"))
+			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
+			Eventually(gjson.Get(httpdata.data, "loadBalancingMode").String(), timeout, interval).Should(Equal("least-connections-member"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 

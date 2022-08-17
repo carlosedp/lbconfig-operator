@@ -67,17 +67,12 @@ func (p *NetscalerProvider) Create(ctx context.Context, lbBackend lbv1.Provider,
 	log := ctrllog.FromContext(ctx)
 	log.WithValues("provider", "Citrix_ADC")
 
-	if lbBackend.NetscalerLBMethod == "" {
-		p.lbmethod = "ROUNDROBIN"
-	} else {
-		p.lbmethod = lbBackend.NetscalerLBMethod
-	}
-
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port
 	p.username = username
 	p.password = password
+	p.lbmethod = lbBackend.LBMethod
 
 	c, _ := url.Parse(p.host)
 	host := c.Scheme + "://" + c.Host + ":" + fmt.Sprintf("%d", p.hostport)
@@ -488,7 +483,6 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 		Port:        v.Port,
 		Servicetype: "TCP",
 		Lbmethod:    p.lbmethod,
-		// Lbmethod        : "LEASTCONNECTION",
 	}
 	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)
 

@@ -168,12 +168,13 @@ type Provider struct {
 	// +kubebuilder:default=false
 	Debug bool `json:"debug,omitempty"`
 
-	// Type is the Load-Balancing method for Netstscaler LB. (Netscaler ADC Only)
-	// Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME, LEASTBANDWIDTH, LEASTPACKETS
+	// Type is the Load-Balancing method. Defaults to "round-robin".
+	// Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=ROUNDROBIN;LEASTCONNECTION;LEASTRESPONSETIME;LEASTBANDWIDTH;LEASTPACKETS
-	NetscalerLBMethod string `json:"type,omitempty"`
+	// +kubebuilder:validation:Enum=ROUNDROBIN;LEASTCONNECTION;LEASTRESPONSETIME
+	// +kubebuilder:default=ROUNDROBIN
+	LBMethod string `json:"lbmethod,omitempty"`
 }
 
 // Internal types

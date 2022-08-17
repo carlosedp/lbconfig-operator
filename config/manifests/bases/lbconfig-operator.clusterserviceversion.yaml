@@ -71,6 +71,10 @@ spec:
           `http://10.25.10.10`.
         displayName: Host
         path: provider.host
+      - description: 'Type is the Load-Balancing method. Defaults to "round-robin".
+          Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME'
+        displayName: LBMethod
+        path: provider.lbmethod
       - description: Partition is the F5 partition to create the Load Balancer instances.
           Defaults to "Common". (F5 BigIP only)
         displayName: Partition
@@ -78,11 +82,6 @@ spec:
       - description: Port is the Load Balancer API Port.
         displayName: Port
         path: provider.port
-      - description: 'Type is the Load-Balancing method for Netstscaler LB. (Netscaler
-          ADC Only) Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME, LEASTBANDWIDTH,
-          LEASTPACKETS'
-        displayName: Netscaler LBMethod
-        path: provider.type
       - description: ValidateCerts is a flag to validate or not the Load Balancer
           API certificate. Defaults to false.
         displayName: Validate Certs

@@ -53,11 +53,14 @@ type F5Provider struct {
 	password      string
 	partition     string
 	validatecerts bool
+	lbmethod      string
 }
 
 func init() {
 	backend.RegisterProvider("F5_BigIP", new(F5Provider))
 }
+
+var LBMethodMap = map[string]string{"ROUNDROBIN": "round-robin", "LEASTCONNECTION": "least-connections-member", "LEASTRESPONSETIME": "fastest-app-response"}
 
 // Create creates a new Load Balancer backend provider
 func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
@@ -77,6 +80,7 @@ func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, userna
 	p.username = username
 	p.password = password
 	p.validatecerts = lbBackend.ValidateCerts
+	p.lbmethod = LBMethodMap[lbBackend.LBMethod]
 
 	return nil
 }
@@ -229,14 +233,23 @@ func (p *F5Provider) CreatePool(pool *lbv1.Pool) error {
 	if err != nil {
 		return fmt.Errorf("error adding monitor %s to pool %s: %v", pool.Monitor, pool.Name, err)
 	}
+
+	// Set pool balancing method
+	if p.f5.ModifyPool(pool.Name, &bigip.Pool{
+		LoadBalancingMode: p.lbmethod,
+	}) != nil {
+		return fmt.Errorf("error setting pool %s to method %s: %v", pool.Name, p.lbmethod, err)
+	}
+
 	return nil
 }
 
 // EditPool modifies a server pool in the Load Balancer
 func (p *F5Provider) EditPool(pool *lbv1.Pool) error {
 	newPool := &bigip.Pool{
-		Name:    pool.Name,
-		Monitor: pool.Monitor,
+		Name:              pool.Name,
+		Monitor:           pool.Monitor,
+		LoadBalancingMode: p.lbmethod,
 	}
 
 	err := p.f5.ModifyPool(pool.Name, newPool)
