@@ -25,8 +25,10 @@ SOFTWARE.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -39,6 +41,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	controllers "github.com/carlosedp/lbconfig-operator/controllers/externalloadbalancer"
@@ -56,6 +64,31 @@ func init() {
 
 	utilruntime.Must(lbv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+}
+
+// newExporter returns a console exporter.
+func newExporter(w io.Writer) (trace.SpanExporter, error) {
+	return stdouttrace.New(
+		stdouttrace.WithWriter(w),
+		// Use human-readable output.
+		stdouttrace.WithPrettyPrint(),
+		// Do not print timestamps for the demo.
+		stdouttrace.WithoutTimestamps(),
+	)
+}
+
+// newResource returns a resource describing this application.
+func newResource(Version string) *resource.Resource {
+	r, _ := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("lbconfig-operator"),
+			semconv.ServiceVersionKey.String(Version),
+			// attribute.String("environment", "demo"),
+		),
+	)
+	return r
 }
 
 func main() {
@@ -80,6 +113,30 @@ func main() {
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("Starting the LBConfig Operator", "version", Version)
+
+	// Write telemetry data to a file.
+	f, err := os.Create("traces.json")
+	if err != nil {
+		setupLog.Error(err, "Error creating traces file")
+		os.Exit(1)
+	}
+	defer f.Close()
+	exp, err := newExporter(f)
+	if err != nil {
+		setupLog.Error(err, "Error creating exporter")
+		os.Exit(1)
+	}
+	tp := trace.NewTracerProvider(
+		trace.WithBatcher(exp),
+		trace.WithResource(newResource(Version)),
+	)
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			setupLog.Error(err, "Error shutting down tracer provider")
+			os.Exit(1)
+		}
+	}()
+	otel.SetTracerProvider(tp)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,

@@ -53,6 +53,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	controller "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
@@ -106,9 +109,10 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
 // Reconcile our ExternalLoadBalancer object
-func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// Each execution of the reconcile loop, create a new "root" span and context.
-	ctx, span := otel.Tracer(name).Start(origCtx, "Reconcile")
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "Reconcile")
 	defer span.End()
 
 	// Get our logger instance from context
@@ -124,14 +128,17 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 		return r.List(ctx, lb_list)
 	}(ctx)
 	if err != nil {
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to list ExternalLoadBalancers: %v", err)
 	}
 
 	func(ctx context.Context) {
-		_, span := otel.Tracer(name).Start(ctx, "Update Metric (metric_externallb)")
+		_, span := otel.Tracer(name).Start(ctx, "metric.metric_externallb")
 		defer span.End()
-		metric_externallb.Set(float64(len(lb_list.Items)))
+		lbnum := len(lb_list.Items)
+		span.SetAttributes(attribute.Float64("metric.metric_externallb.lbnum", float64(lbnum)))
+		metric_externallb.Set(float64(lbnum))
 	}(ctx)
 
 	// ----------------------------------------
@@ -149,14 +156,17 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			log.Info("ExternalLoadBalancer resource not found. Ignoring since object must be deleted")
-			span.End()
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
 		log.Error(err, "Failed to get ExternalLoadBalancer")
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, err
 	}
+	span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("lb.provider", lb.Spec.Provider.Vendor))
 
 	// ----------------------------------------
 	// Set the Load Balancer backend
@@ -167,14 +177,18 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	credsSecret := &corev1.Secret{}
 	err = func(ctx context.Context) error {
 		_, span := otel.Tracer(name).Start(ctx, "Get Backend Secret")
+		span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("lb.provider", lb.Spec.Provider.Vendor), attribute.String("lb.provider.secret", lbBackend.Creds))
 		defer span.End()
 		return r.Get(ctx, types.NamespacedName{Name: lbBackend.Creds, Namespace: lb.Namespace}, credsSecret)
 	}(ctx)
 
 	if err != nil {
 		log.Error(err, "failed to get secret")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
+	span.SetAttributes(attribute.String("lb.provider.secret", credsSecret.Name))
 	username := string(credsSecret.Data["username"])
 	password := string(credsSecret.Data["password"])
 
@@ -200,7 +214,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	}(ctx)
 
 	if err != nil {
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		log.Error(err, "unable to list Nodes")
 		return ctrl.Result{}, err
 	}
@@ -226,8 +241,11 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	}
 	// Set metric to the number of nodes found
 	func(ctx context.Context) {
-		_, span := otel.Tracer(name).Start(ctx, "Update Metric (metric_externallb_nodes)")
+		_, span := otel.Tracer(name).Start(ctx, "metric.update.metric_externallb_nodes")
 		defer span.End()
+		span.SetAttributes(attribute.String("metric.metric_externallb_nodes.lbname", lb.Name))
+		span.SetAttributes(attribute.Float64("metric.metric_externallb_nodes.nodes", float64(len(nodes))))
+
 		ports := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lb.Spec.Ports)), ","), "[]")
 		metric_externallb_nodes.WithLabelValues(lb.Name, lb.Namespace, lb.Spec.Type, lb.Spec.Vip, ports, lb.Spec.Provider.Vendor).Set(float64(len(nodes)))
 	}(ctx)
@@ -238,7 +256,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	// --ADDTRACING
 	backend, err := controller.CreateBackend(ctx, &lbBackend, username, password)
 	if err != nil {
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -251,7 +270,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 		return backend.Provider.Connect()
 	}(ctx)
 	if err != nil {
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -263,7 +283,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	monitor := lb.Spec.Monitor
 	err = backend.HandleMonitors(ctx, &monitor)
 	if err != nil {
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
 	}
 
@@ -292,7 +313,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 		err := backend.HandlePool(ctx, &pool, &monitor)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
-			span.End()
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return ctrl.Result{}, err
 		}
 		pools = append(pools, pool)
@@ -313,7 +335,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 		err := backend.HandleVIP(ctx, &vip)
 		if err != nil {
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
-			span.End()
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return ctrl.Result{}, err
 		}
 		vips = append(vips, vip)
@@ -327,7 +350,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	err = backend.Provider.Close()
 	if err != nil {
 		log.Error(err, "unable to close the backend provider")
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -358,7 +382,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 	}(ctx)
 	if err != nil {
 		log.Error(err, "unable to update ExternalLoadBalancer status")
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -391,7 +416,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 				return r.finalizeLoadBalancer(ctx, backend, lb)
 			}(ctx)
 			if err != nil {
-				span.End()
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
 				return ctrl.Result{}, err
 			}
 
@@ -409,7 +435,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 				return r.Update(ctx, lb)
 			}(ctx)
 			if err != nil {
-				span.End()
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
 				return ctrl.Result{}, err
 			}
 		}
@@ -430,7 +457,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(origCtx context.Context, req 
 			return r.addFinalizer(ctx, lb)
 		}(ctx)
 		if err != nil {
-			span.End()
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return ctrl.Result{}, err
 		}
 	}
@@ -491,14 +519,16 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 
 func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer) error {
 	// Create a span to track the finalizer of this load balancer
-	_, span := otel.Tracer(name).Start(ctx, "finalizeLoadBalancer")
+	var span trace.Span
+	_, span = otel.Tracer(name).Start(ctx, "finalizeLoadBalancer")
 	defer span.End()
 
 	reqLogger := log.FromContext(ctx)
 	err := backend.HandleCleanup(ctx, lb)
 	if err != nil {
 		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
@@ -510,7 +540,8 @@ func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(ctx context.Contex
 }
 
 func (r *ExternalLoadBalancerReconciler) addFinalizer(ctx context.Context, m *lbv1.ExternalLoadBalancer) error {
-	_, span := otel.Tracer(name).Start(ctx, "finalizeLoadBalancer")
+	var span trace.Span
+	_, span = otel.Tracer(name).Start(ctx, "finalizeLoadBalancer")
 	defer span.End()
 
 	reqLogger := log.FromContext(ctx)
@@ -521,7 +552,8 @@ func (r *ExternalLoadBalancerReconciler) addFinalizer(ctx context.Context, m *lb
 	err := r.Update(context.TODO(), m)
 	if err != nil {
 		reqLogger.Error(err, "Failed to update ExternalLoadBalancer with finalizer")
-		span.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 	return nil

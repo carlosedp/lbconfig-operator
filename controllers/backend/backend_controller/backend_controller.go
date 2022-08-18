@@ -32,6 +32,7 @@ import (
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
@@ -115,7 +116,8 @@ func RegisterProvider(name string, provider Provider) error {
 }
 
 func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username string, password string) (*BackendController, error) {
-	ctx, span := otel.Tracer(name).Start(ctx, "CreateBackend")
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "CreateBackend")
 	defer span.End()
 	backend := &BackendController{}
 	backend.log = ctrllog.FromContext(ctx)
@@ -140,7 +142,8 @@ func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username strin
 
 // HandleMonitors manages the Monitor validation, update and creation
 func (b *BackendController) HandleMonitors(ctx context.Context, monitor *lbv1.Monitor) error {
-	ctx, span := otel.Tracer(name).Start(ctx, "HandleMonitors")
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandleMonitors")
 	span.SetAttributes(attribute.String("monitor.name", monitor.Name))
 	defer span.End()
 
@@ -203,7 +206,8 @@ func (b *BackendController) HandleMonitors(ctx context.Context, monitor *lbv1.Mo
 
 // HandlePool manages the Pool validation, update and creation
 func (b *BackendController) HandlePool(ctx context.Context, pool *lbv1.Pool, monitor *lbv1.Monitor) error {
-	ctx, span := otel.Tracer(name).Start(ctx, "HandlePool")
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandlePool")
 	span.SetAttributes(attribute.String("pool.name", pool.Name))
 	defer span.End()
 
@@ -344,7 +348,8 @@ func (b *BackendController) HandlePool(ctx context.Context, pool *lbv1.Pool, mon
 
 // HandleVIP manages the VIP validation, update and creation
 func (b *BackendController) HandleVIP(ctx context.Context, v *lbv1.VIP) error {
-	ctx, span := otel.Tracer(name).Start(ctx, "HandleVIP")
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandleVIP")
 	span.SetAttributes(attribute.String("vip.name", v.Name))
 	defer span.End()
 
@@ -408,7 +413,8 @@ func (b *BackendController) HandleVIP(ctx context.Context, v *lbv1.VIP) error {
 
 // HandleCleanup removes all elements when ExternalLoadBalancer is deleted
 func (b *BackendController) HandleCleanup(ctx context.Context, lb *lbv1.ExternalLoadBalancer) error {
-	ctx, span := otel.Tracer(name).Start(ctx, "HandleCleanup")
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandleCleanup")
 	span.SetAttributes(attribute.String("lb.name", lb.Name))
 	defer span.End()
 
