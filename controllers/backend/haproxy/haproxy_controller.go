@@ -65,11 +65,15 @@ type HAProxyProvider struct {
 	version     int64
 	monitor     *models.HTTPCheck
 	ctx         context.Context
+	lbmethod    string
 }
 
 func init() {
 	backend_controller.RegisterProvider("HAProxy", new(HAProxyProvider))
 }
+
+// We use round robin for the backend servers if least response is choosen since HAProxy doesn't have it.
+var LBMethodMap = map[string]string{"ROUNDROBIN": "roundrobin", "LEASTCONNECTION": "leastconn", "LEASTRESPONSETIME": "roundrobin"}
 
 // Create creates a new Load Balancer backend provider
 func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
@@ -82,6 +86,7 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 	p.username = username
 	p.password = password
 	p.auth = httptransport.BasicAuth(p.username, p.password)
+	p.lbmethod = LBMethodMap[lbBackend.LBMethod]
 
 	c, _ := url.Parse(p.host)
 	host := c.Host + ":" + fmt.Sprintf("%d", p.hostport)
@@ -245,6 +250,9 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 		Data: &models.Backend{
 			Name:      pool.Name,
 			HTTPCheck: p.monitor,
+			Balance: &models.Balance{
+				Algorithm: &p.lbmethod,
+			},
 		},
 		Context:       p.ctx,
 		TransactionID: &p.transaction,
@@ -268,6 +276,9 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 		Data: &models.Backend{
 			Name:      pool.Name,
 			HTTPCheck: m,
+			Balance: &models.Balance{
+				Algorithm: &p.lbmethod,
+			},
 		},
 		Context: p.ctx,
 	}, nil)
