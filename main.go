@@ -78,8 +78,8 @@ func main() {
 		fmt.Println("LBConfig Operator version:", Version)
 		os.Exit(0)
 	}
-	setupLog.Info("Starting the LBConfig Operator. Operator version:", Version)
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	setupLog.Info("Starting the LBConfig Operator", "version", Version)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,

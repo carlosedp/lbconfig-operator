@@ -31,6 +31,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	plog "log"
 
@@ -102,7 +103,7 @@ func init() {
 // Reconcile our ExternalLoadBalancer object
 func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
-
+	log.Info("Starting reconcile loop for ExternalLoadBalancer")
 	// ----------------------------------------
 	// Get the LoadBalancer instance list to update metrics
 	// ----------------------------------------
@@ -141,7 +142,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Creds, Namespace: lb.Namespace}, credsSecret)
 
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("provider credentials Secret not found %v", err)
+		log.Error(err, "Failed to get secret")
+		return ctrl.Result{RequeueAfter: time.Second * 30, Requeue: false}, nil
 	}
 	username := string(credsSecret.Data["username"])
 	password := string(credsSecret.Data["password"])
@@ -323,7 +325,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		}
 	}
 
-	// return ctrl.Result{Requeue: true}, nil // This is used to requeue the reconciliation
+	log.Info("End of reconcile loop for ExternalLoadBalancer")
 	return ctrl.Result{}, nil
 }
 
