@@ -157,8 +157,6 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			log.Info("ExternalLoadBalancer resource not found. Ignoring since object must be deleted")
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
 			span.End()
 			return ctrl.Result{}, nil
 		}
@@ -444,7 +442,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			}(ctx)
 
 			err = func(ctx context.Context) error {
-				_, span := otel.Tracer(name).Start(ctx, "Update LoadBalancer")
+				_, span := otel.Tracer(name).Start(ctx, "Update LoadBalancer after removing finalizer")
 				defer span.End()
 				return r.Update(ctx, lb)
 			}(ctx)
