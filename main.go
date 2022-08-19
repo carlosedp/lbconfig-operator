@@ -112,23 +112,24 @@ func main() {
 	setupLog.Info("Starting the LBConfig Operator", "version", Version)
 
 	// Setup tracing exporter
-	tp, err := tracerProvider("http://localhost:14268/api/traces", Version)
-	if err != nil {
-		setupLog.Error(err, "Error setting up tracer exporter")
-		os.Exit(1)
-	}
-
-	// Register our TracerProvider as the global so any imported
-	// instrumentation in the future will default to using it.
-	otel.SetTracerProvider(tp)
-
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			setupLog.Error(err, "Error shutting down tracer provider")
+	if endpoint, present := os.LookupEnv("OTEL_EXPORTER_JAEGER_ENDPOINT"); present {
+		tp, err := tracerProvider(endpoint, Version)
+		if err != nil {
+			setupLog.Error(err, "Error setting up tracer exporter")
 			os.Exit(1)
 		}
-	}()
-	otel.SetTracerProvider(tp)
+		// Register our TracerProvider as the global so any imported
+		// instrumentation in the future will default to using it.
+		otel.SetTracerProvider(tp)
+
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				setupLog.Error(err, "Error shutting down tracer provider")
+				os.Exit(1)
+			}
+		}()
+		otel.SetTracerProvider(tp)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,

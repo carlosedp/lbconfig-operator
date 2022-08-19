@@ -54,8 +54,7 @@ func init() {
 
 // Create creates a new Load Balancer backend provider
 func (p *DummyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
-	log := ctrllog.FromContext(ctx)
-	log.WithValues("provider", "Dummy")
+	log := ctrllog.FromContext(ctx).WithValues("provider", "Dummy")
 
 	p.log = log
 	p.host = lbBackend.Host

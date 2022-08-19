@@ -64,8 +64,7 @@ var LBMethodMap = map[string]string{"ROUNDROBIN": "round-robin", "LEASTCONNECTIO
 
 // Create creates a new Load Balancer backend provider
 func (p *F5Provider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
-	log := ctrllog.FromContext(ctx)
-	log.WithValues("provider", "F5_BigIP")
+	log := ctrllog.FromContext(ctx).WithValues("provider", "F5_BigIP")
 
 	if lbBackend.Partition == "" {
 		p.partition = "/Common/"

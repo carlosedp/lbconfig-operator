@@ -135,7 +135,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	func(ctx context.Context) {
-		_, span := otel.Tracer(name).Start(ctx, "metric.metric_externallb")
+		_, span := otel.Tracer(name).Start(ctx, "Metrics - Update metric_externallb")
 		defer span.End()
 		lbnum := len(lb_list.Items)
 		span.SetAttributes(attribute.Float64("metric.metric_externallb.lbnum", float64(lbnum)))
@@ -245,7 +245,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	// Set metric to the number of nodes found
 	func(ctx context.Context) {
-		_, span := otel.Tracer(name).Start(ctx, "metric.update.metric_externallb_nodes")
+		_, span := otel.Tracer(name).Start(ctx, "Metrics - Update metric_externallb_nodes")
 		defer span.End()
 		span.SetAttributes(attribute.String("metric.metric_externallb_nodes.lbname", lb.Name))
 		span.SetAttributes(attribute.Float64("metric.metric_externallb_nodes.nodes", float64(len(nodes))))

@@ -106,7 +106,6 @@ func RegisterProvider(name string, provider Provider) error {
 	name_slug := strings.ToLower(name)
 	var ctx = context.Background()
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("backend_controller", "RegisterProvider")
 	if _, exists := providers[name_slug]; exists {
 		return fmt.Errorf("provider already exists, provider '%s' tried to register twice", name)
 	}
@@ -121,7 +120,6 @@ func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username strin
 	defer span.End()
 	backend := &BackendController{}
 	backend.log = ctrllog.FromContext(ctx)
-	backend.log.WithValues("backend_controller", "RegisterProvider")
 	name := strings.ToLower(lbBackend.Vendor)
 	if provider, ok := providers[name]; ok {
 		err := func(ctx context.Context) error {
