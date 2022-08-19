@@ -108,8 +108,8 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	OTEL_EXPORTER_JAEGER_ENDPOINT="http://localhost:14268/api/traces" go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image for the operator locally.
-	$(BUILDER) build -t ${IMG} . --build-arg VERSION=${VERSION} --target local
+docker-build: ## Build docker image for the operator locally (linux/amd64).
+	$(BUILDER) build -t ${IMG} --build-arg VERSION=${VERSION} --build-arg TARGETARCH=amd64 --build-arg TARGETOS=linux -f Dockerfile.cross .
 
 .PHONY: docker-push
 docker-push: ## Build and push docker image for the operator.

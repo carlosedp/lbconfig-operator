@@ -2,7 +2,7 @@
 
 The operator supports tracing using OpenTelemetry SDK and the Jaeger exporter.
 
-![Tracing UI](docs/../jaeger-tracing.png)
+![Tracing UI](img/jaeger-tracing.png)
 
 To use the operator with tracing enabled, start the operator with the environment variable `OTEL_EXPORTER_JAEGER_ENDPOINT` set to your Jaeger collector URL:
 

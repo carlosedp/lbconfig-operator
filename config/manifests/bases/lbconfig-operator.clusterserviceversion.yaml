@@ -426,6 +426,8 @@ spec:
   links:
   - name: GitHub
     url: https://github.com/carlosedp/lbconfig-operator
+  - name: Documentation
+    url: https://github.com/carlosedp/lbconfig-operator/docs
   - name: Issues
     url: https://github.com/carlosedp/lbconfig-operator/issues
   maintainers:

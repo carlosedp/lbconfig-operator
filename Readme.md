@@ -25,7 +25,7 @@ The main users for this operator is enterprise deployments or clusters composed 
 
 ## High level architecture
 
-![High Level Architecture](./docs/LBOperator-Arch.drawio.png)
+![High Level Architecture](./docs/img/LBOperator-Arch.drawio.png)
 
 ## Using the Operator
 
@@ -54,6 +54,10 @@ Create the secret holding the Load Balancer API user and password:
 ```sh
 oc create secret generic f5-creds --from-literal=username=admin --from-literal=password=admin123 --namespace lbconfig-operator-system
 ```
+
+After creating the CR, `kubectl get` output shows each ExternalLoadBalancer instance details:
+
+![kubectl get](./docs/img/kubectl-get.jpg)
 
 #### Sample CRDs and Available Fields
 
@@ -126,108 +130,9 @@ spec:
   ...
 ```
 
-Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
+## Additional information
 
-CRD Fields:
-
-```yaml
-apiVersion: lb.lbconfig.carlosedp.com/v1  # This is the API used by the operator (mandatory)
-kind: ExternalLoadBalancer                # This is the object the operator manages (mandatory)
-metadata:
-  name: externalloadbalancer-master-sample  # Load Balancer instance configuration name (mandatory)
-  namespace: lbconfig-operator-system       # The instance namespace (same as the operator runs) (mandatory)
-spec:
-  vip: "192.168.1.40"     # This is the VIP that will be created on the Load Balancer for this instance (mandatory)
-  type: "master"          # Type could be "master" or "infra" that maps to OpenShift labels (optional)
-  nodelabels:             # List of labels to be used instead of "type" field (optional)
-    - "node.kubernetes.io/ingress": "production"   # Example label used to fetch the Node IPs by this instance (optional)
-  ports:
-    - 6443                # Port list which the Load Balancer will be forwarding the traffic (mandatory)
-  monitor:
-    path: "/healthz"      # Monitor URL to be configured in the Load Balancer instance
-    port: 6443            # Monitor port to be configured in the Load Balancer instance
-    monitortype: "https"  # Monitor protocol to be configured in the Load Balancer instance
-  provider:               # This section defines the backend provider or vendor of the Load Balancer
-    vendor: F5_BigIP      # See supported vendors in the section above (mandatory)
-    host: "192.168.1.35"  # The IP of the API for the Load Balancer to be managed (mandatory)
-    port: 443             # The port of the API for the Load Balancer to be managed (mandatory)
-    creds: f5-creds       # The name of the Kubernetes Secret created with username and password to the API (mandatory)
-    partition: "Common"   # The partition for the F5 Load Balancer to be used (optional, only for F5_BigIP provider)
-    validatecerts: false  # Should check the certificates if API uses HTTPS (true or false) (optional)
-```
-
-For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#pkg-types>.
-
-## Metrics and Information
-
-The `kubectl get` output shows each ExternalLoadBalancer instance details:
-
-![kubectl get](./docs/kubectl-get.jpg)
-
-The operator exports two metrics. One counts the amount of ExternalLoadBalancers the operator is currently managing and another exposes the amount of nodes managed by each instance of ExternalLoadBalancer with appropriate metric labels.
-
-```sh
-# HELP externallb_total Number of external load balancers configured
-# TYPE externallb_total gauge
-externallb_total 1
-# HELP externallb_nodes Number of nodes for the load balancer instance
-# TYPE externallb_nodes gauge
-externallb_nodes{ip="192.168.1.40",name="externalloadbalancer-master-sample",namespace="lbconfig-operator-system",port="6443",type="master"} 3
-```
-
-## Developing and Building
-
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
-
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/)
-which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster
-
-There are multiple `make` targets available to ease development.
-
-1. Build binary: `make`
-2. Install CRDs in the cluster: `make install`
-3. Deploy the operator manifests to the cluster (CRDs + Namespace + Operator Container): `make deploy`
-4. Create CRs in cluster (secret and Load Balancer instance)
-
-To run the operator in your dev machine without deploying it to the cluster (using configurations use the defined in the `$HOME/.kube/config`), do not use `make deploy`, instead do:
-
-1. Run `make install` to create the CRDs as above;
-2. Create the operator namespace with `kubectl create namespace lbconfig-operator-system`;
-3. Create CRs (secret, backend, LB) as before in the same namespace.
-4. Use `make run` to run the operator locally;
-
-To remove the manifests to the cluster: `make undeploy`
-
-## Distribute
-
-Building the manifests and docker images: `make dist`.
-
-Operator deployment manifest bundle is created at `./manifests/deploy.yaml`.
-
-The sample manifests for LoadBalancer instances and backends are in `./config/samples` folder.
-
-## Adding new Providers
-
-* Create a package directory at `controllers/backend` with provider name
-* Create the provider code with CRUD matrix of functions implementing the `Provider` interface
-* Create the test file using Ginkgo
-* Add the new package to be loaded by the [`controllers/backend/backend_loader/backend_loader.go`](controllers/backend/backend_loader/backend_loader.go) as an `_` import
-* Add the new provider name (the name used in the `RegisterProvider`) to the Enum `Provider` -> `Vendor` at [`api/v1/externalloadbalancer_types.go`](api/v1/externalloadbalancer_types.go)
-
-## Planned Features
-
-* Add Multiple backends (not in priority order)
-  * [x] F5 BigIP
-  * [x] Citrix ADC (Netscaler)
-  * [ ] HAProxy
-  * [ ] NGINX
-  * [ ] NSX
-  * [x] Dummy backend
-* [ ] Dynamic port configuration from NodePort services
-* [ ] Check LB configuration on finalizer
-* [ ] Add tests
-* [x] Add Metrics/Tracing/Stats
-* [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
+Please check the [additional documentation](docs/Readme.md) with more information like tracing, adding new providers, development and more.
 
 ## Disclaimers
 
