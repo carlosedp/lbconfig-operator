@@ -25,6 +25,7 @@ SOFTWARE.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -39,6 +40,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	controllers "github.com/carlosedp/lbconfig-operator/controllers/externalloadbalancer"
@@ -56,6 +63,29 @@ func init() {
 
 	utilruntime.Must(lbv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+}
+
+// tracerProvider returns an OpenTelemetry TracerProvider configured to use
+// the Jaeger exporter that will send spans to the provided url. The returned
+// TracerProvider will also use a Resource configured with all the information
+// about the application.
+func tracerProvider(url string, Version string) (*trace.TracerProvider, error) {
+	// Create the Jaeger exporter
+	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
+	if err != nil {
+		return nil, err
+	}
+	tp := trace.NewTracerProvider(
+		// Always be sure to batch in production.
+		trace.WithBatcher(exp),
+		// Record information about this application in a Resource.
+		trace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("lbconfig-operator"),
+			semconv.ServiceVersionKey.String(Version),
+		)),
+	)
+	return tp, nil
 }
 
 func main() {
@@ -80,6 +110,26 @@ func main() {
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("Starting the LBConfig Operator", "version", Version)
+
+	// Setup tracing exporter
+	if endpoint, present := os.LookupEnv("OTEL_EXPORTER_JAEGER_ENDPOINT"); present {
+		tp, err := tracerProvider(endpoint, Version)
+		if err != nil {
+			setupLog.Error(err, "Error setting up tracer exporter")
+			os.Exit(1)
+		}
+		// Register our TracerProvider as the global so any imported
+		// instrumentation in the future will default to using it.
+		otel.SetTracerProvider(tp)
+
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				setupLog.Error(err, "Error shutting down tracer provider")
+				os.Exit(1)
+			}
+		}()
+		otel.SetTracerProvider(tp)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,

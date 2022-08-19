@@ -105,7 +105,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	OTEL_EXPORTER_JAEGER_ENDPOINT="http://localhost:14268/api/traces" go run ./main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image for the operator locally.

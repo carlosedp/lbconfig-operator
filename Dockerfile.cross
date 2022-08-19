@@ -2,6 +2,7 @@
 FROM golang:1.18 as builder
 ARG TARGETARCH
 ARG TARGETOS
+ARG VERSION
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -17,13 +18,13 @@ COPY api/ api/
 COPY controllers/ controllers/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -installsuffix cgo -ldflags '-s -w -extldflags "-static"' -o manager main.go
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -installsuffix cgo -ldflags '-X "main.Version=$VERSION" -s -w -extldflags "-static"' -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/manager /manager
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

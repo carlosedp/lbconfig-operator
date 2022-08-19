@@ -30,10 +30,16 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 )
+
+// Tracer name
+const name = "github.com/carlosedp/lbconfig-operator"
 
 // Provider interface method signatures
 type Provider interface {
@@ -100,7 +106,6 @@ func RegisterProvider(name string, provider Provider) error {
 	name_slug := strings.ToLower(name)
 	var ctx = context.Background()
 	log := ctrllog.FromContext(ctx)
-	log.WithValues("backend_controller", "RegisterProvider")
 	if _, exists := providers[name_slug]; exists {
 		return fmt.Errorf("provider already exists, provider '%s' tried to register twice", name)
 	}
@@ -110,12 +115,20 @@ func RegisterProvider(name string, provider Provider) error {
 }
 
 func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username string, password string) (*BackendController, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "CreateBackend")
+	defer span.End()
 	backend := &BackendController{}
 	backend.log = ctrllog.FromContext(ctx)
-	backend.log.WithValues("backend_controller", "RegisterProvider")
 	name := strings.ToLower(lbBackend.Vendor)
 	if provider, ok := providers[name]; ok {
-		if err := provider.Create(ctx, *lbBackend, username, password); err != nil {
+		err := func(ctx context.Context) error {
+			_, span := otel.Tracer(name).Start(ctx, "Provider - Create")
+			defer span.End()
+			return provider.Create(ctx, *lbBackend, username, password)
+		}(ctx)
+
+		if err != nil {
 			return nil, err
 		}
 		backend.log.Info("Created backend", "provider", lbBackend.Vendor)
@@ -126,9 +139,19 @@ func CreateBackend(ctx context.Context, lbBackend *lbv1.Provider, username strin
 }
 
 // HandleMonitors manages the Monitor validation, update and creation
-func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
+func (b *BackendController) HandleMonitors(ctx context.Context, monitor *lbv1.Monitor) error {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandleMonitors")
+	span.SetAttributes(attribute.String("monitor.name", monitor.Name))
+	defer span.End()
+
 	// Check if monitor exists
-	m, err := b.Provider.GetMonitor(monitor)
+	m, err := func(ctx context.Context) (*lbv1.Monitor, error) {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - GetMonitor")
+		span.SetAttributes(attribute.String("monitor.name", monitor.Name))
+		defer span.End()
+		return b.Provider.GetMonitor(monitor)
+	}(ctx)
 
 	// Error getting monitor
 	if err != nil {
@@ -139,16 +162,25 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 	if m != nil {
 		// Exists, so check to Update Monitor ports and parameters
 		b.log.Info("Monitor exists, check if needs update", "name", m.Name)
+		span.SetAttributes(attribute.Bool("monitor.exists", true))
 		if monitor.Port != m.Port || monitor.Path != m.Path || monitor.MonitorType != m.MonitorType {
 			b.log.Info("Monitor requires update", "name", monitor.Name)
 			b.log.Info("Need", "params", monitor)
 			b.log.Info("Have", "params", m)
-			err = b.Provider.EditMonitor(monitor)
+			span.SetAttributes(attribute.Bool("monitor.update", true))
+
+			err := func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "Provider - EditMonitor")
+				span.SetAttributes(attribute.String("monitor.name", m.Name))
+				defer span.End()
+				return b.Provider.EditMonitor(monitor)
+			}(ctx)
 			if err != nil {
 				return err
 			}
 			b.log.Info("Monitor updated successfully", "name", monitor.Name)
 		} else {
+			span.SetAttributes(attribute.Bool("monitor.update", false))
 			b.log.Info("Monitor does not need update", "name", m.Name)
 		}
 		return nil
@@ -156,7 +188,13 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 
 	// Create Monitor
 	b.log.Info("Monitor does not exist. Creating...", "name", monitor.Name)
-	err = b.Provider.CreateMonitor(monitor)
+	span.SetAttributes(attribute.Bool("monitor.exists", false))
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - CreateMonitor")
+		span.SetAttributes(attribute.String("monitor.name", monitor.Name))
+		defer span.End()
+		return b.Provider.CreateMonitor(monitor)
+	}(ctx)
 	if err != nil {
 		return err
 	}
@@ -165,17 +203,34 @@ func (b *BackendController) HandleMonitors(monitor *lbv1.Monitor) error {
 }
 
 // HandlePool manages the Pool validation, update and creation
-func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) error {
+func (b *BackendController) HandlePool(ctx context.Context, pool *lbv1.Pool, monitor *lbv1.Monitor) error {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandlePool")
+	span.SetAttributes(attribute.String("pool.name", pool.Name))
+	defer span.End()
+
 	// Check if pool exists
-	p, err := b.Provider.GetPool(pool)
+	p, err := func(ctx context.Context) (*lbv1.Pool, error) {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - GetPool")
+		span.SetAttributes(attribute.String("pool.name", pool.Name))
+		defer span.End()
+		return b.Provider.GetPool(pool)
+	}(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Pool is not empty so update it's data if needed
 	if p != nil {
+		span.SetAttributes(attribute.Bool("pool.exists", true))
+
 		// Check if pool have members and update the object
-		configuredPool, err := b.Provider.GetPoolMembers(p)
+		configuredPool, err := func(ctx context.Context) (*lbv1.Pool, error) {
+			_, span := otel.Tracer(name).Start(ctx, "Provider - GetPoolMembers")
+			span.SetAttributes(attribute.String("pool.name", p.Name))
+			defer span.End()
+			return b.Provider.GetPoolMembers(p)
+		}(ctx)
 		if err != nil {
 			return err
 		}
@@ -201,16 +256,23 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 		}
 
 		if pool.Monitor != configuredPool.Monitor {
+			span.SetAttributes(attribute.String("pool.name", pool.Name), attribute.Bool("pool.update", true))
 			b.log.Info("Pool requires update", "name", pool.Name)
 			b.log.Info("Need", "params", pool)
 			b.log.Info("Have", "params", configuredPool)
-			err := b.Provider.EditPool(pool)
+			err := func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "Provider - EditPool")
+				span.SetAttributes(attribute.String("pool.name", pool.Name))
+				defer span.End()
+				return b.Provider.EditPool(pool)
+			}(ctx)
 			if err != nil {
 				return err
 			}
 		}
 
 		if addMembers != nil || delMembers != nil {
+			span.SetAttributes(attribute.String("pool.name", pool.Name), attribute.Bool("pool.members.update", true))
 			b.log.Info("Pool members requires update", "name", pool.Name)
 			b.log.Info("Need", "params", pool)
 			b.log.Info("Have", "params", configuredPool)
@@ -218,7 +280,12 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 			if addMembers != nil {
 				b.log.Info("Add nodes", "nodes", addMembers)
 				for _, m := range addMembers {
-					err = b.Provider.CreatePoolMember(&m, pool)
+					err := func(ctx context.Context) error {
+						_, span := otel.Tracer(name).Start(ctx, "Provider - CreatePoolMember")
+						span.SetAttributes(attribute.String("pool.name", pool.Name), attribute.String("pool.member", m.Node.Name))
+						defer span.End()
+						return b.Provider.CreatePoolMember(&m, pool)
+					}(ctx)
 					if err != nil {
 						return err
 					}
@@ -228,7 +295,12 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 			if delMembers != nil {
 				b.log.Info("Remove nodes", "nodes", delMembers)
 				for _, m := range delMembers {
-					err = b.Provider.DeletePoolMember(&m, pool)
+					err := func(ctx context.Context) error {
+						_, span := otel.Tracer(name).Start(ctx, "Provider - DeletePoolMember")
+						span.SetAttributes(attribute.String("pool.name", pool.Name), attribute.String("pool.member", m.Node.Name))
+						defer span.End()
+						return b.Provider.DeletePoolMember(&m, pool)
+					}(ctx)
 					if err != nil {
 						return err
 					}
@@ -239,12 +311,19 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 			return nil
 		}
 		b.log.Info("Pool does not need update", "name", pool.Name)
+		span.SetAttributes(attribute.String("pool.name", pool.Name), attribute.Bool("pool.members.update", false))
 		return nil
 	}
 
 	// Creating pool
 	b.log.Info("Pool does not exist. Creating...", "name", pool.Name)
-	err = b.Provider.CreatePool(pool)
+	span.SetAttributes(attribute.Bool("pool.exists", false))
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - CreatePool")
+		span.SetAttributes(attribute.String("pool.name", pool.Name))
+		defer span.End()
+		return b.Provider.CreatePool(pool)
+	}(ctx)
 	if err != nil {
 		return err
 	}
@@ -252,7 +331,12 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 	b.log.Info("Created pool", "name", pool.Name)
 	for _, m := range pool.Members {
 		b.log.Info("Adding node to pool", "node", m, "pool", pool)
-		err = b.Provider.CreatePoolMember(&m, pool)
+		err = func(ctx context.Context) error {
+			_, span := otel.Tracer(name).Start(ctx, "Provider - CreatePoolMember")
+			span.SetAttributes(attribute.String("pool.name", pool.Name), attribute.String("pool.member", m.Node.Name))
+			defer span.End()
+			return b.Provider.CreatePoolMember(&m, pool)
+		}(ctx)
 		if err != nil {
 			return err
 		}
@@ -261,9 +345,20 @@ func (b *BackendController) HandlePool(pool *lbv1.Pool, monitor *lbv1.Monitor) e
 }
 
 // HandleVIP manages the VIP validation, update and creation
-func (b *BackendController) HandleVIP(v *lbv1.VIP) error {
+func (b *BackendController) HandleVIP(ctx context.Context, v *lbv1.VIP) error {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandleVIP")
+	span.SetAttributes(attribute.String("vip.name", v.Name))
+	defer span.End()
+
 	// Check if VIP exists
-	vs, err := b.Provider.GetVIP(v)
+	vs, err := func(ctx context.Context) (*lbv1.VIP, error) {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - GetVIP")
+		span.SetAttributes(attribute.String("vip.name", v.Name))
+		defer span.End()
+		return b.Provider.GetVIP(v)
+	}(ctx)
+
 	// Error getting VIP
 	if err != nil {
 		return err
@@ -273,25 +368,40 @@ func (b *BackendController) HandleVIP(v *lbv1.VIP) error {
 	if vs != nil {
 		// Exists, so check to update VIP parameters and pool
 		b.log.Info("VIP exists, check if needs update", "name", vs.Name)
+		span.SetAttributes(attribute.Bool("vip.exists", true))
 
 		if v.Port != vs.Port || v.IP != vs.IP || v.Pool != vs.Pool {
 			b.log.Info("VIP requires update", "name", v.Name)
 			b.log.Info("Need", "params", v)
 			b.log.Info("Have", "params", vs)
-			err = b.Provider.EditVIP(v)
+			span.SetAttributes(attribute.Bool("vip.update", true))
+			err := func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "Provider - EditVIP")
+				span.SetAttributes(attribute.String("vip.name", v.Name))
+				defer span.End()
+				return b.Provider.EditVIP(v)
+			}(ctx)
+
 			if err != nil {
 				return err
 			}
 			b.log.Info("VIP updated successfully", "name", vs.Name)
 		} else {
 			b.log.Info("VIP does not need update", "name", vs.Name)
+			span.SetAttributes(attribute.Bool("vip.update", false))
 		}
 		return nil
 	}
 
 	// Create VIP
 	b.log.Info("VIP does not exist. Creating...", "name", v.Name)
-	err = b.Provider.CreateVIP(v)
+	span.SetAttributes(attribute.Bool("vip.exists", false))
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - CreateVIP")
+		span.SetAttributes(attribute.String("vip.name", v.Name))
+		defer span.End()
+		return b.Provider.CreateVIP(v)
+	}(ctx)
 	if err != nil {
 		return err
 	}
@@ -300,14 +410,24 @@ func (b *BackendController) HandleVIP(v *lbv1.VIP) error {
 }
 
 // HandleCleanup removes all elements when ExternalLoadBalancer is deleted
-func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
+func (b *BackendController) HandleCleanup(ctx context.Context, lb *lbv1.ExternalLoadBalancer) error {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "HandleCleanup")
+	span.SetAttributes(attribute.String("lb.name", lb.Name))
+	defer span.End()
+
 	b.log.Info("Cleanup started", "ExternalLoadBalancer", lb.Name)
 
 	// Delete VIP
 	if len(lb.Status.VIPs) != 0 {
 		for _, v := range lb.Status.VIPs {
 			b.log.Info("Cleaning VIP", "VIP", v.Name)
-			err := b.Provider.DeleteVIP(&v)
+			err := func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "Provider - DeleteVIP")
+				span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("vip.name", v.Name))
+				defer span.End()
+				return b.Provider.DeleteVIP(&v)
+			}(ctx)
 			if err != nil {
 				return fmt.Errorf("error in VIP cleanup %s: %v", v.Name, err)
 			}
@@ -318,7 +438,12 @@ func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
 		for _, p := range lb.Status.Pools {
 			for _, m := range p.Members {
 				b.log.Info("Cleaning pool member", "pool", p.Name, "node", p.Name, "ip", m.Node.Host)
-				err := b.Provider.DeletePoolMember(&m, &p)
+				err := func(ctx context.Context) error {
+					_, span := otel.Tracer(name).Start(ctx, "Provider - DeletePoolMember")
+					span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("pool.name", p.Name), attribute.String("pool.name", m.Node.Host))
+					defer span.End()
+					return b.Provider.DeletePoolMember(&m, &p)
+				}(ctx)
 				if err != nil {
 					b.log.Info("Could not delete pool member", "host", m.Node.Host, "pool", p.Name, "error", err)
 				}
@@ -330,7 +455,12 @@ func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
 	if len(lb.Status.Pools) != 0 {
 		for _, pool := range lb.Status.Pools {
 			b.log.Info("Cleaning pool", "pool", pool.Name)
-			err := b.Provider.DeletePool(&pool)
+			err := func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "Provider - DeletePool")
+				span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("pool.name", pool.Name))
+				defer span.End()
+				return b.Provider.DeletePool(&pool)
+			}(ctx)
 			if err != nil {
 				return fmt.Errorf("error in pool cleanup %s: %v", pool.Name, err)
 			}
@@ -340,7 +470,12 @@ func (b *BackendController) HandleCleanup(lb *lbv1.ExternalLoadBalancer) error {
 	// Delete Monitor
 	b.log.Info("Cleaning Monitor", "Monitor", lb.Status.Monitor)
 	if lb.Status.Monitor != (lbv1.Monitor{}) {
-		err := b.Provider.DeleteMonitor(&lb.Status.Monitor)
+		err := func(ctx context.Context) error {
+			_, span := otel.Tracer(name).Start(ctx, "Provider - DeleteMonitor")
+			span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("monitor.name", lb.Status.Monitor.Name))
+			defer span.End()
+			return b.Provider.DeleteMonitor(&lb.Status.Monitor)
+		}(ctx)
 		if err != nil {
 			return fmt.Errorf("error in Monitor cleanup %s: %v", lb.Status.Monitor.Name, err)
 		}
