@@ -175,7 +175,7 @@ spec:
         host: "https://192.168.1.36"
         port: 443
         creds: netscaler-creds
-        validatecerts: no
+        validatecerts: false
     ```
 
     Infra Nodes using a F5 BigIP LB:
@@ -202,7 +202,7 @@ spec:
         port: 443
         creds: f5-creds
         partition: "Common"
-        validatecerts: no
+        validatecerts: false
     ```
 
     To choose the nodes which will be part of the server pool, you can set either `type` or `nodelabels` fields. The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field `nodelabels` array is used instead, the operator will use nodes which match all labels.

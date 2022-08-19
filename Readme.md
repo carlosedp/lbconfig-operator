@@ -43,11 +43,11 @@ This creates the operator Namespace, CRD and deployment using the latest contain
 
 Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
 
-**The provider `vendor` field can be (case-insensitive):**
+**The provider `vendor` field can be (case-sensitive):**
 
-* **F5_BigIP** - Tested on F5 BigIP version 15
-* **Citrix_ADC** - Tested on Citrix ADC (Netscaler) version 13
-* **Dummy** - Dummy backend used for testing to only print log messages on operations
+* **`F5_BigIP`** - Tested on F5 BigIP version 15
+* **`Citrix_ADC`** - Tested on Citrix ADC (Netscaler) version 13
+* **`Dummy`** - Dummy backend used for testing to only print log messages on operations
 
 Create the secret holding the Load Balancer API user and password:
 
@@ -79,7 +79,7 @@ spec:
     host: "https://192.168.1.36"
     port: 443
     creds: netscaler-creds
-    validatecerts: no
+    validatecerts: false
 ```
 
 Infra Nodes using a F5 BigIP LB:
@@ -106,7 +106,7 @@ spec:
     port: 443
     creds: f5-creds
     partition: "Common"
-    validatecerts: no
+    validatecerts: false
 ```
 
 To choose the nodes which will be part of the server pool, you can set either `type` or `nodelabels` fields. The yaml field `type: "master"` or `type: "infra"` selects nodes with the role label `"node-role.kubernetes.io/master"` and `"node-role.kubernetes.io/infra"` respectively. If the field `nodelabels` array is used instead, the operator will use nodes which match all labels.
@@ -153,7 +153,7 @@ spec:
     port: 443             # The port of the API for the Load Balancer to be managed (mandatory)
     creds: f5-creds       # The name of the Kubernetes Secret created with username and password to the API (mandatory)
     partition: "Common"   # The partition for the F5 Load Balancer to be used (optional, only for F5_BigIP provider)
-    validatecerts: no     # Should check the certificates if API uses HTTPS (optional)
+    validatecerts: false  # Should check the certificates if API uses HTTPS (true or false) (optional)
 ```
 
 For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#pkg-types>.
@@ -212,6 +212,7 @@ The sample manifests for LoadBalancer instances and backends are in `./config/sa
 * Create the provider code with CRUD matrix of functions implementing the `Provider` interface
 * Create the test file using Ginkgo
 * Add the new package to be loaded by the [`controllers/backend/backend_loader/backend_loader.go`](controllers/backend/backend_loader/backend_loader.go) as an `_` import
+* Add the new provider name (the name used in the `RegisterProvider`) to the Enum `Provider` -> `Vendor` at [`api/v1/externalloadbalancer_types.go`](api/v1/externalloadbalancer_types.go)
 
 ## Planned Features
 

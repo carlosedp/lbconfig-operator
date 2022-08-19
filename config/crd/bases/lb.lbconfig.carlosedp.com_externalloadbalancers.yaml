@@ -160,6 +160,10 @@ spec:
                     type: boolean
                   vendor:
                     description: Vendor is the backend provider vendor
+                    enum:
+                    - F5_BigIP
+                    - Citrix_ADC
+                    - Dummy
                     type: string
                 required:
                 - creds
@@ -345,6 +349,10 @@ spec:
                     type: boolean
                   vendor:
                     description: Vendor is the backend provider vendor
+                    enum:
+                    - F5_BigIP
+                    - Citrix_ADC
+                    - Dummy
                     type: string
                 required:
                 - creds

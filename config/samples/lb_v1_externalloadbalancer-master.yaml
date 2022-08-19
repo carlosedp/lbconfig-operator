@@ -2,7 +2,7 @@ apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: ExternalLoadBalancer
 metadata:
   name: externalloadbalancer-master-sample
-  namespace: lbconfig-operator-system
+  namespace: lbconfig-operator
 spec:
   vip: "192.168.1.40"
   type: "master"
@@ -17,4 +17,4 @@ spec:
     host: "https://192.168.1.36"
     port: 443
     creds: netscaler-creds
-    validatecerts: no
+    validatecerts: false

@@ -142,8 +142,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	err = r.Get(ctx, types.NamespacedName{Name: lbBackend.Creds, Namespace: lb.Namespace}, credsSecret)
 
 	if err != nil {
-		log.Error(err, "Failed to get secret")
-		return ctrl.Result{RequeueAfter: time.Second * 30, Requeue: false}, nil
+		log.Error(err, "failed to get secret")
+		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
 	username := string(credsSecret.Data["username"])
 	password := string(credsSecret.Data["password"])

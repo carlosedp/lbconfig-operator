@@ -22,4 +22,4 @@ spec:
     port: 443
     creds: f5-creds
     partition: "Common"
-    validatecerts: no
+    validatecerts: false

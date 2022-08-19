@@ -18,4 +18,4 @@ spec:
     host: "https://10.0.0.1"
     port: 443
     creds: dummy-creds
-    validatecerts: no
+    validatecerts: false

@@ -80,7 +80,7 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 			MonitorType: "http",
 		},
 		Provider: lbv1.Provider{
-			Vendor: "dummy",
+			Vendor: "Dummy",
 			Host:   "1.2.3.4",
 			Port:   443,
 			Creds:  credsSecret.Name,
@@ -99,11 +99,10 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		lb2.ObjectMeta.Name = "test-load-balancer-err1"
 		// Check it was created
 		Expect(k8sClient.Create(ctx, lb2)).Should(Succeed())
-		Eventually(func() error {
-			// Trigger the reconcile loop
-			_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb2.Name, Namespace: Namespace}})
-			return err
-		}, timeout, interval).Should(MatchError(MatchRegexp("provider credentials Secret not found")))
+		res, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb2.Name, Namespace: Namespace}})
+		// Check that a reconciliation is triggered in 30s
+		Eventually(res.RequeueAfter, timeout, interval).Should(Equal(time.Second * 30))
+		Expect(err).ShouldNot(HaveOccurred())
 
 		// Delete the created load balancer
 		Expect(k8sClient.Delete(ctx, lb2)).Should(Succeed())
@@ -152,7 +151,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		Eventually(func() string {
 			k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 			return loadBalancer.Status.Provider.Vendor
-		}, timeout, interval).Should(Equal("dummy"))
+		}, timeout, interval).Should(Equal("Dummy"))
 	})
 
 	It("should check ExternalLoadBalancer metric is 1", func() {
