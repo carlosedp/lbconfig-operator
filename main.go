@@ -28,7 +28,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -43,7 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
@@ -66,29 +65,27 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-// newExporter returns a console exporter.
-func newExporter(w io.Writer) (trace.SpanExporter, error) {
-	return stdouttrace.New(
-		stdouttrace.WithWriter(w),
-		// Use human-readable output.
-		stdouttrace.WithPrettyPrint(),
-		// Do not print timestamps for the demo.
-		stdouttrace.WithoutTimestamps(),
-	)
-}
-
-// newResource returns a resource describing this application.
-func newResource(Version string) *resource.Resource {
-	r, _ := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
+// tracerProvider returns an OpenTelemetry TracerProvider configured to use
+// the Jaeger exporter that will send spans to the provided url. The returned
+// TracerProvider will also use a Resource configured with all the information
+// about the application.
+func tracerProvider(url string, Version string) (*trace.TracerProvider, error) {
+	// Create the Jaeger exporter
+	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
+	if err != nil {
+		return nil, err
+	}
+	tp := trace.NewTracerProvider(
+		// Always be sure to batch in production.
+		trace.WithBatcher(exp),
+		// Record information about this application in a Resource.
+		trace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String("lbconfig-operator"),
 			semconv.ServiceVersionKey.String(Version),
-			// attribute.String("environment", "demo"),
-		),
+		)),
 	)
-	return r
+	return tp, nil
 }
 
 func main() {
@@ -114,22 +111,17 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("Starting the LBConfig Operator", "version", Version)
 
-	// Write telemetry data to a file.
-	f, err := os.Create("traces.json")
+	// Setup tracing exporter
+	tp, err := tracerProvider("http://localhost:14268/api/traces", Version)
 	if err != nil {
-		setupLog.Error(err, "Error creating traces file")
+		setupLog.Error(err, "Error setting up tracer exporter")
 		os.Exit(1)
 	}
-	defer f.Close()
-	exp, err := newExporter(f)
-	if err != nil {
-		setupLog.Error(err, "Error creating exporter")
-		os.Exit(1)
-	}
-	tp := trace.NewTracerProvider(
-		trace.WithBatcher(exp),
-		trace.WithResource(newResource(Version)),
-	)
+
+	// Register our TracerProvider as the global so any imported
+	// instrumentation in the future will default to using it.
+	otel.SetTracerProvider(tp)
+
 	defer func() {
 		if err := tp.Shutdown(context.Background()); err != nil {
 			setupLog.Error(err, "Error shutting down tracer provider")

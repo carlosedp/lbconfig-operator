@@ -130,6 +130,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{}, fmt.Errorf("failed to list ExternalLoadBalancers: %v", err)
 	}
 
@@ -158,6 +159,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			log.Info("ExternalLoadBalancer resource not found. Ignoring since object must be deleted")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+			span.End()
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -186,6 +188,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Error(err, "failed to get secret")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
 	span.SetAttributes(attribute.String("lb.provider.secret", credsSecret.Name))
@@ -217,6 +220,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		log.Error(err, "unable to list Nodes")
+		span.End()
 		return ctrl.Result{}, err
 	}
 
@@ -253,11 +257,11 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Create Backend Provider
 	// ----------------------------------------
-	// --ADDTRACING
 	backend, err := controller.CreateBackend(ctx, &lbBackend, username, password)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{}, err
 	}
 
@@ -272,6 +276,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{}, err
 	}
 
@@ -285,6 +290,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
 	}
 
@@ -315,6 +321,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+			span.End()
 			return ctrl.Result{}, err
 		}
 		pools = append(pools, pool)
@@ -337,6 +344,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+			span.End()
 			return ctrl.Result{}, err
 		}
 		vips = append(vips, vip)
@@ -346,12 +354,16 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// Close Provider and save config if required.
 	// Depends on provider implementation
 	// ----------------------------------------
-	// --ADDTRACING
-	err = backend.Provider.Close()
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - Close")
+		defer span.End()
+		return backend.Provider.Close()
+	}(ctx)
 	if err != nil {
 		log.Error(err, "unable to close the backend provider")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{}, err
 	}
 
@@ -384,6 +396,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Error(err, "unable to update ExternalLoadBalancer status")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return ctrl.Result{}, err
 	}
 
@@ -418,6 +431,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			if err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
+				span.End()
 				return ctrl.Result{}, err
 			}
 
@@ -437,6 +451,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			if err != nil {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
+				span.End()
 				return ctrl.Result{}, err
 			}
 		}
@@ -459,6 +474,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+			span.End()
 			return ctrl.Result{}, err
 		}
 	}
