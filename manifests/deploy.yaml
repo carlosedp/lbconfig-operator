@@ -150,9 +150,10 @@ spec:
                   vendor:
                     description: Vendor is the backend provider vendor
                     enum:
+                    - Dummy
                     - F5_BigIP
                     - Citrix_ADC
-                    - Dummy
+                    - HAProxy
                     type: string
                 required:
                 - creds
@@ -324,9 +325,10 @@ spec:
                   vendor:
                     description: Vendor is the backend provider vendor
                     enum:
+                    - Dummy
                     - F5_BigIP
                     - Citrix_ADC
-                    - Dummy
+                    - HAProxy
                     type: string
                 required:
                 - creds

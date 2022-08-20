@@ -127,7 +127,7 @@ type Provider struct {
 	// Vendor is the backend provider vendor
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=F5_BigIP;Citrix_ADC;Dummy
+	// +kubebuilder:validation:Enum=Dummy;F5_BigIP;Citrix_ADC;HAProxy
 	Vendor string `json:"vendor"`
 
 	// Host is the Load Balancer API IP or Hostname in URL format. Eg. `http://10.25.10.10`.

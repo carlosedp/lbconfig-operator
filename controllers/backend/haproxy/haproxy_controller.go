@@ -44,7 +44,7 @@ import (
 	"k8s.io/utils/pointer"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
 	backend_controller "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 )
 
@@ -77,9 +77,8 @@ var LBMethodMap = map[string]string{"ROUNDROBIN": "roundrobin", "LEASTCONNECTION
 
 // Create creates a new Load Balancer backend provider
 func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
-	log := ctrllog.FromContext(ctx)
+	log := ctrllog.FromContext(ctx).WithValues("provider", "HAProxy")
 	p.ctx = context.Background()
-	log.WithValues("provider", "HAProxy")
 	p.log = log
 	p.host = lbBackend.Host
 	p.hostport = lbBackend.Port

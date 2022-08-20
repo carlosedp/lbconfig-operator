@@ -43,7 +43,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/haproxy"
 )
