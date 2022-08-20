@@ -31,7 +31,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	plog "log"
 
@@ -183,11 +182,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}(ctx)
 
 	if err != nil {
-		log.Error(err, "failed to get secret")
+		log.Error(err, "provider credentials secret not found")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
-		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
+		return ctrl.Result{}, fmt.Errorf("provider credentials secret not found %v", err)
+		// return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
 	span.SetAttributes(attribute.String("lb.provider.secret", credsSecret.Name))
 	username := string(credsSecret.Data["username"])

@@ -99,10 +99,8 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		lb2.ObjectMeta.Name = "test-load-balancer-err1"
 		// Check it was created
 		Expect(k8sClient.Create(ctx, lb2)).Should(Succeed())
-		res, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb2.Name, Namespace: Namespace}})
-		// Check that a reconciliation is triggered in 30s
-		Eventually(res.RequeueAfter, timeout, interval).Should(Equal(time.Second * 30))
-		Expect(err).ShouldNot(HaveOccurred())
+		_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb2.Name, Namespace: Namespace}})
+		Eventually(err, timeout, interval).Should(MatchError(MatchRegexp("provider credentials secret not found")))
 
 		// Delete the created load balancer
 		Expect(k8sClient.Delete(ctx, lb2)).Should(Succeed())
