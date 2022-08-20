@@ -32,7 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
 	. "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
 	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
 	d "github.com/carlosedp/lbconfig-operator/controllers/backend/dummy"

@@ -45,7 +45,7 @@ import (
 
 	//+kubebuilder:scaffold:imports
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
