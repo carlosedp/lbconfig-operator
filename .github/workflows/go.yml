@@ -38,6 +38,22 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
+      - name: Get Envtest path
+        id: envtest-info
+        run: |
+          VERSION=$(cat Makefile|grep "K8S_VERSION =" |cut -d= -f2 |xargs)
+          echo "::set-output name=envtest-version::${VERSION}"
+          echo "::set-output name=envtest-path::/home/runner/.local/share/kubebuilder-envtest/k8s/${VERSION}-$(go env GOOS)-$(go env GOARCH)"
+          echo "::set-output name=goos::$(go env GOOS)"
+          echo "::set-output name=goarch::$(go env GOARCH)"
+
+      # Kubebuilder Envtest assets
+      - name: Kubebuilder Envtest
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.envtest-info.outputs.envtest-path }}
+          key: Envtest-cache-${{ steps.envtest-info.outputs.envtest-version }}-${{ steps.envtest-info.outputs.goos }}-${{ steps.envtest-info.outputs.goarch }}
+
       - name: Test
         run: make test
 
