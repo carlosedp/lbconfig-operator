@@ -26,7 +26,8 @@ package haproxy_test
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -98,14 +99,6 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 	},
 }
 
-// Define the objects used in the tests.
-var monitor = &lbv1.Monitor{
-	Name:        "test-monitor",
-	MonitorType: "http",
-	Path:        "/health",
-	Port:        80,
-}
-
 var pool = &lbv1.Pool{
 	Name: "test-pool",
 	Members: []lbv1.PoolMember{{
@@ -133,9 +126,9 @@ var VIP = &lbv1.VIP{
 
 // Store the http session data for the request
 type httpdataStruct struct {
-	url    string
-	method string
-	data   string
+	url    []string
+	method []string
+	data   []string
 	post   map[string][]string
 }
 
@@ -146,12 +139,13 @@ var _ = Describe("When using a HAProxy backend", Ordered, func() {
 	var ctx = context.TODO()
 
 	BeforeEach(func() {
+		httpdata = httpdataStruct{}
 		server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			GinkgoWriter.Println("Received a request for %s\n", r.URL.String())
-			httpdata.url = r.URL.String()
-			httpdata.method = r.Method
-			body, _ := ioutil.ReadAll(r.Body)
-			httpdata.data = string(body)
+			fmt.Fprintf(GinkgoWriter, "Received a request for %s, method %s\n", r.URL.String(), r.Method)
+			httpdata.url = append(httpdata.url, r.URL.String())
+			httpdata.method = append(httpdata.method, r.Method)
+			body, _ := io.ReadAll(r.Body)
+			httpdata.data = append(httpdata.data, string(body))
 			for k, v := range r.Form {
 				httpdata.post[k] = v
 			}
@@ -269,28 +263,32 @@ var _ = Describe("When using a HAProxy backend", Ordered, func() {
 	// })
 
 	Context("when handling load balancer pools", func() {
-		It("Should get a pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+		var createdBackend *BackendController
+		var err error
+		BeforeEach(func() {
+			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			_ = createdBackend.Provider.Connect()
+		})
+
+		It("Should get a pool", func() {
 			_, _ = createdBackend.Provider.GetPool(pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/v2/services/haproxy/configuration/backends/test-pool"))
-			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
+			Eventually(httpdata.url, timeout, interval).Should(ContainElement("/v2/services/haproxy/configuration/backends/test-pool"))
+			i := indexOf("/v2/services/haproxy/configuration/backends/test-pool", httpdata.url)
+			Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
 			// Our mock returns an empty map, so we can't check for equality
 			// Expect(err).To(BeNil())
 		})
 
 		It("Should create a pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			_ = createdBackend.Provider.Connect()
 			err = createdBackend.Provider.CreatePool(pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/v2/services/haproxy/configuration/backends"))
-			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
+			Eventually(httpdata.url, timeout, interval).Should(ContainElement("/v2/services/haproxy/configuration/backends"))
+			i := indexOf("/v2/services/haproxy/configuration/backends", httpdata.url)
+			Eventually(httpdata.method[i], timeout, interval).Should(Equal("POST"))
 			//   <map[string]interface {} | len:1>: {
 			//       "name": <string>"test-pool",
 			//   }
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-pool"))
+			Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
 			// We get an error because the lib expects a specific return and our mock server don't do this.
 			// Lets just check the status code.
 			//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
@@ -299,25 +297,22 @@ var _ = Describe("When using a HAProxy backend", Ordered, func() {
 		})
 
 		It("Should delete the pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			_ = createdBackend.Provider.Connect()
 			err = createdBackend.Provider.DeletePool(pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/v2/services/haproxy/configuration/backends/test-pool"))
-			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
+			Eventually(httpdata.url, timeout, interval).Should(ContainElement("/v2/services/haproxy/configuration/backends/test-pool"))
+			i := indexOf("/v2/services/haproxy/configuration/backends/test-pool", httpdata.url)
+			Eventually(httpdata.method[i], timeout, interval).Should(Equal("DELETE"))
 			Expect(err).To(MatchError(MatchRegexp("status 200")))
 			// Expect(err).To(BeNil())
 		})
 
 		It("Should edit the pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			_ = createdBackend.Provider.Connect()
 			_ = createdBackend.Provider.EditPool(pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/v2/services/haproxy/configuration/backends/"))
-			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
+			Eventually(httpdata.url, timeout, interval).Should(ContainElement("/v2/services/haproxy/configuration/backends/"))
+			i := indexOf("/v2/services/haproxy/configuration/backends/", httpdata.url)
+			Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
+
 			// Expect(err).To(MatchError(MatchRegexp("status 200")))
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-pool"))
+			Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
 			// Expect(err).To(BeNil())
 		})
 	})
@@ -407,4 +402,14 @@ var _ = Describe("When using a HAProxy backend", Ordered, func() {
 	// 		})
 	// })
 	// })
+
 })
+
+func indexOf(element string, data []string) int {
+	for k, v := range data {
+		if element == v {
+			return k
+		}
+	}
+	return -1 //not found.
+}

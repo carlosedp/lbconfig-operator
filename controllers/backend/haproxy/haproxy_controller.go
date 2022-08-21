@@ -63,7 +63,7 @@ type HAProxyProvider struct {
 	auth        runtime.ClientAuthInfoWriter
 	transaction string
 	version     int64
-	monitor     *models.HTTPCheck
+	monitor     lbv1.Monitor
 	ctx         context.Context
 	lbmethod    string
 }
@@ -121,6 +121,7 @@ func (p *HAProxyProvider) Connect() error {
 		Context: p.ctx,
 	}, p.auth)
 	if err != nil {
+		p.CloseError()
 		return err
 	}
 	p.transaction = t.Payload.ID
@@ -135,8 +136,25 @@ func (p *HAProxyProvider) HealthCheck() error {
 
 // Close closes the connection to the Load Balancer
 func (p *HAProxyProvider) Close() error {
+	p.log.Info("Commiting transaction", "transaction", p.transaction)
 	_, _, err := p.haproxy.Transactions.CommitTransaction(&transactions.CommitTransactionParams{
-		ID: p.transaction,
+		ID:          p.transaction,
+		Context:     p.ctx,
+		ForceReload: pointer.BoolPtr(true),
+	}, p.auth)
+	if err != nil {
+		p.CloseError()
+		return err
+	}
+	return nil
+}
+
+// Close closes the connection to the Load Balancer
+func (p *HAProxyProvider) CloseError() error {
+	p.log.Info("Deleting transaction due error", "transaction", p.transaction)
+	_, err := p.haproxy.Transactions.DeleteTransaction(&transactions.DeleteTransactionParams{
+		ID:      p.transaction,
+		Context: p.ctx,
 	}, p.auth)
 	if err != nil {
 		return err
@@ -151,48 +169,20 @@ func (p *HAProxyProvider) Close() error {
 // GetMonitor gets a monitor in the IP Load Balancer
 func (p *HAProxyProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 	// Return in case monitor is not set
-	if p.monitor == nil {
-		return nil, nil
-	}
-
-	// Return monitor details in case it exists
-	mon := &lbv1.Monitor{
-		Name:        "no-name-monitor", // Fix this
-		MonitorType: p.monitor.Proto,
-		Path:        p.monitor.URI,
-		Port:        int(*p.monitor.Port),
-	}
-
-	return mon, nil
+	return &p.monitor, nil
 }
 
 // CreateMonitor creates a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *HAProxyProvider) CreateMonitor(m *lbv1.Monitor) error {
-
-	p.monitor = &models.HTTPCheck{
-		URI:    m.Path,
-		Port:   pointer.Int64(int64(m.Port)),
-		Index:  pointer.Int64(1),
-		Method: "GET",
-		Proto:  m.MonitorType,
-		Type:   "send",
-		// Add name from m.Name
-	}
+	p.monitor = *m
 	return nil
 }
 
 // EditMonitor edits a monitor in the IP Load Balancer
 // if port argument is 0, no port override is configured
 func (p *HAProxyProvider) EditMonitor(m *lbv1.Monitor) error {
-	p.monitor = &models.HTTPCheck{
-		URI:    m.Path,
-		Port:   pointer.Int64(int64(m.Port)),
-		Index:  pointer.Int64(1),
-		Method: "GET",
-		Proto:  m.MonitorType,
-		Type:   "send",
-	}
+	p.monitor = *m
 	// Maybe call EditPool?
 	return nil
 
@@ -200,7 +190,7 @@ func (p *HAProxyProvider) EditMonitor(m *lbv1.Monitor) error {
 
 // DeleteMonitor deletes a monitor in the IP Load Balancer
 func (p *HAProxyProvider) DeleteMonitor(m *lbv1.Monitor) error {
-	p.monitor = nil
+	p.monitor = lbv1.Monitor{}
 	// Maybe call EditPool?
 	return nil
 }
@@ -217,13 +207,12 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	}, nil)
 
 	if err != nil && !strings.Contains(err.Error(), "getBackendNotFound") {
-		p.DeleteTransaction()
+		p.CloseError()
 		return nil, fmt.Errorf("error getting pool: %v", err)
 	}
 
 	// Return in case pool does not exist
 	if newPool == nil {
-		p.log.Info("Pool does not exist")
 		return nil, nil
 	}
 
@@ -247,17 +236,22 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 
 	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
 		Data: &models.Backend{
-			Name:      pool.Name,
-			HTTPCheck: p.monitor,
+			Name:     pool.Name,
+			AdvCheck: "httpchk",
 			Balance: &models.Balance{
 				Algorithm: &p.lbmethod,
+			},
+			HttpchkParams: &models.HttpchkParams{
+				Method: "GET",
+				URI:    p.monitor.Path,
 			},
 		},
 		Context:       p.ctx,
 		TransactionID: &p.transaction,
-	}, nil)
+	}, p.auth)
+
 	if err != nil {
-		p.DeleteTransaction()
+		p.CloseError()
 		return fmt.Errorf("error creating pool %s: %v", pool.Name, err)
 	}
 
@@ -266,23 +260,25 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 
 // EditPool modifies a server pool in the Load Balancer
 func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
-	m := &models.HTTPCheck{}
 	// Create Pool with pre-existing monitor
-	if p.monitor != nil {
-		m = p.monitor
-	}
 	_, _, err := p.haproxy.Backend.ReplaceBackend(&backend.ReplaceBackendParams{
 		Data: &models.Backend{
-			Name:      pool.Name,
-			HTTPCheck: m,
+			Name:     pool.Name,
+			AdvCheck: "httpchk",
 			Balance: &models.Balance{
 				Algorithm: &p.lbmethod,
 			},
+			HttpchkParams: &models.HttpchkParams{
+				Method: "GET",
+				URI:    p.monitor.Path,
+			},
 		},
-		Context: p.ctx,
-	}, nil)
+		Context:       p.ctx,
+		TransactionID: &p.transaction,
+	}, p.auth)
+
 	if err != nil {
-		p.DeleteTransaction()
+		p.CloseError()
 		return fmt.Errorf("error editing pool(ERR) %s: %v", pool.Name, err)
 	}
 
@@ -292,12 +288,13 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 // DeletePool removes a server pool in the Load Balancer
 func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
 	_, _, err := p.haproxy.Backend.DeleteBackend(&backend.DeleteBackendParams{
-		Name:    pool.Name,
-		Context: p.ctx,
-	}, nil)
+		Name:          pool.Name,
+		Context:       p.ctx,
+		TransactionID: &p.transaction,
+	}, p.auth)
 
 	if err != nil {
-		p.DeleteTransaction()
+		p.CloseError()
 		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
 	}
 	return nil
@@ -318,7 +315,8 @@ func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	}, nil)
 
 	if err != nil {
-		p.DeleteTransaction()
+		// p.DeleteTransaction()
+		p.CloseError()
 		return nil, fmt.Errorf("error getting pool members: %v", err)
 	}
 
@@ -410,7 +408,7 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	}, nil)
 
 	if err != nil {
-		p.DeleteTransaction()
+		p.CloseError()
 		return nil, fmt.Errorf("error getting haproxy frontend %s: %v", v.Name, err)
 	}
 
@@ -510,12 +508,5 @@ func (p *HAProxyProvider) DeleteVIP(v *lbv1.VIP) error {
 	// if err != nil {
 	// 	return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
 	// }
-	return nil
-}
-
-func (p *HAProxyProvider) DeleteTransaction() error {
-	p.haproxy.Transactions.DeleteTransaction(&transactions.DeleteTransactionParams{
-		ID: p.transaction,
-	}, p.auth)
 	return nil
 }
