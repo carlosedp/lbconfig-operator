@@ -227,10 +227,9 @@ spec:
 
     The main users for this operator is enterprise deployments or clusters composed of multiple nodes having an external load-balancer providing the balancing and high-availability to access the cluster in both API and Application levels.
 
+    ### Create ExternalLoadBalancer Instances
 
-    ### Create ExternalLoadBalancer instances
-
-    Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
+    Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes). **If installing on OpenShift or Kubernetes with OLM (or in a different namespace), adjust the sample YAMLs to match the created namespace**.
 
     **The provider `vendor` field can be (case-insensitive):**
 

@@ -39,9 +39,9 @@ kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.2.0/manif
 
 This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
 
-### Create ExternalLoadBalancer instances
+### Create ExternalLoadBalancer Instances
 
-Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes).
+Create the instances for each Load Balancer instance you need (for example one for Master Nodes and another for the Infra Nodes). **If installing on OpenShift or Kubernetes with OLM (or in a different namespace), adjust the sample YAMLs to match the created namespace**.
 
 **The provider `vendor` field can be (case-sensitive):**
 
