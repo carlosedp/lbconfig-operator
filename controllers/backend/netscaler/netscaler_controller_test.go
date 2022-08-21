@@ -195,11 +195,16 @@ var _ = Describe("When using a Netscaler backend", func() {
 	})
 
 	Context("when handling load balancer monitors", func() {
-		It("Should get a monitor", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+		var createdBackend *BackendController
+		var err error
+		BeforeEach(func() {
+			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should get a monitor", func() {
 			_, _ = createdBackend.Provider.GetMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor/test-monitor"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
@@ -207,10 +212,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should create a monitor", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
 			err = createdBackend.Provider.CreateMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor?idempotent=yes"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
@@ -234,10 +235,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should delete the monitor", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
 			err = createdBackend.Provider.DeleteMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor/test-monitor?args=monitorname:test-monitor,type:http"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
@@ -245,10 +242,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should edit the monitor", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
 			err = createdBackend.Provider.EditMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor?idempotent=yes"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
@@ -272,12 +265,16 @@ var _ = Describe("When using a Netscaler backend", func() {
 	})
 
 	Context("when handling load balancer pools", func() {
-		It("Should get a pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+		var createdBackend *BackendController
+		var err error
+		BeforeEach(func() {
+			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
 			Expect(err).To(BeNil())
 			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
+		})
 
+		It("Should get a pool", func() {
 			_, _ = createdBackend.Provider.GetPool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
@@ -285,11 +282,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should create a pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
-
 			err = createdBackend.Provider.CreatePool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup_lbmonitor_binding"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
@@ -302,11 +294,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should delete the pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
-
 			err = createdBackend.Provider.DeletePool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
@@ -314,11 +301,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should edit the pool", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			err = createdBackend.Provider.Connect()
-			Expect(err).To(BeNil())
-
 			err = createdBackend.Provider.EditPool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup_lbmonitor_binding"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
@@ -331,22 +313,12 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should get pool members", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).NotTo(HaveOccurred())
-			err = createdBackend.Provider.Connect()
-			Expect(err).NotTo(HaveOccurred())
-
 			_, _ = createdBackend.Provider.GetPoolMembers(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup_binding/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 		It("Should create pool members", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).NotTo(HaveOccurred())
-			err = createdBackend.Provider.Connect()
-			Expect(err).NotTo(HaveOccurred())
-
 			_ = createdBackend.Provider.CreatePoolMember(poolmember, pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup_servicegroupmember_binding"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
@@ -354,11 +326,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should delete pool members", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).NotTo(HaveOccurred())
-			err = createdBackend.Provider.Connect()
-			Expect(err).NotTo(HaveOccurred())
-
 			err = createdBackend.Provider.DeletePoolMember(poolmember, pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup_servicegroupmember_binding/test-pool?args=servername:1.1.1.5,servicegroupname:test-pool,port:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
@@ -366,10 +333,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should edit pool members", func() {
-			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).NotTo(HaveOccurred())
-			// err = createdBackend.Provider.Connect()
-			// Expect(err).NotTo(HaveOccurred())
 			// // Enable
 			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "enable")
 			// Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool/members/1.1.1.5:80"))
@@ -386,12 +349,16 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		Context("when handling load balancer VIPs", func() {
-			It("Should get a VIP", func() {
-				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-				Expect(err).NotTo(HaveOccurred())
+			var createdBackend *BackendController
+			var err error
+			BeforeEach(func() {
+				createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+				Expect(err).To(BeNil())
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
+			})
 
+			It("Should get a VIP", func() {
 				_, _ = createdBackend.Provider.GetVIP(VIP)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbvserver/test-vip"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
@@ -399,11 +366,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 			})
 
 			It("Should create a VIP", func() {
-				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-				Expect(err).NotTo(HaveOccurred())
-				err = createdBackend.Provider.Connect()
-				Expect(err).NotTo(HaveOccurred())
-
 				err = createdBackend.Provider.CreateVIP(VIP)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbvserver_servicegroup_binding"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
@@ -441,11 +403,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 			})
 
 			It("Should delete the VIP", func() {
-				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-				Expect(err).NotTo(HaveOccurred())
-				err = createdBackend.Provider.Connect()
-				Expect(err).NotTo(HaveOccurred())
-
 				err = createdBackend.Provider.DeleteVIP(VIP)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbvserver/test-vip"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
@@ -453,11 +410,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 			})
 
 			It("Should edit the VIP", func() {
-				createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-				Expect(err).NotTo(HaveOccurred())
-				err = createdBackend.Provider.Connect()
-				Expect(err).NotTo(HaveOccurred())
-
 				err = createdBackend.Provider.EditVIP(VIP)
 				Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbvserver_servicegroup_binding"))
 				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
