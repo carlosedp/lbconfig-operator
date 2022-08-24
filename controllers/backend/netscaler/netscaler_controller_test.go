@@ -26,7 +26,7 @@ package netscaler_test
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -157,7 +157,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 			// GinkgoWriter.Printf("Received a request for %s\n", r.URL.String())
 			httpdata.url = r.URL.String()
 			httpdata.method = r.Method
-			body, _ := ioutil.ReadAll(r.Body)
+			body, _ := io.ReadAll(r.Body)
 			httpdata.data = string(body)
 			for k, v := range r.Form {
 				httpdata.post[k] = v
