@@ -160,9 +160,10 @@ spec:
                   vendor:
                     description: Vendor is the backend provider vendor
                     enum:
+                    - Dummy
                     - F5_BigIP
                     - Citrix_ADC
-                    - Dummy
+                    - HAProxy
                     type: string
                 required:
                 - creds
@@ -181,7 +182,7 @@ spec:
                 description: Vip is the Virtual IP configured in  this LoadBalancer
                   instance
                 maxLength: 15
-                minLength: 7
+                minLength: 1
                 type: string
             required:
             - monitor
@@ -349,9 +350,10 @@ spec:
                   vendor:
                     description: Vendor is the backend provider vendor
                     enum:
+                    - Dummy
                     - F5_BigIP
                     - Citrix_ADC
-                    - Dummy
+                    - HAProxy
                     type: string
                 required:
                 - creds
