@@ -139,7 +139,7 @@ type httpdataStruct struct {
 	post   map[string][]string
 }
 
-var _ = Describe("When using a HAProxy backend", Ordered, func() {
+var _ = Describe("When using a HAProxy backend", func() {
 
 	var server *httptest.Server
 	var httpdata httpdataStruct
