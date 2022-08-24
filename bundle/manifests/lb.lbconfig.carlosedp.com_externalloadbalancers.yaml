@@ -182,7 +182,7 @@ spec:
                 description: Vip is the Virtual IP configured in  this LoadBalancer
                   instance
                 maxLength: 15
-                minLength: 7
+                minLength: 1
                 type: string
             required:
             - monitor

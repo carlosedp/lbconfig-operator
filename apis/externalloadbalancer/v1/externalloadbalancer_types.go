@@ -61,7 +61,7 @@ type ExternalLoadBalancerSpec struct {
 	// Vip is the Virtual IP configured in  this LoadBalancer instance
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=7
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
 	Vip string `json:"vip"`
 

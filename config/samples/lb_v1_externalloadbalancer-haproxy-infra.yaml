@@ -1,18 +1,19 @@
 apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: ExternalLoadBalancer
 metadata:
-  name: externalloadbalancer-master-haproxy-sample
+  name: externalloadbalancer-infra-haproxy-sample
   namespace: lbconfig-operator-system
 spec:
-  vip: "*"
+  vip: "192.168.1.42"
   nodelabels:
     node-role.kubernetes.io/control-plane: ""
   ports:
-    - 6443
+    - 80
+    - 443
   monitor:
     path: "/healthz"
-    port: 6443
-    monitortype: "https"
+    port: 1936
+    monitortype: http
   provider:
     vendor: HAProxy
     host: "http://127.0.0.1"
