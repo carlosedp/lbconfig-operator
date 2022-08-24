@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  haproxy:
+    image: haproxytech/haproxy-debian
+    ports:
+      # The HTTP client port
+      - 8088:80
+      # The HTTPS client port
+      - 8083:443
+      # The alternate client HTTPS port (for API for example)
+      - 8043:6443
+      # Stats
+      - 1936:1936
+      # API
+      - 5555:5555
+    volumes:
+      - ./cfg:/usr/local/etc/haproxy:rw
+    restart: unless-stopped
+

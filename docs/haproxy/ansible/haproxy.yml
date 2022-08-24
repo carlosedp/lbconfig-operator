@@ -1,0 +1,69 @@
+---
+- name: Setup hosts for HAProxy
+  hosts: all
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    - dataplaneapi: 2.6.0
+
+  tasks:
+  - name: Ensure HAProxy is installed.
+    package: name=haproxy state=present
+
+
+  - name: Check HAProxy Dataplane Latest Version
+    uri:
+      url: https://api.github.com/repos/haproxytech/dataplaneapi/releases/latest
+      return_content: true
+    register: dataplane_vers
+
+  - name: "Installing Dataplane API {{ dataplane_vers.json.tag_name }}"
+    loop: "{{ dataplane_vers.json.assets }}"
+    when: "'Linux_x86_64.tar.gz' in item.name"
+    unarchive:
+      remote_src: yes
+      src: "{{ item.browser_download_url }}"
+      dest: "/usr/bin/"
+      keep_newer: yes
+      extra_opts:
+      - --strip=1
+      - --no-anchored
+
+  - name: Executable permission to Dataplane
+    ansible.builtin.file:
+      path: "/usr/bin/dataplaneapi"
+      mode: '0777'
+
+  - name: Ensure HAProxy is enabled (so init script will start it on Debian).
+    lineinfile:
+      dest: /etc/default/haproxy
+      regexp: "^ENABLED.+$"
+      line: "ENABLED=1"
+      state: present
+    when: ansible_os_family == 'Debian'
+
+  - name: Copy HAProxy configuration in place.
+    template:
+      src: haproxy.cfg.j2
+      dest: /etc/haproxy/haproxy.cfg
+      mode: 0644
+      validate: haproxy -f %s -c -q
+    notify: restart haproxy
+
+  - name: Copy HAProxy Dataplane configuration in place.
+    template:
+      src: dataplaneapi.hcl.j2
+      dest: /etc/haproxy/dataplaneapi.hcl
+      mode: 0644
+      validate: haproxy -f %s -c -q
+    notify: restart haproxy
+
+  - name: Ensure HAProxy is started and enabled on boot.
+    service: name=haproxy state=started enabled=yes
+
+
+  handlers:
+    - name: restart haproxy
+      service: name=haproxy state=restarted

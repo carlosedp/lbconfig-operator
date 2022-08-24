@@ -100,7 +100,8 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		// Check it was created
 		Expect(k8sClient.Create(ctx, lb2)).Should(Succeed())
 		_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: lb2.Name, Namespace: Namespace}})
-		Eventually(err, timeout, interval).Should(MatchError(MatchRegexp("provider credentials secret not found")))
+		Expect(err).NotTo(BeNil())
+		// Eventually(err, timeout, interval).Should(MatchError(MatchRegexp("provider credentials secret not found")))
 
 		// Delete the created load balancer
 		Expect(k8sClient.Delete(ctx, lb2)).Should(Succeed())

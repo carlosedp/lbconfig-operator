@@ -18,6 +18,7 @@ This file aggregates all documentation for the operator. Some information is als
 * [Adding new Backends](Creating_Backends.md)
 * [Operator Tracing with Jaeger](Tracing.md)
 * [Developing and Testing](Developing_Testing.md)
+* [HAProxy Backend](./haproxy/Readme.md)
 
 
 The LBConfig Operator, manages the configuration of External Load Balancer instances (on third-party equipment via it's API) and creates VIPs and IP Pools with Monitors for a set of OpenShift or Kubernetes nodes like Master-nodes (Control-Plane), Infra nodes (where the Routers or Ingress controllers are located) or based on it's roles and/or labels.
