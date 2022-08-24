@@ -28,10 +28,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/carlosedp/haproxy-go-client/client"
 	"github.com/carlosedp/haproxy-go-client/client/backend"
+	"github.com/carlosedp/haproxy-go-client/client/bind"
 	"github.com/carlosedp/haproxy-go-client/client/frontend"
 	"github.com/carlosedp/haproxy-go-client/client/server"
 	"github.com/carlosedp/haproxy-go-client/client/sites"
@@ -73,7 +73,8 @@ func init() {
 }
 
 // We use round robin for the backend servers if least response is choosen since HAProxy doesn't have it.
-var LBMethodMap = map[string]string{"ROUNDROBIN": "roundrobin", "LEASTCONNECTION": "leastconn", "LEASTRESPONSETIME": "roundrobin"}
+// SOURCEIPHASH not enabled yet in CRD since it is not supported by F5.
+var LBMethodMap = map[string]string{"ROUNDROBIN": "roundrobin", "LEASTCONNECTION": "leastconn", "LEASTRESPONSETIME": "roundrobin", "SOURCEIPHASH": "source"}
 
 // Create creates a new Load Balancer backend provider
 func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, username string, password string) error {
@@ -168,8 +169,8 @@ func (p *HAProxyProvider) CloseError() error {
 
 // GetMonitor gets a monitor in the IP Load Balancer
 func (p *HAProxyProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, error) {
-	// Return in case monitor is not set
-	return &p.monitor, nil
+	// Always return empty monior to force update
+	return &lbv1.Monitor{}, nil
 }
 
 // CreateMonitor creates a monitor in the IP Load Balancer
@@ -183,7 +184,6 @@ func (p *HAProxyProvider) CreateMonitor(m *lbv1.Monitor) error {
 // if port argument is 0, no port override is configured
 func (p *HAProxyProvider) EditMonitor(m *lbv1.Monitor) error {
 	p.monitor = *m
-	// Maybe call EditPool?
 	return nil
 
 }
@@ -202,24 +202,24 @@ func (p *HAProxyProvider) DeleteMonitor(m *lbv1.Monitor) error {
 // GetPool gets a server pool from the Load Balancer
 func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	newPool, err := p.haproxy.Backend.GetBackend(&backend.GetBackendParams{
-		Name:    pool.Name,
-		Context: p.ctx,
-	}, nil)
+		Name:          pool.Name,
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
 
-	if err != nil && !strings.Contains(err.Error(), "getBackendNotFound") {
+	if err != nil {
 		p.CloseError()
 		return nil, fmt.Errorf("error getting pool: %v", err)
 	}
 
 	// Return in case pool does not exist
-	if newPool == nil {
+	if newPool.Payload.Data == nil {
 		return nil, nil
 	}
 
 	retPool := &lbv1.Pool{
-		// Name: newPool.Payload.Data.Name,
-		// Monitor: newPool.Payload.Data.,
-		// Members: members,
+		Name:    newPool.Payload.Data.Name,
+		Monitor: "changed",
 	}
 
 	return retPool, nil
@@ -227,13 +227,6 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 // CreatePool creates a server pool in the Load Balancer
 func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
-
-	// m := &models.HTTPCheck{}
-	// Create Pool with pre-existing monitor
-	// if p.monitor != nil {
-	// m = p.monitor
-	// }
-
 	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
 		Data: &models.Backend{
 			Name:     pool.Name,
@@ -241,6 +234,7 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 			Balance: &models.Balance{
 				Algorithm: &p.lbmethod,
 			},
+			Mode: "tcp",
 			HttpchkParams: &models.HttpchkParams{
 				Method: "GET",
 				URI:    p.monitor.Path,
@@ -261,13 +255,15 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 // EditPool modifies a server pool in the Load Balancer
 func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 	// Create Pool with pre-existing monitor
-	_, _, err := p.haproxy.Backend.ReplaceBackend(&backend.ReplaceBackendParams{
+	backendOK, _, err := p.haproxy.Backend.ReplaceBackend(&backend.ReplaceBackendParams{
+		Name: pool.Name,
 		Data: &models.Backend{
 			Name:     pool.Name,
 			AdvCheck: "httpchk",
 			Balance: &models.Balance{
 				Algorithm: &p.lbmethod,
 			},
+			Mode: "tcp",
 			HttpchkParams: &models.HttpchkParams{
 				Method: "GET",
 				URI:    p.monitor.Path,
@@ -281,7 +277,25 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 		p.CloseError()
 		return fmt.Errorf("error editing pool(ERR) %s: %v", pool.Name, err)
 	}
+	// Return in case pool does not exist
+	if backendOK.Payload == nil {
+		return nil
+	}
 
+	pool, err = p.GetPoolMembers(pool)
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error editing pool(getting pool members) %s: %v", pool.Name, err)
+	}
+	if pool != nil {
+		for _, m := range pool.Members {
+			err = p.EditPoolMember(&m, pool, "enable")
+			if err != nil {
+				p.CloseError()
+				return fmt.Errorf("error editing pool(editing pool members) %s: %v", pool.Name, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -310,26 +324,29 @@ func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	// // Get pool members
 	var members []lbv1.PoolMember
 	poolMembers, err := p.haproxy.Server.GetServers(&server.GetServersParams{
-		Backend: &pool.Name,
-		Context: p.ctx,
-	}, nil)
+		Backend:       &pool.Name,
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
 
 	if err != nil {
-		// p.DeleteTransaction()
 		p.CloseError()
 		return nil, fmt.Errorf("error getting pool members: %v", err)
+	}
+	if poolMembers.Payload.Data == nil {
+		return nil, nil
 	}
 
 	for _, member := range poolMembers.Payload.Data {
 		ip := member.Address
-		port := int(*member.Port)
+		port := member.Port
 		node := &lbv1.Node{
 			Name: member.Name,
 			Host: ip,
 		}
 		mem := &lbv1.PoolMember{
 			Node: *node,
-			Port: port,
+			Port: int(*port),
 		}
 		members = append(members, *mem)
 	}
@@ -339,60 +356,88 @@ func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
 func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+	server := &server.CreateServerParams{
+		Backend: &pool.Name,
+		Data: &models.Server{
+			Name:            m.Node.Name,
+			Address:         m.Node.Host,
+			Port:            pointer.Int64(int64(m.Port)),
+			Check:           "enabled",
+			Inter:           pointer.Int64Ptr(1000), // in ms
+			HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+		},
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}
+	if p.monitor.MonitorType == "https" {
+		server.Data.CheckSsl = "enabled"
+		server.Data.Verify = "none"
+	}
+	_, _, err := p.haproxy.Server.CreateServer(server, p.auth)
 
-	// _, _, err := p.haproxy.Server.CreateServer(&server.CreateServerParams{
-	// 	Backend: &pool.Name,
-	// 	Data: &models.Server{
-	// 		Name:            m.Node.Name,
-	// 		Address:         m.Node.Host,
-	// 		HealthCheckPort: pointer.Int64(int64(m.Port)),
-	// 	},
-	// 	TransactionID: &p.transaction,
-	// 	Context:       p.ctx,
-	// }, nil)
-	// p.log.Info("Creating Node", "node", m.Node.Name, "host", m.Node.Host)
-
-	// // Query node by IP
-	// n, _ := p.f5.GetNode(m.Node.Host)
-	// if n != nil {
-	// 	p.f5.ModifyNode(m.Node.Host, &config)
-	// } else {
-	// 	err := p.f5.CreateNode(m.Node.Host, m.Node.Host)
-	// 	if err != nil {
-	// 		return fmt.Errorf("error creating node %s: %v", m.Node.Host, err)
-	// 	}
-	// }
-
-	// err := p.f5.AddPoolMember(pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
-	// if err != nil {
-	// 	return fmt.Errorf("error adding member %s to pool %s: %v", m.Node.Host, pool.Name, err)
-	// }
-
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error creating pool member: %v", err)
+	}
+	p.log.Info("Created node", "node", m.Node.Name, "host", m.Node.Host)
 	return nil
 }
 
 // EditPoolMember modifies a server pool member in the Load Balancer
 // status could be "enable" or "disable"
 func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
-	// err := p.f5.PoolMemberStatus(pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port), status)
-	// if err != nil {
-	// 	return fmt.Errorf("error editing member %s in pool %s: %v", m.Node.Host, pool.Name, err)
-	// }
+	maintenanceStatus := func() string {
+		if status == "enable" {
+			return "disabled"
+		} else {
+			return "enabled"
+		}
+	}()
+
+	server := &server.ReplaceServerParams{
+		Backend: &pool.Name,
+		Name:    m.Node.Name,
+		Data: &models.Server{
+			Name:            m.Node.Name,
+			Address:         m.Node.Host,
+			Port:            pointer.Int64(int64(m.Port)),
+			Check:           "enabled",
+			Maintenance:     maintenanceStatus,
+			Inter:           pointer.Int64Ptr(1000), // in ms
+			HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+		},
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}
+	if p.monitor.MonitorType == "https" {
+		server.Data.CheckSsl = "enabled"
+		server.Data.Verify = "none"
+	}
+	_, _, err := p.haproxy.Server.ReplaceServer(server, p.auth)
+
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error editing pool member: %v", err)
+	}
+	p.log.Info("Edited node", "node", m.Node.Name, "host", m.Node.Host)
 	return nil
 }
 
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *HAProxyProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
-	// First delete member from pool
-	// err := p.f5.DeletePoolMember(partition+pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
-	// if err != nil {
-	// 	return fmt.Errorf("error removing member %s from pool %s: %v", m.Node.Host, pool.Name, err)
-	// }
-	// Then delete node (Do not delete node since it could be in use on another LB)
-	// err = p.f5.DeleteNode(partition + m.Node.Host)
-	// if err != nil {
-	// 	return fmt.Errorf("error deleting member %s: %v", m.Node.Host, err)
-	// }
+
+	_, _, err := p.haproxy.Server.DeleteServer(&server.DeleteServerParams{
+		Backend:       &pool.Name,
+		Name:          m.Node.Name,
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
+
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error deleting pool member: %v", err)
+	}
+	p.log.Info("Deleted node", "node", m.Node.Name, "host", m.Node.Host)
 	return nil
 }
 
@@ -403,9 +448,10 @@ func (p *HAProxyProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 // GetVIP gets a VIP in the IP Load Balancer
 func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	getFrontend, err := p.haproxy.Frontend.GetFrontend(&frontend.GetFrontendParams{
-		Name:    v.Name,
-		Context: p.ctx,
-	}, nil)
+		Name:          v.Name,
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
 
 	if err != nil {
 		p.CloseError()
@@ -413,100 +459,121 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	}
 
 	// // Return in case VIP does not exist
-	if getFrontend == nil {
+	if getFrontend.Payload.Data == nil {
 		return nil, nil
 	}
+	getFrontendBind, err := p.haproxy.Bind.GetBind(
+		&bind.GetBindParams{
+			Name:          v.Name,
+			TransactionID: &p.transaction,
+			ParentName:    &v.Name,
+			ParentType:    pointer.StringPtr("frontend"),
+			Context:       p.ctx,
+		}, p.auth)
+	if err != nil {
+		p.CloseError()
+		return nil, fmt.Errorf("error getting haproxy frontend bind %s: %v", v.Name, err)
+	}
 
-	// Return VIP details in case it exists
-	// s := getFrontend.Payload.Data.Name
-	// ip := getFrontend.Payload.Data
-
-	// s := strings.Split(vs.Destination, ":")
-	// ip := strings.Trim(s[0], partition)
-	// port, err := strconv.Atoi(s[1])
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error reading F5 VS port: %v", err)
-	// }
-
-	// vip := &lbv1.VIP{
-	// 	Name: s,
-	// 	IP:   ip,
-	// 	Port: port,
-	// 	Pool: v.Pool,
-	// }
-
-	return nil, nil
-	// return vip, nil
+	vip := &lbv1.VIP{
+		Name: getFrontend.Payload.Data.Name,
+		IP:   getFrontendBind.Payload.Data.Address,
+		Port: int(*getFrontendBind.Payload.Data.Port),
+		Pool: getFrontend.Payload.Data.DefaultBackend,
+	}
+	return vip, nil
 }
 
 // CreateVIP creates a Virtual Server in the Load Balancer
 func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) error {
-	// The second parameter is our destination, and the third is the mask. You can use CIDR notation if you wish (as shown here)
+	// Create frontend
+	_, _, err := p.haproxy.Frontend.CreateFrontend(&frontend.CreateFrontendParams{
+		Data: &models.Frontend{
+			Name:           v.Name,
+			Mode:           "tcp",
+			DefaultBackend: v.Pool,
+		},
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
 
-	// config := &bigip.VirtualServer{
-	// 	Name:        v.Name,
-	// 	Partition:   partition,
-	// 	Destination: v.IP + ":" + strconv.Itoa(v.Port),
-	// 	Pool:        v.Pool,
-	// 	SourceAddressTranslation: struct {
-	// 		Type string "json:\"type,omitempty\""
-	// 		Pool string "json:\"pool,omitempty\""
-	// 	}{
-	// 		Type: "automap",
-	// 		Pool: "",
-	// 	},
-	// 	Profiles: []bigip.Profile{
-	// 		{
-	// 			Name:      "fastL4",
-	// 			FullPath:  "/Common/fastL4",
-	// 			Partition: "Common",
-	// 			Context:   "all",
-	// 		},
-	// 	},
-	// }
-	// err := p.f5.AddVirtualServer(config)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error creating VIP %s, %+v: %v", v.Name, config, err)
-	// }
-	// return v, nil
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error creating frontend: %v", err)
+	}
+
+	// Create frontend binds
+	_, _, err = p.haproxy.Bind.CreateBind(&bind.CreateBindParams{
+		Frontend: &v.Name,
+		Data: &models.Bind{
+			BindParams: models.BindParams{
+				Name: v.Name,
+			},
+			Address: v.IP,
+			Port:    pointer.Int64(int64(v.Port)),
+		},
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
+
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error creating frontend bind: %v", err)
+	}
+
+	p.log.Info("Created VIP", "VIP", v.Name)
 	return nil
 }
 
 // EditVIP modifies a Virtual Server in the Load Balancer
 func (p *HAProxyProvider) EditVIP(v *lbv1.VIP) error {
-	// config := &bigip.VirtualServer{
-	// 	Name:        v.Name,
-	// 	Partition:   partition,
-	// 	Destination: v.IP + ":" + strconv.Itoa(v.Port),
-	// 	Pool:        v.Pool,
-	// 	SourceAddressTranslation: struct {
-	// 		Type string "json:\"type,omitempty\""
-	// 		Pool string "json:\"pool,omitempty\""
-	// 	}{
-	// 		Type: "automap",
-	// 		Pool: "",
-	// 	},
-	// 	Profiles: []bigip.Profile{
-	// 		{
-	// 			Name:      "fastL4",
-	// 			FullPath:  "/Common/fastL4",
-	// 			Partition: "Common",
-	// 			Context:   "all",
-	// 		},
-	// 	},
-	// }
-	// err := p.f5.PatchVirtualServer(partition+v.Name, config)
-	// if err != nil {
-	// 	return fmt.Errorf("error editing VIP %s: %v", v.Name, err)
-	// }
+
+	// Edit frontend
+	_, _, err := p.haproxy.Frontend.ReplaceFrontend(&frontend.ReplaceFrontendParams{
+		Data: &models.Frontend{
+			Name: v.Name,
+			Mode: "http",
+		},
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
+
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error editing frontend: %v", err)
+	}
+
+	// Edit frontend binds
+	_, _, err = p.haproxy.Bind.ReplaceBind(&bind.ReplaceBindParams{
+		Data: &models.Bind{
+			BindParams: models.BindParams{
+				Name: v.Name,
+			},
+			Address: v.IP,
+			Port:    pointer.Int64(int64(v.Port)),
+		},
+		TransactionID: &p.transaction,
+		Context:       p.ctx,
+	}, p.auth)
+
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error editing frontend bind: %v", err)
+	}
 	return nil
 }
 
 // DeleteVIP deletes a Virtual Server in the Load Balancer
 func (p *HAProxyProvider) DeleteVIP(v *lbv1.VIP) error {
-	// err := p.f5.DeleteVirtualServer(v.Name)
-	// if err != nil {
-	// 	return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
-	// }
+	_, _, err := p.haproxy.Frontend.DeleteFrontend(&frontend.DeleteFrontendParams{
+		Name:          v.Name,
+		Context:       p.ctx,
+		TransactionID: &p.transaction,
+	}, p.auth)
+
+	if err != nil {
+		p.CloseError()
+		return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
+	}
 	return nil
 }
