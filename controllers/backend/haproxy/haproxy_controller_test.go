@@ -99,6 +99,13 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 	},
 }
 
+var monitor = &lbv1.Monitor{
+	Name:        "test-monitor",
+	MonitorType: "http",
+	Path:        "/health",
+	Port:        80,
+}
+
 var pool = &lbv1.Pool{
 	Name: "test-pool",
 	Members: []lbv1.PoolMember{{
@@ -183,86 +190,7 @@ var _ = Describe("When using a HAProxy backend", Ordered, func() {
 		// fmt.Fprintf(GinkgoWriter, "DATA: %s", httpdata)
 	})
 
-	// Context("when handling load balancer monitors", func() {
-	// 	It("Should get a monitor", func() {
-	// 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-	// 		Expect(err).To(BeNil())
-	// 		err = createdBackend.Provider.Connect()
-	// 		Expect(err).To(BeNil())
-	// 		_, err = createdBackend.Provider.GetMonitor(monitor)
-	// 		Expect(httpurl).To(Equal("/nitro/v1/config/lbmonitor/test-monitor"))
-	// 		Expect(httpop).To(Equal("GET"))
-	// 		Expect(err).To(BeNil())
-	// 	})
-
-	// 	It("Should create a monitor", func() {
-	// 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-	// 		Expect(err).To(BeNil())
-	// 		err = createdBackend.Provider.Connect()
-	// 		Expect(err).To(BeNil())
-	// 		m, err := createdBackend.Provider.CreateMonitor(monitor)
-	// 		Expect(httpurl).To(Equal("/nitro/v1/config/lbmonitor?idempotent=yes"))
-	// 		Expect(httpop).To(Equal("POST"))
-
-	// 		// <map[string]interface {} | len:1>: {
-	// 		// 	"lbmonitor": <map[string]interface {} | len:7>{
-	// 		// 		"destport": <float64>80,
-	// 		// 		"downtime": <float64>16,
-	// 		// 		"httprequest": <string>"GET /health",
-	// 		// 		"interval": <float64>5,
-	// 		// 		"monitorname": <string>"test-monitor",
-	// 		// 		"respcode": <string>"",
-	// 		// 		"type": <string>"HTTP",
-	// 		// 	},
-	// 		// }
-
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["destport"]).To(Equal(float64(80)))
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["httprequest"]).To(Equal("GET /health"))
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["monitorname"]).To(Equal("test-monitor"))
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["type"]).To(Equal("HTTP"))
-	// 		Expect(err).To(BeNil())
-	// 		Expect(m).NotTo(BeNil())
-	// 	})
-
-	// 	It("Should delete the monitor", func() {
-	// 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-	// 		Expect(err).To(BeNil())
-	// 		err = createdBackend.Provider.Connect()
-	// 		Expect(err).To(BeNil())
-	// 		err = createdBackend.Provider.DeleteMonitor(monitor)
-	// 		Expect(httpurl).To(Equal("/nitro/v1/config/lbmonitor/test-monitor?args=monitorname:test-monitor,type:http"))
-	// 		Expect(httpop).To(Equal("DELETE"))
-	// 		Expect(err).To(BeNil())
-	// 	})
-
-	// 	It("Should edit the monitor", func() {
-	// 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-	// 		Expect(err).To(BeNil())
-	// 		err = createdBackend.Provider.Connect()
-	// 		Expect(err).To(BeNil())
-	// 		err = createdBackend.Provider.EditMonitor(monitor)
-	// 		Expect(httpurl).To(Equal("/nitro/v1/config/lbmonitor?idempotent=yes"))
-	// 		Expect(httpop).To(Equal("POST"))
-	// 		// <map[string]interface {} | len:1>: {
-	// 		// 	"lbmonitor": <map[string]interface {} | len:7>{
-	// 		// 		"destport": <float64>80,
-	// 		// 		"downtime": <float64>16,
-	// 		// 		"httprequest": <string>"GET /health",
-	// 		// 		"interval": <float64>5,
-	// 		// 		"monitorname": <string>"test-monitor",
-	// 		// 		"respcode": <string>"",
-	// 		// 		"type": <string>"HTTP",
-	// 		// 	},
-	// 		// }
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["destport"]).To(Equal(float64(80)))
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["httprequest"]).To(Equal("GET /health"))
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["monitorname"]).To(Equal("test-monitor"))
-	// 		Expect(httpdata["lbmonitor"].(map[string]interface{})["type"]).To(Equal("HTTP"))
-	// 		Expect(err).To(BeNil())
-	// 	})
-	// })
-
-	Context("when handling load balancer pools", func() {
+	Context("when managing HAProxy", func() {
 		var createdBackend *BackendController
 		var err error
 		BeforeEach(func() {
@@ -271,108 +199,125 @@ var _ = Describe("When using a HAProxy backend", Ordered, func() {
 			_ = createdBackend.Provider.Connect()
 		})
 
-		It("Should get a pool", func() {
-			_, _ = createdBackend.Provider.GetPool(pool)
-			url := "/v2/services/haproxy/configuration/backends/test-pool"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
-			// Our mock returns an empty map, so we can't check for equality
-			// Expect(err).To(BeNil())
+		Context("when handling load balancer monitors", func() {
+			It("Should get a monitor", func() {
+				_, err = createdBackend.Provider.GetMonitor(monitor)
+				Expect(err).To(BeNil())
+			})
+
+			It("Should create a monitor", func() {
+				err := createdBackend.Provider.CreateMonitor(monitor)
+				Expect(err).To(BeNil())
+			})
+
+			It("Should delete the monitor", func() {
+				err = createdBackend.Provider.DeleteMonitor(monitor)
+				Expect(err).To(BeNil())
+			})
+
+			It("Should edit the monitor", func() {
+				err = createdBackend.Provider.EditMonitor(monitor)
+				Expect(err).To(BeNil())
+			})
 		})
 
-		It("Should create a pool", func() {
-			err = createdBackend.Provider.CreatePool(pool)
-			url := "/v2/services/haproxy/configuration/backends"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("POST"))
-			//   <map[string]interface {} | len:1>: {
-			//       "name": <string>"test-pool",
-			//   }
-			Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
-			// We get an error because the lib expects a specific return and our mock server don't do this.
-			// Lets just check the status code.
-			//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
-			Expect(err).To(MatchError(MatchRegexp("status 200")))
-			// Expect(m).NotTo(BeNil())
+		Context("when handling load balancer pools", func() {
+			It("Should get a pool", func() {
+				_, _ = createdBackend.Provider.GetPool(pool)
+				url := "/v2/services/haproxy/configuration/backends/test-pool"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
+				// Our mock returns an empty map, so we can't check for equality
+				// Expect(err).To(BeNil())
+			})
+
+			It("Should create a pool", func() {
+				err = createdBackend.Provider.CreatePool(pool)
+				url := "/v2/services/haproxy/configuration/backends"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("POST"))
+				//   <map[string]interface {} | len:1>: {
+				//       "name": <string>"test-pool",
+				//   }
+				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
+				// We get an error because the lib expects a specific return and our mock server don't do this.
+				// Lets just check the status code.
+				//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+				// Expect(m).NotTo(BeNil())
+			})
+
+			It("Should delete the pool", func() {
+				err = createdBackend.Provider.DeletePool(pool)
+				url := "/v2/services/haproxy/configuration/backends/test-pool"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("DELETE"))
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+				// Expect(err).To(BeNil())
+			})
+
+			It("Should edit the pool", func() {
+				_ = createdBackend.Provider.EditPool(pool)
+				url := "/v2/services/haproxy/configuration/backends/test-pool"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
+
+				// Expect(err).To(MatchError(MatchRegexp("status 200")))
+				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
+				// Expect(err).To(BeNil())
+			})
 		})
 
-		It("Should delete the pool", func() {
-			err = createdBackend.Provider.DeletePool(pool)
-			url := "/v2/services/haproxy/configuration/backends/test-pool"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("DELETE"))
-			Expect(err).To(MatchError(MatchRegexp("status 200")))
-			// Expect(err).To(BeNil())
-		})
+		Context("when handling load balancer VIPs", func() {
+			It("Should get a VIP", func() {
+				_, _ = createdBackend.Provider.GetVIP(VIP)
 
-		It("Should edit the pool", func() {
-			_ = createdBackend.Provider.EditPool(pool)
-			url := "/v2/services/haproxy/configuration/backends/test-pool"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
+				url := "/v2/services/haproxy/configuration/frontends/test-vip"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
+			})
 
-			// Expect(err).To(MatchError(MatchRegexp("status 200")))
-			Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
-			// Expect(err).To(BeNil())
-		})
-	})
+			It("Should create a VIP", func() {
+				err := createdBackend.Provider.CreateVIP(VIP)
+				url := "/v2/services/haproxy/configuration/frontends"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("POST"))
+				//   {"default_backend":"test-pool","mode":"tcp","name":"test-vip"}
+				Eventually(gjson.Get(httpdata.data[i], "default_backend").String(), timeout, interval).Should(Equal("test-pool"))
+				Eventually(gjson.Get(httpdata.data[i], "mode").String(), timeout, interval).Should(Equal("tcp"))
+				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-vip"))
+				// We get an error because the lib expects a specific return and our mock server don't do this.
+				// Lets just check the status code.
+				//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+			})
 
-	Context("when handling load balancer VIPs", func() {
-		var createdBackend *BackendController
-		var err error
-		BeforeEach(func() {
-			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
-			_ = createdBackend.Provider.Connect()
-		})
-		It("Should get a VIP", func() {
-			_, _ = createdBackend.Provider.GetVIP(VIP)
+			It("Should delete the VIP", func() {
+				err = createdBackend.Provider.DeleteVIP(VIP)
+				url := "/v2/services/haproxy/configuration/frontends/test-vip"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("DELETE"))
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+			})
 
-			url := "/v2/services/haproxy/configuration/frontends/test-vip"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
-		})
-
-		It("Should create a VIP", func() {
-			err := createdBackend.Provider.CreateVIP(VIP)
-			url := "/v2/services/haproxy/configuration/frontends"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("POST"))
-			//   {"default_backend":"test-pool","mode":"tcp","name":"test-vip"}
-			Eventually(gjson.Get(httpdata.data[i], "default_backend").String(), timeout, interval).Should(Equal("test-pool"))
-			Eventually(gjson.Get(httpdata.data[i], "mode").String(), timeout, interval).Should(Equal("tcp"))
-			Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-vip"))
-			// We get an error because the lib expects a specific return and our mock server don't do this.
-			// Lets just check the status code.
-			//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
-			Expect(err).To(MatchError(MatchRegexp("status 200")))
-		})
-
-		It("Should delete the VIP", func() {
-			err = createdBackend.Provider.DeleteVIP(VIP)
-			url := "/v2/services/haproxy/configuration/frontends/test-vip"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("DELETE"))
-			Expect(err).To(MatchError(MatchRegexp("status 200")))
-		})
-
-		It("Should edit the VIP", func() {
-			err = createdBackend.Provider.EditVIP(VIP)
-			err = createdBackend.Provider.DeleteVIP(VIP)
-			url := "/v2/services/haproxy/configuration/frontends/"
-			Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			i := indexOf(url, httpdata.url)
-			Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
-			Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-vip"))
-			Eventually(gjson.Get(httpdata.data[i], "mode").String(), timeout, interval).Should(Equal("http"))
-			Expect(err).To(MatchError(MatchRegexp("status 200")))
+			It("Should edit the VIP", func() {
+				err = createdBackend.Provider.EditVIP(VIP)
+				err = createdBackend.Provider.DeleteVIP(VIP)
+				url := "/v2/services/haproxy/configuration/frontends/"
+				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
+				i := indexOf(url, httpdata.url)
+				Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
+				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-vip"))
+				Eventually(gjson.Get(httpdata.data[i], "mode").String(), timeout, interval).Should(Equal("http"))
+				Expect(err).To(MatchError(MatchRegexp("status 200")))
+			})
 		})
 	})
 })
