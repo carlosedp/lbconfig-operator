@@ -28,6 +28,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/carlosedp/haproxy-go-client/client"
 	"github.com/carlosedp/haproxy-go-client/client/backend"
@@ -107,7 +108,6 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 
 // Connect creates a connection to the IP Load Balancer
 func (p *HAProxyProvider) Connect() error {
-
 	// Use Sites to grab the current config version of the HAProxy
 	sites, err := p.haproxy.Sites.GetSites(&sites.GetSitesParams{Context: p.ctx}, p.auth)
 	if err != nil {
@@ -207,13 +207,13 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		Context:       p.ctx,
 	}, p.auth)
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "getBackendNotFound") {
 		p.CloseError()
 		return nil, fmt.Errorf("error getting pool: %v", err)
 	}
 
 	// Return in case pool does not exist
-	if newPool.Payload.Data == nil {
+	if newPool == nil {
 		return nil, nil
 	}
 
@@ -278,7 +278,7 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 		return fmt.Errorf("error editing pool(ERR) %s: %v", pool.Name, err)
 	}
 	// Return in case pool does not exist
-	if backendOK.Payload == nil {
+	if backendOK == nil {
 		return nil
 	}
 
@@ -453,13 +453,13 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 		Context:       p.ctx,
 	}, p.auth)
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "getFrontendNotFound") {
 		p.CloseError()
 		return nil, fmt.Errorf("error getting haproxy frontend %s: %v", v.Name, err)
 	}
 
 	// // Return in case VIP does not exist
-	if getFrontend.Payload.Data == nil {
+	if getFrontend == nil {
 		return nil, nil
 	}
 	getFrontendBind, err := p.haproxy.Bind.GetBind(
