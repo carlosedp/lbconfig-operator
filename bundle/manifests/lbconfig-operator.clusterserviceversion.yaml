@@ -97,7 +97,7 @@ metadata:
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
-    containerImage: docker.io/carlosedp/lbconfig-operator:v0.2.1
+    containerImage: docker.io/carlosedp/lbconfig-operator:v0.3.0
     createdAt: "2022-08-15T12:00:00Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
@@ -108,7 +108,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/carlosedp/lbconfig-operator
     support: ""
-  name: lbconfig-operator.v0.2.1
+  name: lbconfig-operator.v0.3.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -412,7 +412,7 @@ spec:
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
                 - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
@@ -436,7 +436,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: docker.io/carlosedp/lbconfig-operator:v0.2.1
+                image: docker.io/carlosedp/lbconfig-operator:v0.3.0
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -531,4 +531,4 @@ spec:
   provider:
     name: Carlos Eduardo de Paula
   selector: {}
-  version: 0.2.1
+  version: 0.3.0
