@@ -538,11 +538,44 @@ func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(ctx context.Contex
 	defer span.End()
 
 	reqLogger := log.FromContext(ctx)
-	err := backend.HandleCleanup(ctx, lb)
+
+	// ----------------------------------------
+	// Connect to Backend Provider
+	// ----------------------------------------
+	err := func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - Connect (for cleanup)")
+		defer span.End()
+		return backend.Provider.Connect()
+	}(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return err
+	}
+
+	err = backend.HandleCleanup(ctx, lb)
 	if err != nil {
 		reqLogger.Error(err, "error finalizing ExternalLoadBalancer")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	// ----------------------------------------
+	// Close Provider and save config if required.
+	// Depends on provider implementation
+	// ----------------------------------------
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - Close (for cleanup)")
+		defer span.End()
+		return backend.Provider.Close()
+	}(ctx)
+	if err != nil {
+		reqLogger.Error(err, "unable to close the backend provider")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
 		return err
 	}
 
