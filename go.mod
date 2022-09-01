@@ -10,7 +10,7 @@ require (
 	github.com/go-openapi/strfmt v0.21.3
 	github.com/haproxytech/client-native/v4 v4.0.0
 	github.com/onsi/ginkgo/v2 v2.1.6
-	github.com/onsi/gomega v1.20.1
+	github.com/onsi/gomega v1.20.2
 	github.com/prometheus/client_golang v1.13.0
 	github.com/scottdware/go-bigip v0.0.0-20220517145708-9fe3e2f9f005
 	github.com/tidwall/gjson v1.14.3
