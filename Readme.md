@@ -47,6 +47,7 @@ Create the instances for each Load Balancer instance you need (for example one f
 
 * **`F5_BigIP`** - Tested on F5 BigIP version 15
 * **`Citrix_ADC`** - Tested on Citrix ADC (Netscaler) version 13
+* **`HAProxy`** - HAProxy with Dataplane API. ([Docs](./docs/haproxy/))
 * **`Dummy`** - Dummy backend used for testing to only print log messages on operations
 
 Create the secret holding the Load Balancer API user and password:
