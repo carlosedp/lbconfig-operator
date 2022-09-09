@@ -652,7 +652,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: docker.io/carlosedp/lbconfig-operator:v0.3.0
+        image: docker.io/carlosedp/lbconfig-operator:v0.4.0
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
