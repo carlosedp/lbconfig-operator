@@ -47,7 +47,8 @@ jobs:
       - name: Check if there are changes
         id: changes
         run: |
-          if [[ $(git status --porcelain) != '' ]]; then echo '::set-output name=changed::true'; else echo '::set-output name=changed::false'; fi
+          git status --porcelain
+          if [[ $(git status --porcelain) ]]; then echo '::set-output name=changed::true'; else echo '::set-output name=changed::false'; fi
 
       - name: Bundle files changed, failed run
         if: steps.changes.outputs.changed == 'true'
