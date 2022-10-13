@@ -34,7 +34,7 @@ The main users for this operator is enterprise deployments or clusters composed 
 Apply the operator manifest into the cluster:
 
 ```sh
-kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.3.0/manifests/deploy.yaml
+kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.4.0/manifests/deploy.yaml
 ```
 
 This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
