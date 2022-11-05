@@ -92,7 +92,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --trace --race --cover --covermode=atomic --coverprofile=coverage.out .
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --trace --race --cover --covermode=atomic --coverprofile=coverage.out .
 
 ##@ Build
 
@@ -114,7 +114,7 @@ docker-build: ## Build docker image for the operator locally (linux/amd64).
 docker-push: ## Build and push docker image for the operator.
 	$(BUILDER) push ${IMG}
 
-ARCHS ?= amd64 arm64 ppc64le
+ARCHS ?= amd64 arm64 ppc64le s390x
 .PHONY: docker-cross
 docker-cross: ## Build operator binaries locally and then build/push the Docker image
 # docker-cross: test bundle
@@ -127,6 +127,23 @@ docker-cross: ## Build operator binaries locally and then build/push the Docker 
 		-o output/manager-$$OS-$$ARCH main.go ; \
 	done
 	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile .
+
+# PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
+# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
+# - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
+# - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
+# - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
+# To properly provided solutions that supports more than one platform you should use this option.
+PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+.PHONY: docker-buildx
+docker-buildx: test ## Build and push docker image for the manager for cross-platform support
+	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+	- docker buildx create --name project-v3-builder
+	docker buildx use project-v3-builder
+	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross
+	- docker buildx rm project-v3-builder
+	rm Dockerfile.cross
 
 ##@ Deployment
 
