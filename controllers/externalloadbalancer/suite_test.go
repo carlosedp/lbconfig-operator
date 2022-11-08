@@ -30,7 +30,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/ginkgo/v2/types"
@@ -64,8 +63,7 @@ var (
 func TestBackendController(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Operator Controller Suite", types.ReporterConfig{
-		Succinct:          true,
-		SlowSpecThreshold: 30 * time.Second,
+		Succinct: true,
 	})
 }
 
