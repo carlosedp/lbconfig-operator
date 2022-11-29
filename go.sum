@@ -316,8 +316,8 @@ github.com/googleapis/gax-go/v2 v2.3.0/go.mod h1:b8LNqSzNabLiUpXKkY7HAR5jr6bIT99
 github.com/googleapis/gax-go/v2 v2.4.0/go.mod h1:XOTVJ59hdnfJLIP/dh8n5CGryZR2LxK9wbMD5+iXC6c=
 github.com/googleapis/go-type-adapters v1.0.0/go.mod h1:zHW75FOG2aur7gAO2B+MLby+cLsWGBF62rFAi7WjWO4=
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
-github.com/haproxytech/client-native/v4 v4.0.0 h1:4xwQJVWskXPgOEiy6sOstyVLRCGECo2N8XB+Bc5k5hQ=
-github.com/haproxytech/client-native/v4 v4.0.0/go.mod h1:GS5a2VM6kz+IMN52h0VIW7u5udpuSlkzqv+NTyBQMfo=
+github.com/haproxytech/client-native/v4 v4.0.1 h1:36o1nSLjGbzKobDoJM6+aFjeovQqUoDYWontwZ1GeRc=
+github.com/haproxytech/client-native/v4 v4.0.1/go.mod h1:GS5a2VM6kz+IMN52h0VIW7u5udpuSlkzqv+NTyBQMfo=
 github.com/hashicorp/go-hclog v0.16.1/go.mod h1:whpDNt7SSdeAju8AWKIWsul05p54N/39EeqMAyrmvFQ=
 github.com/hashicorp/go-hclog v1.2.2 h1:ihRI7YFwcZdiSD7SIenIhHfQH3OuDvWerAUBZbeQS3M=
 github.com/hashicorp/go-hclog v1.2.2/go.mod h1:W4Qnvbt70Wk/zYJryRzDRU/4r0kIg0PVHBcfoyhpF5M=
