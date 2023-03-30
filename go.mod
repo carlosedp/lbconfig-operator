@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/carlosedp/haproxy-go-client v1.0.1
 	github.com/citrix/adc-nitro-go v0.0.0-20220729103504-dcff5ad76fcd
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-openapi/runtime v0.25.0
 	github.com/go-openapi/strfmt v0.21.7
 	github.com/haproxytech/client-native/v4 v4.0.0
