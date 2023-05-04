@@ -11,7 +11,7 @@ require (
 	github.com/haproxytech/client-native/v4 v4.0.0
 	github.com/onsi/ginkgo/v2 v2.9.3
 	github.com/onsi/gomega v1.27.6
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 	github.com/scottdware/go-bigip v0.0.0-20220517145708-9fe3e2f9f005
 	github.com/tidwall/gjson v1.14.4
 	go.opentelemetry.io/otel v1.15.1
