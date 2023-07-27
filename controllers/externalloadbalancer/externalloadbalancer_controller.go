@@ -49,7 +49,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -486,36 +485,37 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&lbv1.ExternalLoadBalancer{}).
 		// Watch node changes
-		Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-			externalLoadBalancerList := &lbv1.ExternalLoadBalancerList{}
-			client := mgr.GetClient()
+		Watches(&corev1.Node{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+				externalLoadBalancerList := &lbv1.ExternalLoadBalancerList{}
+				client := mgr.GetClient()
 
-			err := client.List(context.TODO(), externalLoadBalancerList)
-			if err != nil {
-				return []reconcile.Request{}
-			}
-			var reconcileRequests []reconcile.Request
-			if node, ok := obj.(*corev1.Node); ok {
-				// Reconcile all ExternalLoadBalancers that match labels
-				lbToReconcile := make(map[string]bool)
-				for _, lb := range externalLoadBalancerList.Items {
-					labels := computeLabels(lb)
-					if containsLabels(node.Labels, labels) {
-						rec := reconcile.Request{
-							NamespacedName: types.NamespacedName{
-								Name:      lb.Name,
-								Namespace: lb.Namespace,
-							},
-						}
-						if _, ok := lbToReconcile[lb.Name]; !ok {
-							lbToReconcile[lb.Name] = true
-							reconcileRequests = append(reconcileRequests, rec)
+				err := client.List(context.TODO(), externalLoadBalancerList)
+				if err != nil {
+					return []reconcile.Request{}
+				}
+				var reconcileRequests []reconcile.Request
+				if node, ok := obj.(*corev1.Node); ok {
+					// Reconcile all ExternalLoadBalancers that match labels
+					lbToReconcile := make(map[string]bool)
+					for _, lb := range externalLoadBalancerList.Items {
+						labels := computeLabels(lb)
+						if containsLabels(node.Labels, labels) {
+							rec := reconcile.Request{
+								NamespacedName: types.NamespacedName{
+									Name:      lb.Name,
+									Namespace: lb.Namespace,
+								},
+							}
+							if _, ok := lbToReconcile[lb.Name]; !ok {
+								lbToReconcile[lb.Name] = true
+								reconcileRequests = append(reconcileRequests, rec)
+							}
 						}
 					}
 				}
-			}
-			return reconcileRequests
-		}),
+				return reconcileRequests
+			}),
 		).
 		// Filter watched events to check only some fields on Node updates
 		WithEventFilter(predicate.Funcs{

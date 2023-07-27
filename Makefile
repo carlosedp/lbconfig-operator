@@ -8,7 +8,7 @@ CHANNELS = "beta"
 DEFAULT_CHANNEL = "beta"
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.24.1
+ENVTEST_K8S_VERSION = 1.26
 
 # Which container runtime to use
 BUILDER = docker
@@ -97,7 +97,7 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 ##@ Build
 
 .PHONY: build
-build: generate fmt vet ## Build manager binary.
+build: manifests generate fmt vet ## Build manager binary.
 	go build -a -installsuffix cgo \
 		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
 		-o output/manager main.go
