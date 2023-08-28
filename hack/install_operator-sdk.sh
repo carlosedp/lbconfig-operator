@@ -1,18 +1,18 @@
 #!/bin/bash
-SDK_VERSION=${VERSION:-1.23.0}
+SDK_VERSION=${VERSION:-1.31.0}
 
 cd /tmp || exit
 sudo apt-get install -y curl gpg
 case $(uname -m) in
-  x86_64)
-    ARCH=amd64
-    ;;
-  aarch64)
-    ARCH=arm64
-    ;;
-  *)
-    ARCH=$(uname -m)
-    ;;
+x86_64)
+  ARCH=amd64
+  ;;
+aarch64)
+  ARCH=arm64
+  ;;
+*)
+  ARCH=$(uname -m)
+  ;;
 esac
 OS=$(uname | awk '{print tolower($0)}')
 OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/v${SDK_VERSION}
