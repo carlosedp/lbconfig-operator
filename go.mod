@@ -1,6 +1,6 @@
 module github.com/carlosedp/lbconfig-operator
 
-go 1.18
+go 1.21
 
 require (
 	github.com/carlosedp/haproxy-go-client v1.0.1
