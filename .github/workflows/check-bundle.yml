@@ -52,7 +52,7 @@ jobs:
 
       - name: Bundle files changed, failed run
         if: steps.changes.outputs.changed == 'true'
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             core.setFailed('Files changed in bundle generation. Please run `make bundle` and commit.')
