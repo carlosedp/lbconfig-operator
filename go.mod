@@ -7,7 +7,7 @@ require (
 	github.com/citrix/adc-nitro-go v0.0.0-20230727085202-6a87fcfe77de
 	github.com/go-logr/logr v1.3.0
 	github.com/go-openapi/runtime v0.26.0
-	github.com/go-openapi/strfmt v0.21.7
+	github.com/go-openapi/strfmt v0.21.8
 	github.com/haproxytech/client-native/v4 v4.0.0
 	github.com/onsi/ginkgo/v2 v2.13.1
 	github.com/onsi/gomega v1.30.0
