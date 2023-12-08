@@ -359,12 +359,14 @@ func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 	server := &server.CreateServerParams{
 		Backend: &pool.Name,
 		Data: &models.Server{
-			Name:            m.Node.Name,
-			Address:         m.Node.Host,
-			Port:            pointer.Int64(int64(m.Port)),
-			Check:           "enabled",
-			Inter:           pointer.Int64Ptr(1000), // in ms
-			HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+			Name:    m.Node.Name,
+			Address: m.Node.Host,
+			Port:    pointer.Int64(int64(m.Port)),
+			ServerParams: models.ServerParams{
+				Check:           "enabled",
+				Inter:           pointer.Int64Ptr(1000), // in ms
+				HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+			},
 		},
 		TransactionID: &p.transaction,
 		Context:       p.ctx,
@@ -398,13 +400,15 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 		Backend: &pool.Name,
 		Name:    m.Node.Name,
 		Data: &models.Server{
-			Name:            m.Node.Name,
-			Address:         m.Node.Host,
-			Port:            pointer.Int64(int64(m.Port)),
-			Check:           "enabled",
-			Maintenance:     maintenanceStatus,
-			Inter:           pointer.Int64Ptr(1000), // in ms
-			HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+			Name:    m.Node.Name,
+			Address: m.Node.Host,
+			Port:    pointer.Int64(int64(m.Port)),
+			ServerParams: models.ServerParams{
+				Check:           "enabled",
+				Maintenance:     maintenanceStatus,
+				Inter:           pointer.Int64Ptr(1000), // in ms
+				HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+			},
 		},
 		TransactionID: &p.transaction,
 		Context:       p.ctx,

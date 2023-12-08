@@ -132,8 +132,8 @@ github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1/go.mod h1:kpwsk12EmLe
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/google/uuid v1.4.0 h1:MtMxsa51/r9yyhkyLsVeVt0B+BGQZzpQiTQ4eHZ8bc4=
 github.com/google/uuid v1.4.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/haproxytech/client-native/v4 v4.0.0 h1:4xwQJVWskXPgOEiy6sOstyVLRCGECo2N8XB+Bc5k5hQ=
-github.com/haproxytech/client-native/v4 v4.0.0/go.mod h1:GS5a2VM6kz+IMN52h0VIW7u5udpuSlkzqv+NTyBQMfo=
+github.com/haproxytech/client-native/v4 v4.2.0 h1:2jIu4cquH5sp77/BFhBnMLmWZMQjC4kaG2lxmwxMJrs=
+github.com/haproxytech/client-native/v4 v4.2.0/go.mod h1:lDPpL4NhjyTnfffXd77q4GAIWI8JuvrwvNZJrpUl2ps=
 github.com/hashicorp/go-hclog v0.16.1/go.mod h1:whpDNt7SSdeAju8AWKIWsul05p54N/39EeqMAyrmvFQ=
 github.com/hashicorp/go-hclog v1.5.0 h1:bI2ocEMgcVlz55Oj1xZNBsVi900c7II+fWDyV9o+13c=
 github.com/hashicorp/go-hclog v1.5.0/go.mod h1:W4Qnvbt70Wk/zYJryRzDRU/4r0kIg0PVHBcfoyhpF5M=
