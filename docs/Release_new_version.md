@@ -31,4 +31,4 @@ For OperatorHub community, checkout <https://github.com/k8s-operatorhub/communit
 
 Fork the repo, create a branch, commit and open a PR upstream.
 
-For OpenShift OperatorHub, checkout <> and do a similar process as above.
+For OpenShift OperatorHub, checkout <https://github.com/redhat-openshift-ecosystem/community-operators-prod> and do a similar process as above.

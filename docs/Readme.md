@@ -4,21 +4,22 @@ This file aggregates all documentation for the operator. Some information is als
 
 ## Contents <!-- omit in toc -->
 
-* [Additional documents](#additional-documents)
-* [High level architecture](#high-level-architecture)
-* [Using the Operator](#using-the-operator)
-  * [Deploy the Operator to your cluster](#deploy-the-operator-to-your-cluster)
-  * [Create ExternalLoadBalancer instances](#create-externalloadbalancer-instances)
-    * [Sample CRDs and Available Fields](#sample-crds-and-available-fields)
-* [Prometheus Metrics](#prometheus-metrics)
-* [Planned Features](#planned-features)
+- [Additional documents](#additional-documents)
+- [High level architecture](#high-level-architecture)
+- [Using the Operator](#using-the-operator)
+  - [Deploy the Operator to your cluster](#deploy-the-operator-to-your-cluster)
+  - [Create ExternalLoadBalancer instances](#create-externalloadbalancer-instances)
+    - [Sample CRDs and Available Fields](#sample-crds-and-available-fields)
+- [Prometheus Metrics](#prometheus-metrics)
+- [Planned Features](#planned-features)
 
 ## Additional documents
 
-* [Adding new Backends](Creating_Backends.md)
-* [Operator Tracing with Jaeger](Tracing.md)
-* [Developing and Testing](Developing_Testing.md)
-* [HAProxy Backend](./haproxy/Readme.md)
+- [Adding new Backends](Creating_Backends.md)
+- [Operator Tracing with Jaeger](Tracing.md)
+- [Developing and Testing](Developing_Testing.md)
+- [HAProxy Backend](./haproxy/Readme.md)
+- [Releasing a new version](./Release_new_version.md)
 
 
 The LBConfig Operator, manages the configuration of External Load Balancer instances (on third-party equipment via it's API) and creates VIPs and IP Pools with Monitors for a set of OpenShift or Kubernetes nodes like Master-nodes (Control-Plane), Infra nodes (where the Routers or Ingress controllers are located) or based on it's roles and/or labels.
@@ -39,7 +40,7 @@ Apply the operator manifest into the cluster:
 kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.2.0/manifests/deploy.yaml
 ```
 
-This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
+This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64`, `ppc64le` and `s390x` architectures.
 
 ### Create ExternalLoadBalancer instances
 
@@ -47,9 +48,10 @@ Create the instances for each Load Balancer instance you need (for example one f
 
 **The provider `vendor` field can be (case-sensitive):**
 
-* **`F5_BigIP`** - Tested on F5 BigIP version 15
-* **`Citrix_ADC`** - Tested on Citrix ADC (Netscaler) version 13
-* **`Dummy`** - Dummy backend used for testing to only print log messages on operations
+- **`F5_BigIP`** - Tested on F5 BigIP version 15
+- **`Citrix_ADC`** - Tested on Citrix ADC (Netscaler) version 13
+- **`HAProxy`** - HAProxy with Dataplane API. ([Docs](./docs/haproxy/))
+- **`Dummy`** - Dummy backend used for testing to only print log messages on operations
 
 Create the secret holding the Load Balancer API user and password:
 
@@ -175,15 +177,15 @@ externallb_nodes{ip="192.168.1.40",name="externalloadbalancer-master-sample",nam
 
 ## Planned Features
 
-* Add Multiple backends (not in priority order)
-  * [x] F5 BigIP
-  * [x] Citrix ADC (Netscaler)
-  * [ ] HAProxy
-  * [ ] NGINX
-  * [ ] NSX
-  * [x] Dummy backend
-* [ ] Dynamic port configuration from NodePort services
-* [ ] Check LB configuration on finalizer
-* [ ] Add tests
-* [x] Add Metrics/Tracing/Stats
-* [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
+- Add Multiple backends (not in priority order)
+  - [x] F5 BigIP
+  - [x] Citrix ADC (Netscaler)
+  - [x] HAProxy
+  - [ ] NGINX
+  - [ ] NSX
+  - [x] Dummy backend
+- [ ] Dynamic port configuration from NodePort services
+- [ ] Check LB configuration on finalizer
+- [x] Add tests
+- [x] Add Metrics/Tracing/Stats
+- [x] Upgrade to go.kubebuilder.io/v3 - <https://master.book.kubebuilder.io/migration/v2vsv3.html>
