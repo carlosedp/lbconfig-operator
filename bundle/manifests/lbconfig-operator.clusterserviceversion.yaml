@@ -98,13 +98,13 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: docker.io/carlosedp/lbconfig-operator:v0.4.0
-    createdAt: "2023-08-09T18:37:45Z"
+    createdAt: "2023-12-08T13:13:24Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
       dynamically via API.
     k8sMaxVersion: ""
     k8sMinVersion: ""
-    operators.operatorframework.io/builder: operator-sdk-v1.31.0
+    operators.operatorframework.io/builder: operator-sdk-v1.32.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/carlosedp/lbconfig-operator
     support: ""
