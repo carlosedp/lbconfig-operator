@@ -1,4 +1,5 @@
 resources:
-- ../default
-- ../samples
-- ../scorecard
+  - bases/lbconfig-operator.clusterserviceversion.yaml
+  - ../default
+  - ../samples
+  - ../scorecard

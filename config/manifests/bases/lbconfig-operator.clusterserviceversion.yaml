@@ -6,7 +6,7 @@ metadata:
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
-    containerImage: docker.io/carlosedp/lbconfig-operator:v0.0.0
+    containerImage: quay.io/carlosedp/lbconfig-operator:v0.0.0
     createdAt: "2022-08-15T12:00:00Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
@@ -344,7 +344,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: docker.io/carlosedp/lbconfig-operator:v0.0.0
+                image: quay.io/carlosedp/lbconfig-operator:v0.0.0
                 livenessProbe:
                   httpGet:
                     path: /healthz

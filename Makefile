@@ -1,11 +1,25 @@
 # Current Operator version
-VERSION ?= 0.4.0
+VERSION ?= 0.4.1
+# VERSION ?= $(shell git describe --tags | sed 's/^v//') # Use this to get the latest tag
+# Previous Operator version
+PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
+
 # Operator repository
-REPO ?= docker.io/carlosedp
+REPO ?= quay.io/carlosedp
 
 # Publishing channel
 CHANNELS = "beta"
 DEFAULT_CHANNEL = "beta"
+
+# Architectures to build binaries and Docker images
+ARCHS ?= amd64 arm64 ppc64le s390x
+# Interpolated platform and architecture list for docker buildx separated by comma
+# PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
+# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
+# - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
+# - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
+# - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
+PLATFORMS = $(shell echo $(ARCHS) | sed -e 's~[^ ]*~linux/&~g' | tr ' ' ',')
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26
@@ -66,6 +80,10 @@ all: build
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+.PHONY: print-%
+print-%: ## Print any variable from the Makefile. Use as `make print-VARIABLE`
+	@echo $($*)
+
 ##@ Development
 
 .PHONY: manifests
@@ -114,10 +132,9 @@ docker-build: ## Build docker image for the operator locally (linux/amd64).
 docker-push: ## Build and push docker image for the operator.
 	$(BUILDER) push ${IMG}
 
-ARCHS ?= amd64 arm64 ppc64le s390x
+
 .PHONY: docker-cross
 docker-cross: ## Build operator binaries locally and then build/push the Docker image
-# docker-cross: test bundle
 	@for ARCH in $(ARCHS) ; do \
 		OS=linux ; \
 		echo "Building binary for $$ARCH at output/manager-$$OS-$$ARCH" ; \
@@ -126,15 +143,9 @@ docker-cross: ## Build operator binaries locally and then build/push the Docker 
 		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
 		-o output/manager-$$OS-$$ARCH main.go ; \
 	done
-	docker buildx build -t ${IMG} --platform=linux/amd64,linux/arm64,linux/ppc64le --push -f Dockerfile .
+	docker buildx build -t ${IMG} --platform=$(PLATFORMS) --push -f Dockerfile .
 
-# PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
-# - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
-# - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
 # To properly provided solutions that supports more than one platform you should use this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
 docker-buildx: test ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
@@ -260,10 +271,10 @@ olm-validate: bundle-push catalog-push ## Validates the bundle image.
 
 .PHONY: olm-run
 olm-run: olm-validate  ## Runs the bundle image in a KIND cluster
-ifeq ($(shell kind get clusters), test-operator)
+ifeq ($(shell kind get clusters > /dev/null 2>&1), test-operator)
 	@echo "Cluster already running"
 else
-	$(shell kind create cluster --name test-operator)
+	$(shell kind create cluster --name test-operator > /dev/null 2>&1)
 endif
 	kubectl config use-context kind-test-operator
 	operator-sdk olm install --version=0.21.2 --timeout=5m || true
@@ -286,7 +297,8 @@ scorecard-run: ## Runs the scorecard validation (depends on a KIND cluster)
 
 .PHONY: testenv-teardown
 testenv-teardown:
-	kind delete cluster --name test-operator
+	kind delete cluster --name test-operator > /dev/null 2>&1
 
 .PHONY: dist
-dist: docker-cross bundle olm-validate  ## Build manifests and container image, pushing it to the registry
+dist: bundle olm-validate docker-cross  ## Build manifests and container images, pushing them to the registry
+	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
