@@ -42,7 +42,7 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/haproxytech/client-native/v4/models"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
@@ -141,7 +141,7 @@ func (p *HAProxyProvider) Close() error {
 	_, _, err := p.haproxy.Transactions.CommitTransaction(&transactions.CommitTransactionParams{
 		ID:          p.transaction,
 		Context:     p.ctx,
-		ForceReload: pointer.BoolPtr(true),
+		ForceReload: ptr.To[bool](true),
 	}, p.auth)
 	if err != nil {
 		p.CloseError()
@@ -361,11 +361,11 @@ func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 		Data: &models.Server{
 			Name:    m.Node.Name,
 			Address: m.Node.Host,
-			Port:    pointer.Int64(int64(m.Port)),
+			Port:    ptr.To[int64](int64(m.Port)),
 			ServerParams: models.ServerParams{
 				Check:           "enabled",
-				Inter:           pointer.Int64Ptr(1000), // in ms
-				HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+				Inter:           ptr.To[int64](1000), // in ms
+				HealthCheckPort: ptr.To[int64](int64(p.monitor.Port)),
 			},
 		},
 		TransactionID: &p.transaction,
@@ -402,12 +402,12 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 		Data: &models.Server{
 			Name:    m.Node.Name,
 			Address: m.Node.Host,
-			Port:    pointer.Int64(int64(m.Port)),
+			Port:    ptr.To[int64](int64(m.Port)),
 			ServerParams: models.ServerParams{
 				Check:           "enabled",
 				Maintenance:     maintenanceStatus,
-				Inter:           pointer.Int64Ptr(1000), // in ms
-				HealthCheckPort: pointer.Int64(int64(p.monitor.Port)),
+				Inter:           ptr.To[int64](1000),
+				HealthCheckPort: ptr.To[int64](int64(p.monitor.Port)),
 			},
 		},
 		TransactionID: &p.transaction,
@@ -471,7 +471,7 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 			Name:          v.Name,
 			TransactionID: &p.transaction,
 			ParentName:    &v.Name,
-			ParentType:    pointer.StringPtr("frontend"),
+			ParentType:    ptr.To[string]("frontend"),
 			Context:       p.ctx,
 		}, p.auth)
 	if err != nil {
@@ -514,7 +514,7 @@ func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) error {
 				Name: v.Name,
 			},
 			Address: v.IP,
-			Port:    pointer.Int64(int64(v.Port)),
+			Port:    ptr.To[int64](int64(v.Port)),
 		},
 		TransactionID: &p.transaction,
 		Context:       p.ctx,
@@ -554,7 +554,7 @@ func (p *HAProxyProvider) EditVIP(v *lbv1.VIP) error {
 				Name: v.Name,
 			},
 			Address: v.IP,
-			Port:    pointer.Int64(int64(v.Port)),
+			Port:    ptr.To[int64](int64(v.Port)),
 		},
 		TransactionID: &p.transaction,
 		Context:       p.ctx,
