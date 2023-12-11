@@ -18,7 +18,7 @@ There are multiple `make` targets available to ease development.
 5. Create the namespace, secret and ExternalLoadBalancer CRs in cluster
    1. Create the operator namespace with `kubectl create namespace lbconfig-operator-system`;
    2. Create the secret (for example for dummy) with: `kubectl create secret generic -n lbconfig-operator-system dummy-creds --from-literal=username=admin --from-literal=password=admin`
-   3. Create the CRs (for example for dummy backend) with: `kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml`
+   3. Create the CRs (for example for dummy backend) with: `kubectl apply -n lbconfig-operator-system -f config/samples/lb_v1_externalloadbalancer-dummy.yaml`
 
 **To deploy the operator in the cluster as a pod, the steps are:**
 

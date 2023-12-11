@@ -45,10 +45,10 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
 	controllers "github.com/carlosedp/lbconfig-operator/controllers/externalloadbalancer"
@@ -74,10 +74,11 @@ func init() {
 // about the application.
 func tracerProvider(url string, Version string) (*trace.TracerProvider, error) {
 	// Create the Jaeger exporter
-	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
+	exp, err := otlptracegrpc.New(context.Background(), otlptracegrpc.WithEndpoint(url), otlptracegrpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
+
 	tp := trace.NewTracerProvider(
 		// Always be sure to batch in production.
 		trace.WithBatcher(exp),
@@ -125,7 +126,7 @@ func main() {
 	setupLog.Info("Starting the LBConfig Operator", "version", Version)
 
 	// Setup tracing exporter
-	if endpoint, present := os.LookupEnv("OTEL_EXPORTER_JAEGER_ENDPOINT"); present {
+	if endpoint, present := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); present {
 		tp, err := tracerProvider(endpoint, Version)
 		if err != nil {
 			setupLog.Error(err, "Error setting up tracer exporter")

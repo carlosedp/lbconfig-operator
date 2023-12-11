@@ -10,6 +10,7 @@ This file aggregates all documentation for the operator. Some information is als
   - [Deploy the Operator to your cluster](#deploy-the-operator-to-your-cluster)
   - [Create ExternalLoadBalancer instances](#create-externalloadbalancer-instances)
     - [Sample CRDs and Available Fields](#sample-crds-and-available-fields)
+- [Health Check](#health-check)
 - [Prometheus Metrics](#prometheus-metrics)
 - [Planned Features](#planned-features)
 
@@ -162,6 +163,10 @@ spec:
 
 For more details, check the API documentation at <https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1?utm_source=gopls#pkg-types>.
 
+## Health Check
+
+The operator publishes a health check endpoint via HTTP on `http://localhost:8081/healthz`.
+
 ## Prometheus Metrics
 
 The operator exports two metrics. One counts the amount of ExternalLoadBalancers the operator is currently managing and another exposes the amount of nodes managed by each instance of ExternalLoadBalancer with appropriate metric labels.
@@ -174,6 +179,8 @@ externallb_total 1
 # TYPE externallb_nodes gauge
 externallb_nodes{ip="192.168.1.40",name="externalloadbalancer-master-sample",namespace="lbconfig-operator-system",port="6443",type="master"} 3
 ```
+
+The metrics API is exposed on the operator container using port 8080 on `/metrics`. If testing, the metrics can be shown in `http://localhost:8080/metrics`
 
 ## Planned Features
 
