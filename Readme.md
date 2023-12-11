@@ -37,7 +37,7 @@ Apply the operator manifest into the cluster:
 kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.4.1/manifests/deploy.yaml
 ```
 
-This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64` and `ppc64le` architectures.
+This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64`, `ppc64le` and `s390x` architectures.
 
 ### Create ExternalLoadBalancer Instances
 
@@ -133,7 +133,7 @@ spec:
 
 ## Additional information
 
-Please check the [additional documentation](docs/Readme.md) with more information like tracing, adding new providers, development and more.
+Please check the [additional documentation](docs/Readme.md) for more information like tracing, adding new providers, development, release and more.
 
 ## Disclaimers
 
