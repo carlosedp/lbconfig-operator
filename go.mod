@@ -7,7 +7,7 @@ require (
 	github.com/citrix/adc-nitro-go v0.0.0-20230727085202-6a87fcfe77de
 	github.com/go-logr/logr v1.3.0
 	github.com/go-openapi/runtime v0.26.2
-	github.com/go-openapi/strfmt v0.21.9
+	github.com/go-openapi/strfmt v0.21.10
 	github.com/haproxytech/client-native/v4 v4.2.0
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
@@ -39,7 +39,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.2.4 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
-	github.com/go-openapi/errors v0.20.4 // indirect
+	github.com/go-openapi/errors v0.21.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/loads v0.21.2 // indirect
