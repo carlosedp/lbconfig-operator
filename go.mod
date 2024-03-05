@@ -6,7 +6,7 @@ require (
 	github.com/carlosedp/haproxy-go-client v1.0.1
 	github.com/citrix/adc-nitro-go v0.0.0-20230727085202-6a87fcfe77de
 	github.com/go-logr/logr v1.4.1
-	github.com/go-openapi/runtime v0.27.1
+	github.com/go-openapi/runtime v0.27.2
 	github.com/go-openapi/strfmt v0.22.2
 	github.com/haproxytech/client-native/v4 v4.2.0
 	github.com/onsi/ginkgo/v2 v2.15.0
@@ -38,14 +38,14 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
-	github.com/go-openapi/analysis v0.21.5 // indirect
+	github.com/go-openapi/analysis v0.22.2 // indirect
 	github.com/go-openapi/errors v0.21.1 // indirect
-	github.com/go-openapi/jsonpointer v0.20.1 // indirect
-	github.com/go-openapi/jsonreference v0.20.3 // indirect
-	github.com/go-openapi/loads v0.21.3 // indirect
-	github.com/go-openapi/spec v0.20.12 // indirect
-	github.com/go-openapi/swag v0.22.5 // indirect
-	github.com/go-openapi/validate v0.22.4 // indirect
+	github.com/go-openapi/jsonpointer v0.20.2 // indirect
+	github.com/go-openapi/jsonreference v0.20.4 // indirect
+	github.com/go-openapi/loads v0.21.5 // indirect
+	github.com/go-openapi/spec v0.20.14 // indirect
+	github.com/go-openapi/swag v0.22.9 // indirect
+	github.com/go-openapi/validate v0.23.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -84,7 +84,7 @@ require (
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
