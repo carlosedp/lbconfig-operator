@@ -98,13 +98,13 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.4.1
-    createdAt: "2023-12-08T20:44:53Z"
+    createdAt: "2024-06-18T13:30:07Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
       dynamically via API.
     k8sMaxVersion: ""
     k8sMinVersion: ""
-    operators.operatorframework.io/builder: operator-sdk-v1.32.0
+    operators.operatorframework.io/builder: operator-sdk-v1.34.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/carlosedp/lbconfig-operator
     support: ""

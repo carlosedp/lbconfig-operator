@@ -9,8 +9,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.9.2
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.15.0
   name: externalloadbalancers.lb.lbconfig.carlosedp.com
 spec:
   group: lb.lbconfig.carlosedp.com
@@ -58,14 +57,19 @@ spec:
           API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -77,8 +81,9 @@ spec:
                   members
                 properties:
                   monitortype:
-                    description: MonitorType is the monitor parent type. <monitorType>
-                      must be one of "http", "https", "icmp".
+                    description: |-
+                      MonitorType is the monitor parent type. <monitorType> must be one of "http", "https",
+                      "icmp".
                     enum:
                     - http
                     - https
@@ -120,9 +125,9 @@ spec:
                 description: Provider is the LoadBalancer backend provider
                 properties:
                   creds:
-                    description: 'Creds is the credentials secret holding the "username"
-                      and "password" keys. Generate with: `kubectl create secret generic
-                      <secret-name> --from-literal=username=<username> --from-literal=password=<password>`'
+                    description: |-
+                      Creds is the credentials secret holding the "username" and "password" keys.
+                      Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username> --from-literal=password=<password>`
                     type: string
                   debug:
                     default: false
@@ -140,8 +145,9 @@ spec:
                     type: string
                   lbmethod:
                     default: ROUNDROBIN
-                    description: 'Type is the Load-Balancing method. Defaults to "round-robin".
-                      Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME'
+                    description: |-
+                      Type is the Load-Balancing method. Defaults to "round-robin".
+                      Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME
                     enum:
                     - ROUNDROBIN
                     - LEASTCONNECTION
@@ -209,8 +215,9 @@ spec:
                 description: Monitor defines a monitor object in the LoadBalancer.
                 properties:
                   monitortype:
-                    description: MonitorType is the monitor parent type. <monitorType>
-                      must be one of "http", "https", "icmp".
+                    description: |-
+                      MonitorType is the monitor parent type. <monitorType> must be one of "http", "https",
+                      "icmp".
                     enum:
                     - http
                     - https
@@ -310,9 +317,9 @@ spec:
                 description: Provider is a backend provider for F5 Big IP Load Balancers
                 properties:
                   creds:
-                    description: 'Creds is the credentials secret holding the "username"
-                      and "password" keys. Generate with: `kubectl create secret generic
-                      <secret-name> --from-literal=username=<username> --from-literal=password=<password>`'
+                    description: |-
+                      Creds is the credentials secret holding the "username" and "password" keys.
+                      Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username> --from-literal=password=<password>`
                     type: string
                   debug:
                     default: false
@@ -330,8 +337,9 @@ spec:
                     type: string
                   lbmethod:
                     default: ROUNDROBIN
-                    description: 'Type is the Load-Balancing method. Defaults to "round-robin".
-                      Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME'
+                    description: |-
+                      Type is the Load-Balancing method. Defaults to "round-robin".
+                      Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME
                     enum:
                     - ROUNDROBIN
                     - LEASTCONNECTION
@@ -451,7 +459,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: lbconfig-operator-manager-role
 rules:
 - apiGroups:

@@ -4,6 +4,13 @@ VERSION ?= 0.4.1
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
 
+# Tools version
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.28.3
+KUSTOMIZE_VERSION ?= v5.2.1
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
+OLM ?= 0.28.0
+
 # Operator repository
 REPO ?= quay.io/carlosedp
 
@@ -20,9 +27,6 @@ ARCHS ?= amd64 arm64 ppc64le s390x
 # - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 # - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
 PLATFORMS = $(shell echo $(ARCHS) | sed -e 's~[^ ]*~linux/&~g' | tr ' ' ',')
-
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.26
 
 # Which container runtime to use
 BUILDER = docker
@@ -192,10 +196,6 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GINKGO ?= $(LOCALBIN)/ginkgo
 
-## Tool Versions
-KUSTOMIZE_VERSION ?= v4.5.5
-CONTROLLER_TOOLS_VERSION ?= v0.9.2
-
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -277,7 +277,7 @@ else
 	$(shell kind create cluster --name test-operator > /dev/null 2>&1)
 endif
 	kubectl config use-context kind-test-operator
-	operator-sdk olm install --version=0.21.2 --timeout=5m || true
+	operator-sdk olm install --version=$(OLM) --timeout=5m || true
 	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m
 	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
@@ -302,3 +302,9 @@ testenv-teardown:
 .PHONY: dist
 dist: bundle olm-validate docker-cross  ## Build manifests and container images, pushing them to the registry
 	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
+
+.PHONY: clean
+clean:
+	rm -rf bin
+	rm -rf output
+	rm lbconfig-operator
