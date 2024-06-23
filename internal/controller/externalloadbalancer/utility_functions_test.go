@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
 )
 
 var _ = Describe("ExternalLoadBalancer controller", func() {
@@ -65,6 +65,37 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 				},
 			}
 			Expect(computeLabels(loadBalancer)).To(Equal(map[string]string{"node-role.kubernetes.io/master": ""}))
+		})
+
+		It("Should compute custom labels from LoadBalancer instance", func() {
+			loadBalancer := lbv1.ExternalLoadBalancer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-load-balancer",
+					Namespace: Namespace,
+				},
+				Spec: lbv1.ExternalLoadBalancerSpec{
+					NodeLabels: map[string]string{"node-role.kubernetes.io/custom": ""},
+				},
+			}
+			Expect(computeLabels(loadBalancer)).To(Equal(map[string]string{"node-role.kubernetes.io/custom": ""}))
+		})
+
+		It("Should check if nodes changed conditions", func() {
+			n1 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
+			n2 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
+			n3 := createNotReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
+
+			Expect(hasNodeChanged(n1, n2)).To(BeFalse())
+			Expect(hasNodeChanged(n1, n3)).To(BeTrue())
+		})
+
+		It("Should check if nodes changed IP addresses", func() {
+			n1 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
+			n2 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
+			n3 := createReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
+
+			Expect(hasNodeChanged(n1, n2)).To(BeFalse())
+			Expect(hasNodeChanged(n1, n3)).To(BeTrue())
 		})
 	})
 })

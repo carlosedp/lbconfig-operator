@@ -45,7 +45,7 @@ import (
 
 	//+kubebuilder:scaffold:imports
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -74,7 +74,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("../..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
 	}
 

@@ -35,8 +35,8 @@ import (
 	"github.com/scottdware/go-bigip"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
-	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	backend "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 )
 
 // ----------------------------------------
@@ -57,7 +57,10 @@ type F5Provider struct {
 }
 
 func init() {
-	backend.RegisterProvider("F5_BigIP", new(F5Provider))
+	err := backend.RegisterProvider("F5_BigIP", new(F5Provider))
+	if err != nil {
+		panic(err)
+	}
 }
 
 var LBMethodMap = map[string]string{"ROUNDROBIN": "round-robin", "LEASTCONNECTION": "least-connections-member", "LEASTRESPONSETIME": "fastest-app-response"}
@@ -311,7 +314,10 @@ func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 		return err
 	}
 	if n != nil {
-		p.f5.ModifyNode(m.Node.Host, &config)
+		err = p.f5.ModifyNode(m.Node.Host, &config)
+		if err != nil {
+			return fmt.Errorf("error modifying node %s: %v", m.Node.Host, err)
+		}
 	} else {
 		err := p.f5.CreateNode(m.Node.Host, m.Node.Host)
 		if err != nil {

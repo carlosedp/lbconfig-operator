@@ -30,7 +30,7 @@ import (
 	"strconv"
 	"time"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -150,7 +150,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 	It("should create a new ExternalLoadBalancer", func() {
 		Expect(k8sClient.Create(ctx, loadBalancer)).Should(Succeed())
 		Eventually(func() string {
-			k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
+			_ = k8sClient.Get(ctx, loadBalancerLookupKey, loadBalancer)
 			return loadBalancer.Status.Provider.Vendor
 		}, timeout, interval).Should(Equal("Dummy"))
 	})

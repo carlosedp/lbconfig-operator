@@ -45,8 +45,8 @@ import (
 	"k8s.io/utils/ptr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
-	backend_controller "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	backend_controller "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 )
 
 // ----------------------------------------
@@ -70,7 +70,10 @@ type HAProxyProvider struct {
 }
 
 func init() {
-	backend_controller.RegisterProvider("HAProxy", new(HAProxyProvider))
+	err := backend_controller.RegisterProvider("HAProxy", new(HAProxyProvider))
+	if err != nil {
+		panic(err)
+	}
 }
 
 // We use round robin for the backend servers if least response is choosen since HAProxy doesn't have it.
@@ -122,7 +125,7 @@ func (p *HAProxyProvider) Connect() error {
 		Context: p.ctx,
 	}, p.auth)
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return err
 	}
 	p.transaction = t.Payload.ID
@@ -144,7 +147,7 @@ func (p *HAProxyProvider) Close() error {
 		ForceReload: ptr.To[bool](true),
 	}, p.auth)
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return err
 	}
 	return nil
@@ -208,7 +211,7 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	}, p.auth)
 
 	if err != nil && !strings.Contains(err.Error(), "getBackendNotFound") {
-		p.CloseError()
+		_ = p.CloseError()
 		return nil, fmt.Errorf("error getting pool: %v", err)
 	}
 
@@ -245,7 +248,7 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error creating pool %s: %v", pool.Name, err)
 	}
 
@@ -274,7 +277,7 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error editing pool(ERR) %s: %v", pool.Name, err)
 	}
 	// Return in case pool does not exist
@@ -284,14 +287,14 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 
 	pool, err = p.GetPoolMembers(pool)
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error editing pool(getting pool members) %s: %v", pool.Name, err)
 	}
 	if pool != nil {
 		for _, m := range pool.Members {
 			err = p.EditPoolMember(&m, pool, "enable")
 			if err != nil {
-				p.CloseError()
+				_ = p.CloseError()
 				return fmt.Errorf("error editing pool(editing pool members) %s: %v", pool.Name, err)
 			}
 		}
@@ -308,7 +311,7 @@ func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error deleting pool %s: %v", pool.Name, err)
 	}
 	return nil
@@ -330,7 +333,7 @@ func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return nil, fmt.Errorf("error getting pool members: %v", err)
 	}
 	if poolMembers.Payload.Data == nil {
@@ -378,7 +381,7 @@ func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 	_, _, err := p.haproxy.Server.CreateServer(server, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error creating pool member: %v", err)
 	}
 	p.log.Info("Created node", "node", m.Node.Name, "host", m.Node.Host)
@@ -420,7 +423,7 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 	_, _, err := p.haproxy.Server.ReplaceServer(server, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error editing pool member: %v", err)
 	}
 	p.log.Info("Edited node", "node", m.Node.Name, "host", m.Node.Host)
@@ -438,7 +441,7 @@ func (p *HAProxyProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error deleting pool member: %v", err)
 	}
 	p.log.Info("Deleted node", "node", m.Node.Name, "host", m.Node.Host)
@@ -458,7 +461,7 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 	}, p.auth)
 
 	if err != nil && !strings.Contains(err.Error(), "getFrontendNotFound") {
-		p.CloseError()
+		_ = p.CloseError()
 		return nil, fmt.Errorf("error getting haproxy frontend %s: %v", v.Name, err)
 	}
 
@@ -475,7 +478,7 @@ func (p *HAProxyProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
 			Context:       p.ctx,
 		}, p.auth)
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return nil, fmt.Errorf("error getting haproxy frontend bind %s: %v", v.Name, err)
 	}
 
@@ -502,7 +505,7 @@ func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error creating frontend: %v", err)
 	}
 
@@ -521,7 +524,7 @@ func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error creating frontend bind: %v", err)
 	}
 
@@ -543,7 +546,7 @@ func (p *HAProxyProvider) EditVIP(v *lbv1.VIP) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error editing frontend: %v", err)
 	}
 
@@ -561,7 +564,7 @@ func (p *HAProxyProvider) EditVIP(v *lbv1.VIP) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error editing frontend bind: %v", err)
 	}
 	return nil
@@ -576,7 +579,7 @@ func (p *HAProxyProvider) DeleteVIP(v *lbv1.VIP) error {
 	}, p.auth)
 
 	if err != nil {
-		p.CloseError()
+		_ = p.CloseError()
 		return fmt.Errorf("error deleting VIP %s: %v", v.Name, err)
 	}
 	return nil
