@@ -33,10 +33,10 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
-	. "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
-	_ "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_loader"
-	d "github.com/carlosedp/lbconfig-operator/controllers/backend/dummy"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	. "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
+	_ "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_loader"
+	d "github.com/carlosedp/lbconfig-operator/internal/controller/backend/dummy"
 )
 
 func TestBackendController(t *testing.T) {
@@ -83,15 +83,6 @@ var pool = &lbv1.Pool{
 			},
 			Port: 80},
 	},
-}
-
-var poolmember = &lbv1.PoolMember{
-	Node: lbv1.Node{
-		Name:   "test-node-5",
-		Host:   "1.1.1.5",
-		Labels: map[string]string{"node-role.kubernetes.io/master": ""},
-	},
-	Port: 80,
 }
 
 var VIP = &lbv1.VIP{

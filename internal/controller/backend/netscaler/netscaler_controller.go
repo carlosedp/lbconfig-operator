@@ -38,8 +38,8 @@ import (
 	"github.com/go-logr/logr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
-	backend "github.com/carlosedp/lbconfig-operator/controllers/backend/backend_controller"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	backend "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 )
 
 // ----------------------------------------
@@ -59,7 +59,10 @@ type NetscalerProvider struct {
 }
 
 func init() {
-	backend.RegisterProvider("Citrix_ADC", new(NetscalerProvider))
+	err := backend.RegisterProvider("Citrix_ADC", new(NetscalerProvider))
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Create creates a new Load Balancer backend provider

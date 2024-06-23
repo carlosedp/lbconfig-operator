@@ -1,6 +1,6 @@
 domain: lbconfig.carlosedp.com
 layout:
-- go.kubebuilder.io/v3
+  - go.kubebuilder.io/v4
 multigroup: true
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
@@ -8,13 +8,13 @@ plugins:
 projectName: lbconfig-operator
 repo: github.com/carlosedp/lbconfig-operator
 resources:
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: lbconfig.carlosedp.com
-  group: lb
-  kind: ExternalLoadBalancer
-  path: github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1
-  version: v1
+  - api:
+      crdVersion: v1
+      namespaced: true
+    controller: true
+    domain: lbconfig.carlosedp.com
+    group: lb
+    kind: ExternalLoadBalancer
+    path: github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1
+    version: v1
 version: "3"
