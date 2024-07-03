@@ -97,18 +97,18 @@ metadata:
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
-    containerImage: quay.io/carlosedp/lbconfig-operator:v0.4.1
-    createdAt: "2024-06-18T13:30:07Z"
+    containerImage: quay.io/carlosedp/lbconfig-operator:v0.5.0
+    createdAt: "2024-06-18T15:54:33Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
       dynamically via API.
     k8sMaxVersion: ""
     k8sMinVersion: ""
     operators.operatorframework.io/builder: operator-sdk-v1.34.2
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/carlosedp/lbconfig-operator
     support: ""
-  name: lbconfig-operator.v0.4.1
+  name: lbconfig-operator.v0.5.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -317,7 +317,7 @@ spec:
 
     This project fully open-source and is hosted at [GitHub](https://github.com/carlosedp/lbconfig-operator). Always check the project page and issues for the latest updates and/or solutions to problems encountered. If a problem is detected, please fill an issue. Feature request and improvement issues are welcome.
 
-    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1?utm_source=gopls#Provider) which fields are backend-specific.
+    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
     ## Disclaimers
 
@@ -413,7 +413,7 @@ spec:
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
                 - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
@@ -437,7 +437,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: quay.io/carlosedp/lbconfig-operator:v0.4.1
+                image: quay.io/carlosedp/lbconfig-operator:v0.5.0
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -532,4 +532,4 @@ spec:
   provider:
     name: Carlos Eduardo de Paula
   selector: {}
-  version: 0.4.1
+  version: 0.5.0
