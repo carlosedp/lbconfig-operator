@@ -10,14 +10,13 @@ jobs:
   bundle-check-changed:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
-          check-latest: true
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Install operator-sdk
         run: hack/install_operator-sdk.sh
