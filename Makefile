@@ -13,6 +13,11 @@ OPERATOR_SDK_VERSION ?= v1.36.1
 OLM_VERSION ?= 0.28.0
 KIND_VERSION ?= v0.23.0
 
+MIN_KUBERNETES_VERSION ?= 1.18.0
+MIN_OPENSHIFT_VERSION ?= 4.5
+
+SED ?= "sed"
+
 # Operator repository
 REPO ?= quay.io/carlosedp
 
@@ -294,10 +299,12 @@ endif
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
 bundle: manifests kustomize deployment-manifests
-	rm -rf bundle
+	$(SED) -i 's/minKubeVersion: .*/minKubeVersion: $(MIN_KUBERNETES_VERSION)/' config/manifests/bases/lbconfig-operator.clusterserviceversion.yaml
+	$(SED) -i 's/com.redhat.openshift.versions=.*/com.redhat.openshift.versions=v$(MIN_OPENSHIFT_VERSION)/' bundle.Dockerfile
+	$(SED) -i 's/com.redhat.openshift.versions: .*/com.redhat.openshift.versions: v$(MIN_OPENSHIFT_VERSION)/' bundle/metadata/annotations.yaml
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --manifests --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i "s|containerImage:.*|containerImage: $(IMG)|g" "bundle/manifests/lbconfig-operator.clusterserviceversion.yaml"
 	cp -rf ./config/kuttl ./bundle/tests/scorecard/
 	operator-sdk bundle validate -b $(BUILDER) ./bundle
