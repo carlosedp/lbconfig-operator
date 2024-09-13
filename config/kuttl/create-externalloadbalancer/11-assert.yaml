@@ -1,3 +1,4 @@
+---
 apiVersion: lb.lbconfig.carlosedp.com/v1
 kind: ExternalLoadBalancer
 metadata:
@@ -12,23 +13,23 @@ status:
     path: /healthz
     port: 6443
   nodes:
-  - host: 172.26.0.2
-    label:
-      node-role.kubernetes.io/control-plane: ""
-    name: test-operator-control-plane
+    - host: 172.26.0.2
+      label:
+        node-role.kubernetes.io/control-plane: ""
+      name: test-operator-control-plane
   numnodes: 1
   pools:
-  - members:
-    - node:
-        host: 172.26.0.2
-        label:
-          node-role.kubernetes.io/control-plane: ""
-        name: test-operator-control-plane
-      port: 6443
-    monitor: Monitor-externalloadbalancer-master-dummy-test
-    name: Pool-externalloadbalancer-master-dummy-test-6443
+    - members:
+        - node:
+            host: 172.26.0.2
+            label:
+              node-role.kubernetes.io/control-plane: ""
+            name: test-operator-control-plane
+          port: 6443
+      monitor: Monitor-externalloadbalancer-master-dummy-test
+      name: Pool-externalloadbalancer-master-dummy-test-6443
   ports:
-  - 6443
+    - 6443
   provider:
     creds: dummy-creds
     host: https://10.0.0.1
@@ -36,7 +37,7 @@ status:
     validatecerts: false
     vendor: Dummy
   vips:
-  - ip: 10.0.0.10
-    name: VIP-externalloadbalancer-master-dummy-test-6443
-    pool: Pool-externalloadbalancer-master-dummy-test-6443
-    port: 6443
+    - ip: 10.0.0.10
+      name: VIP-externalloadbalancer-master-dummy-test-6443
+      pool: Pool-externalloadbalancer-master-dummy-test-6443
+      port: 6443
