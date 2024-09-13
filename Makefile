@@ -90,6 +90,10 @@ help: ## Display this help.
 print-%: ## Print any variable from the Makefile. Use as `make print-VARIABLE`
 	@echo $($*)
 
+.PHONY: check-versions
+check-versions: ## Check versions of tools
+	@./hack/check_versions.sh
+
 ##@ Development
 
 .PHONY: manifests
@@ -370,7 +374,7 @@ testenv-teardown: ## Teardown the test environment (KIND cluster)
 	kind delete cluster --name test-operator > /dev/null 2>&1
 
 .PHONY: dist
-dist: bundle olm-validate podman-crossbuild  ## Build manifests and container images, pushing them to the registry
+dist: check-versions bundle olm-validate podman-crossbuild  ## Build manifests and container images, pushing them to the registry
 	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
 
 .PHONY: clean

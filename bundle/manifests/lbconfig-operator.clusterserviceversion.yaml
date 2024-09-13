@@ -98,7 +98,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.5.0
-    createdAt: "2024-09-13T13:44:58Z"
+    createdAt: "2024-09-13T20:01:51Z"
     description: The LBConfig Operator, manages the configuration of External Load
       Balancer instances (on third-party equipment) and creates VIPs and IP Pools
       dynamically via API.
