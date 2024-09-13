@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.4.1
+VERSION ?= 0.5.0
 # VERSION ?= $(shell git describe --tags | sed 's/^v//') # Use this to get the latest tag
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
@@ -7,9 +7,11 @@ PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --ta
 # Tools version
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.28.3
-KUSTOMIZE_VERSION ?= v5.2.1
+KUSTOMIZE_VERSION ?= v5.4.2
 CONTROLLER_TOOLS_VERSION ?= v0.15.0
-OLM ?= 0.28.0
+OPERATOR_SDK_VERSION ?= v1.36.1
+OLM_VERSION ?= 0.28.0
+KIND_VERSION ?= v0.23.0
 
 # Operator repository
 REPO ?= quay.io/carlosedp
@@ -28,8 +30,8 @@ ARCHS ?= amd64 arm64 ppc64le s390x
 # - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
 PLATFORMS = $(shell echo $(ARCHS) | sed -e 's~[^ ]*~linux/&~g' | tr ' ' ',')
 
-# Which container runtime to use
-BUILDER = docker
+# Which container runtime to use (check if Docker is available otherwise use Podman)
+BUILDER = podman
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
@@ -116,17 +118,33 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --trace --race --cover --covermode=atomic --coverprofile=coverage.out .
 
+GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
+GOLANGCI_LINT_VERSION ?= v1.54.2
+golangci-lint:
+	@[ -f $(GOLANGCI_LINT) ] || { \
+	set -e ;\
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) $(GOLANGCI_LINT_VERSION) ;\
+	}
+
+.PHONY: lint
+lint: golangci-lint ## Run golangci-lint linter & yamllint
+	$(GOLANGCI_LINT) run
+
+.PHONY: lint-fix
+lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
+	$(GOLANGCI_LINT) run --fix
+
 ##@ Build
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
 	go build -a -installsuffix cgo \
 		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
-		-o output/manager main.go
+		-o output/manager ./cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317" go run ./main.go
+	OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317" go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: ## Build docker image for the operator locally (linux/amd64).
@@ -136,7 +154,6 @@ docker-build: ## Build docker image for the operator locally (linux/amd64).
 docker-push: ## Build and push docker image for the operator.
 	$(BUILDER) push ${IMG}
 
-
 .PHONY: docker-cross
 docker-cross: ## Build operator binaries locally and then build/push the Docker image
 	@for ARCH in $(ARCHS) ; do \
@@ -145,7 +162,7 @@ docker-cross: ## Build operator binaries locally and then build/push the Docker 
 		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=0 \
 		go build -a -installsuffix cgo \
 		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
-		-o output/manager-$$OS-$$ARCH main.go ; \
+		-o output/manager-$$OS-$$ARCH ./cmd/main.go ; \
 	done
 	docker buildx build -t ${IMG} --platform=$(PLATFORMS) --push -f Dockerfile .
 
@@ -159,6 +176,20 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
+
+.PHONY: podman-crossbuild
+podman-crossbuild: test ## Build and push a container image for the manager for cross-platform support with Podman
+		@for ARCH in $(ARCHS) ; do \
+		OS=linux ; \
+		echo "Building binary for $$ARCH at output/manager-$$OS-$$ARCH" ; \
+		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=0 \
+		go build -a -installsuffix cgo \
+		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
+		-o output/manager-$$OS-$$ARCH ./cmd/main.go ; \
+	done
+	podman manifest create ${IMG}
+	podman build --platform $(PLATFORMS) --manifest ${IMG} -f Dockerfile .
+	podman manifest push ${IMG}
 
 ##@ Deployment
 
@@ -195,27 +226,66 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GINKGO ?= $(LOCALBIN)/ginkgo
+KIND ?= $(LOCALBIN)/kind
 
-KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
 $(KUSTOMIZE): $(LOCALBIN)
-	test -s $(LOCALBIN)/kustomize || curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
+		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/kustomize; \
+	fi
+	@test -s $(LOCALBIN)/kustomize || { \
+		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- $(shell echo $(KUSTOMIZE_VERSION) | sed 's/v//') $(LOCALBIN); \
+	}
+
+
+# Extract ginkgo version from go.mod removing the v prefix
+GINKGO_VERSION = $(shell grep github.com/onsi/ginkgo go.mod | awk '{print $$2}' | sed 's/v//')
 
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	test -s $(LOCALBIN)/ginkgo || GOBIN=$(LOCALBIN) go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@latest
+	@test -s $(LOCALBIN)/ginkgo && $(LOCALBIN)/ginkgo version | grep -q $(GINKGO_VERSION) || GOBIN=$(LOCALBIN) go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v$(GINKGO_VERSION)
 
 .PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
 $(CONTROLLER_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	@test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	@test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifeq (,$(wildcard $(OPERATOR_SDK)))
+ifeq (, $(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
+endif
+endif
+
+.PHONY: kind
+kind: ## Download kind locally if necessary.
+ifeq (, $(shell which kind 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(LOCALBIN) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/kind@$(KIND_VERSION) ;\
+	}
+endif
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
@@ -226,7 +296,7 @@ bundle: manifests kustomize deployment-manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i "s|containerImage:.*|containerImage: $(IMG)|g" "bundle/manifests/lbconfig-operator.clusterserviceversion.yaml"
 	cp -rf ./config/kuttl ./bundle/tests/scorecard/
-	operator-sdk bundle validate ./bundle
+	operator-sdk bundle validate -b $(BUILDER) ./bundle
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -247,7 +317,7 @@ endif
 
 .PHONY: bundle-build
 bundle-build: bundle ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(BUILDER) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: bundle-build ## Push the bundle image.
@@ -267,17 +337,17 @@ catalog-push: catalog-build ## Push a catalog image.
 
 .PHONY: olm-validate
 olm-validate: bundle-push catalog-push ## Validates the bundle image.
-	operator-sdk bundle validate $(BUNDLE_IMG)
+	operator-sdk bundle validate -b $(BUILDER) $(BUNDLE_IMG)
 
 .PHONY: olm-run
-olm-run: olm-validate  ## Runs the bundle image in a KIND cluster
-ifeq ($(shell kind get clusters > /dev/null 2>&1), test-operator)
+olm-run: olm-validate kind ## Runs the bundle image in a KIND cluster
+ifeq ($(shell $(KIND) get clusters > /dev/null 2>&1), test-operator)
 	@echo "Cluster already running"
 else
-	$(shell kind create cluster --name test-operator > /dev/null 2>&1)
+	$(shell $(KIND) create cluster --name test-operator > /dev/null 2>&1)
 endif
 	kubectl config use-context kind-test-operator
-	operator-sdk olm install --version=$(OLM) --timeout=5m || true
+	operator-sdk olm install --version=$(OLM_VERSION) --timeout=5m || true
 	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m
 	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
@@ -296,15 +366,15 @@ scorecard-run: ## Runs the scorecard validation (depends on a KIND cluster)
 	operator-sdk scorecard ./bundle  --wait-time 5m --service-account=lbconfig-operator-controller-manager
 
 .PHONY: testenv-teardown
-testenv-teardown:
+testenv-teardown: ## Teardown the test environment (KIND cluster)
 	kind delete cluster --name test-operator > /dev/null 2>&1
 
 .PHONY: dist
-dist: bundle olm-validate docker-cross  ## Build manifests and container images, pushing them to the registry
+dist: bundle olm-validate podman-crossbuild  ## Build manifests and container images, pushing them to the registry
 	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
 
 .PHONY: clean
-clean:
+clean: ## Clean up all generated files
 	rm -rf bin
 	rm -rf output
-	rm lbconfig-operator
+	rm -rf lbconfig-operator

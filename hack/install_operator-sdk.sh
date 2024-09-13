@@ -1,5 +1,7 @@
 #!/bin/bash
-SDK_VERSION=${VERSION:-1.32.0}
+
+VERSION=$(grep -oP 'OPERATOR_SDK_VERSION\s*\?=\s*\K.*' Makefile | sed 's/^v//')
+SDK_VERSION=${VERSION:-1.36.1}
 
 cd /tmp || exit
 sudo apt-get install -y curl gpg

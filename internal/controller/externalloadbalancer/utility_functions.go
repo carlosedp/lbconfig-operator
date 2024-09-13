@@ -29,7 +29,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
 )
 
 // -----------------------------------------

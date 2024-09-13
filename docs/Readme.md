@@ -131,7 +131,7 @@ spec:
   ...
 ```
 
-Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/apis/externalloadbalancer/v1?utm_source=gopls#Provider) which fields are backend-specific.
+Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
 CRD Fields:
 

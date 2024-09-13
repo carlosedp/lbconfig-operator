@@ -1,2 +1,2 @@
 [allowlist]
-  paths = ["controllers/backend/f5/server.key"]
+paths = ["internal/controller/backend/f5/server.key"]

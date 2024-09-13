@@ -16,36 +16,16 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.21
-
-      - name: Get values for cache paths to be used in later steps
-        id: go-cache-paths
-        run: |
-          echo "::set-output name=go-build::$(go env GOCACHE)"
-          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
-
-      # Cache go build cache, used to speedup go test
-      - name: Go Build Cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-
-      # Cache go mod cache, used to speedup builds
-      - name: Go Mod Cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+          go-version-file: "go.mod"
 
       - name: Get Envtest path
         id: envtest-info
         run: |
           VERSION=$(cat Makefile|grep "K8S_VERSION =" |cut -d= -f2 |xargs)
-          echo "::set-output name=envtest-version::${VERSION}"
-          echo "::set-output name=envtest-path::/home/runner/.local/share/kubebuilder-envtest/k8s/${VERSION}-$(go env GOOS)-$(go env GOARCH)"
-          echo "::set-output name=goos::$(go env GOOS)"
-          echo "::set-output name=goarch::$(go env GOARCH)"
+          echo "envtest-version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "envtest-path=/home/runner/.local/share/kubebuilder-envtest/k8s/${VERSION}-$(go env GOOS)-$(go env GOARCH)" >> $GITHUB_OUTPUT
+          echo "goos=$(go env GOOS)" >> $GITHUB_OUTPUT
+          echo "goarch=$(go env GOARCH)" >> $GITHUB_OUTPUT
 
       # Kubebuilder Envtest assets
       - name: Kubebuilder Envtest
