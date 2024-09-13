@@ -34,8 +34,9 @@ spec:
       - description: Monitor is the path and port to monitor the LoadBalancer members
         displayName: Monitor
         path: monitor
-      - description: MonitorType is the monitor parent type. <monitorType> must be
-          one of "http", "https", "icmp".
+      - description: |-
+          MonitorType is the monitor parent type. <monitorType> must be one of "http", "https",
+          "icmp".
         displayName: Monitor Type
         path: monitor.monitortype
       - description: Name is the monitor name, it is set by the controller
@@ -58,9 +59,9 @@ spec:
       - description: Provider is the LoadBalancer backend provider
         displayName: Provider
         path: provider
-      - description: 'Creds is the credentials secret holding the "username" and "password"
-          keys. Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username>
-          --from-literal=password=<password>`'
+      - description: |-
+          Creds is the credentials secret holding the "username" and "password" keys.
+          Generate with: `kubectl create secret generic <secret-name> --from-literal=username=<username> --from-literal=password=<password>`
         displayName: Creds
         path: provider.creds
       - description: Debug is a flag to enable debug on the backend log output. Defaults
@@ -71,8 +72,9 @@ spec:
           `http://10.25.10.10`.
         displayName: Host
         path: provider.host
-      - description: 'Type is the Load-Balancing method. Defaults to "round-robin".
-          Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME'
+      - description: |-
+          Type is the Load-Balancing method. Defaults to "round-robin".
+          Options are: ROUNDROBIN, LEASTCONNECTION, LEASTRESPONSETIME
         displayName: LBMethod
         path: provider.lbmethod
       - description: Partition is the F5 partition to create the Load Balancer instances.
