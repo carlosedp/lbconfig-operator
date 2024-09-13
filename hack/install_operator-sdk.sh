@@ -1,5 +1,5 @@
 #!/bin/bash
-SDK_VERSION=${VERSION:-1.32.0}
+SDK_VERSION=${VERSION:-1.36.1}
 
 cd /tmp || exit
 sudo apt-get install -y curl gpg
