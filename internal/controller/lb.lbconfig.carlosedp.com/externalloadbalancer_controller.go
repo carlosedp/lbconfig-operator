@@ -55,7 +55,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1"
 	controller "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 	_ "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_loader"
 )

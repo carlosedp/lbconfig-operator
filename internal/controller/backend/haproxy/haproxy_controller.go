@@ -45,7 +45,7 @@ import (
 	"k8s.io/utils/ptr"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1"
 	backend_controller "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 )
 
