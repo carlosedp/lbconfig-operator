@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.5.0
+VERSION ?= 0.5.1
 # VERSION ?= $(shell git describe --tags | sed 's/^v//') # Use this to get the latest tag
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
