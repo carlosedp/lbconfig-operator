@@ -350,13 +350,12 @@ catalog-push: catalog-build ## Push a catalog image.
 olm-validate: bundle-push catalog-push ## Validates the bundle image.
 	operator-sdk bundle validate -b $(BUILDER) $(BUNDLE_IMG)
 
+.PHONY: testenv-setup
+testenv-setup: kind ## Setup the test environment (KIND cluster)
+	$(KIND) get clusters | grep -q test-operator || $(KIND) create cluster --name test-operator
+
 .PHONY: olm-run
-olm-run: olm-validate kind ## Runs the bundle image in a KIND cluster
-ifeq ($(shell $(KIND) get clusters > /dev/null 2>&1), test-operator)
-	@echo "Cluster already running"
-else
-	$(shell $(KIND) create cluster --name test-operator > /dev/null 2>&1)
-endif
+olm-run: olm-validate testenv-setup ## Runs the bundle image in a KIND cluster
 	kubectl config use-context kind-test-operator
 	operator-sdk olm install --version=$(OLM_VERSION) --timeout=5m || true
 	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m
