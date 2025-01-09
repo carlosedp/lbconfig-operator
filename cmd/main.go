@@ -50,8 +50,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
-	controllers "github.com/carlosedp/lbconfig-operator/internal/controller/externalloadbalancer"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1"
+	controllers "github.com/carlosedp/lbconfig-operator/internal/controller/lb.lbconfig.carlosedp.com"
 	//+kubebuilder:scaffold:imports
 )
 

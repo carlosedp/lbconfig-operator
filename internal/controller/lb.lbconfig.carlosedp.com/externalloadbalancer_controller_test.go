@@ -30,7 +30,7 @@ import (
 	"strconv"
 	"time"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

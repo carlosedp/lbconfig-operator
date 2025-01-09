@@ -318,7 +318,7 @@ spec:
 
     This project fully open-source and is hosted at [GitHub](https://github.com/carlosedp/lbconfig-operator). Always check the project page and issues for the latest updates and/or solutions to problems encountered. If a problem is detected, please fill an issue. Feature request and improvement issues are welcome.
 
-    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/externalloadbalancer/v1?utm_source=gopls#Provider) which fields are backend-specific.
+    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
     ## Disclaimers
 
