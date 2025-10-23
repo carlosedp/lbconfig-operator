@@ -9,7 +9,7 @@ require (
 	github.com/go-openapi/runtime v0.29.0
 	github.com/go-openapi/strfmt v0.24.0
 	github.com/haproxytech/client-native/v4 v4.2.2
-	github.com/onsi/ginkgo/v2 v2.26.0
+	github.com/onsi/ginkgo/v2 v2.27.1
 	github.com/onsi/gomega v1.38.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/scottdware/go-bigip v0.0.0-20230907015320-92d03ba95eca
