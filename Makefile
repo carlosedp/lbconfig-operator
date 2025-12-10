@@ -6,15 +6,15 @@ PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --ta
 
 # Tools version
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.28.3
-KUSTOMIZE_VERSION ?= v5.4.2
-CONTROLLER_TOOLS_VERSION ?= v0.15.0
+ENVTEST_K8S_VERSION = 1.31.0
+KUSTOMIZE_VERSION ?= v5.8.0
+CONTROLLER_TOOLS_VERSION ?= v0.19.0
 OPERATOR_SDK_VERSION ?= v1.36.1
-OLM_VERSION ?= 0.28.0
-KIND_VERSION ?= v0.23.0
+OLM_VERSION ?= 0.38.0
+KIND_VERSION ?= v0.30.0
 
-MIN_KUBERNETES_VERSION ?= 1.18.0
-MIN_OPENSHIFT_VERSION ?= 4.5
+MIN_KUBERNETES_VERSION ?= 1.19.0
+MIN_OPENSHIFT_VERSION ?= 4.6
 
 SED ?= "sed"
 
@@ -316,7 +316,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.24.0/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.55.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -345,7 +345,7 @@ catalog-push: catalog-build ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 .PHONY: olm-validate
-olm-validate: bundle-push catalog-push ## Validates the bundle image.
+olm-validate: ## Validates the bundle image.
 	operator-sdk bundle validate -b $(BUILDER) $(BUNDLE_IMG)
 
 .PHONY: testenv-setup
@@ -364,7 +364,7 @@ olm-run: olm-validate testenv-setup ## Runs the bundle image in a KIND cluster
 	operator-sdk cleanup lbconfig-operator
 	kubectl delete secret dummy-creds
 	@echo "===================="
-	@echo "Don't forget to teardown the KIND cluster with 'kind delete cluster --name test-operator'"
+	@echo "Don't forget to teardown the KIND cluster with 'make testenv-teardown'"
 	@echo "===================="
 
 .PHONY: scorecard-run
@@ -375,10 +375,10 @@ scorecard-run: ## Runs the scorecard validation (depends on a KIND cluster)
 
 .PHONY: testenv-teardown
 testenv-teardown: ## Teardown the test environment (KIND cluster)
-	kind delete cluster --name test-operator
+	$(KIND) delete cluster --name test-operator
 
 .PHONY: dist
-dist: check-versions bundle olm-validate podman-crossbuild  ## Build manifests and container images, pushing them to the registry
+dist: check-versions bundle bundle-push catalog-push podman-crossbuild  ## Build manifests and container images, pushing them to the registry
 	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
 
 .PHONY: clean

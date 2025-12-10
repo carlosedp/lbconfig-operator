@@ -98,12 +98,12 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.5.1
-    createdAt: "2025-01-09T15:45:28Z"
+    createdAt: "2025-12-10T17:39:03Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
     k8sMinVersion: ""
-    operators.operatorframework.io/builder: operator-sdk-v1.37.0
+    operators.operatorframework.io/builder: operator-sdk-unknown
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/carlosedp/lbconfig-operator
     support: https://github.com/carlosedp/lbconfig-operator
@@ -334,6 +334,15 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - ""
+          resources:
+          - nodes
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - coordination.k8s.io
           resources:
           - leases
@@ -342,22 +351,6 @@ spec:
           - get
           - list
           - update
-        - apiGroups:
-          - ""
-          resources:
-          - nodes
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          verbs:
-          - get
-          - list
-          - watch
         - apiGroups:
           - lb.lbconfig.carlosedp.com
           resources:
