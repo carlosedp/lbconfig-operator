@@ -7,8 +7,13 @@ PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --ta
 # E2E development version (for local testing, not for publishing)
 # Changes patch to 0 and adds -dev suffix (e.g., 0.5.1 -> 0.5.0-dev)
 E2E_VERSION ?= $(shell echo $(VERSION) | sed 's/\.[0-9]*$$/.0-dev/')
-E2E_IMG ?= ${REPO}/lbconfig-operator:v$(E2E_VERSION)
-E2E_BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(E2E_VERSION)
+# For local testing with KIND, images will be tagged with localhost:5001 and pushed to container IP
+E2E_IMG_NAME ?= lbconfig-operator:v$(E2E_VERSION)
+E2E_BUNDLE_IMG_NAME ?= lbconfig-operator-bundle:v$(E2E_VERSION)
+# These will be used by OLM - localhost:5001 is accessible from KIND nodes
+LOCAL_REGISTRY ?= localhost:5001
+E2E_IMG ?= $(LOCAL_REGISTRY)/$(E2E_IMG_NAME)
+E2E_BUNDLE_IMG ?= $(LOCAL_REGISTRY)/$(E2E_BUNDLE_IMG_NAME)
 
 # Tools version
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -351,15 +356,31 @@ olm-validate: operator-sdk ## Validates the bundle image.
 	$(OPERATOR_SDK) bundle validate -b $(BUILDER) $(BUNDLE_IMG)
 
 .PHONY: testenv-setup
-testenv-setup: kind ## Setup the test environment (KIND cluster)
-	$(KIND) get clusters | grep -q test-operator || $(KIND) create cluster --name test-operator
+testenv-setup: kind ## Setup the test environment (KIND cluster with local registry)
+	@echo "Setting up local registry and KIND cluster..."
+	@./hack/setup-kind-registry.sh
+
+.PHONY: testenv-load-images
+testenv-load-images: ## Push locally built images to local registry
+	@if [ -f /tmp/kind-registry-info.env ]; then \
+		echo "Pushing operator image to local registry (localhost:5001)..." && \
+		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_IMG_NAME) && \
+		echo "Pushing bundle image to local registry (localhost:5001)..." && \
+		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_BUNDLE_IMG_NAME) && \
+		echo "✅ Images pushed to local registry"; \
+	else \
+		echo "❌ Registry info not found. Run 'make testenv-setup' first."; \
+		exit 1; \
+	fi
 
 .PHONY: e2e-push
-e2e-push: ## Push e2e images to registry
-	@echo "Pushing operator image ($(E2E_IMG)) to registry..."
-	$(BUILDER) push $(E2E_IMG)
-	@echo "Pushing bundle image ($(E2E_BUNDLE_IMG)) to registry..."
-	$(BUILDER) push $(E2E_BUNDLE_IMG)
+e2e-push: ## Push e2e images to external registry (quay.io) - only for maintainers publishing dev builds
+	@echo "Pushing operator image to quay.io..."
+	$(BUILDER) tag $(E2E_IMG) ${REPO}/lbconfig-operator:v$(E2E_VERSION)
+	$(BUILDER) push ${REPO}/lbconfig-operator:v$(E2E_VERSION)
+	@echo "Pushing bundle image to quay.io..."
+	$(BUILDER) tag $(E2E_BUNDLE_IMG) $(IMAGE_TAG_BASE)-bundle:v$(E2E_VERSION)
+	$(BUILDER) push $(IMAGE_TAG_BASE)-bundle:v$(E2E_VERSION)
 
 .PHONY: e2e-build
 e2e-build: ## Build operator and bundle images for local e2e testing
@@ -371,21 +392,20 @@ e2e-build: ## Build operator and bundle images for local e2e testing
 	$(BUILDER) build -f bundle.Dockerfile -t $(E2E_BUNDLE_IMG) .
 
 .PHONY: e2e-test
-e2e-test: operator-sdk e2e-build e2e-push testenv-setup ## Run full e2e tests with locally built images
+e2e-test: operator-sdk e2e-build testenv-setup testenv-load-images ## Run full e2e tests with OLM via local registry
 	@echo "Switching to KIND cluster context..."
 	kubectl config use-context kind-test-operator
-	@echo "Installing CRDs and deploying operator..."
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
-	@echo "Waiting for operator deployment..."
-	kubectl wait --for=condition=available --timeout=120s deployment/lbconfig-operator-controller-manager -n lbconfig-operator-system || true
+	@echo "Installing OLM..."
+	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m
 	@echo "Creating test resources..."
 	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
 	@echo "Waiting for operator to reconcile..."
 	sleep 10
 	@echo "Running comprehensive e2e test suite..."
-	./hack/e2e-tests.sh
+	OPERATOR_NAMESPACE=default ./hack/e2e-tests.sh
 	@echo "===================="
 	@echo "✅ E2E tests completed successfully!"
 	@echo "Cluster 'test-operator' is still running."
@@ -394,14 +414,13 @@ e2e-test: operator-sdk e2e-build e2e-push testenv-setup ## Run full e2e tests wi
 	@echo "===================="
 
 .PHONY: e2e-test-quick
-e2e-test-quick: operator-sdk e2e-build e2e-push testenv-setup ## Run quick e2e smoke test without comprehensive validation
+e2e-test-quick: operator-sdk e2e-build testenv-setup testenv-load-images ## Run quick e2e smoke test with OLM
 	@echo "Switching to KIND cluster context..."
 	kubectl config use-context kind-test-operator
-	@echo "Installing CRDs and deploying operator..."
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
-	@echo "Waiting for operator deployment..."
-	kubectl wait --for=condition=available --timeout=120s deployment/lbconfig-operator-controller-manager -n lbconfig-operator-system || true
+	@echo "Installing OLM..."
+	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m
 	@echo "Creating test resources..."
 	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
@@ -410,30 +429,33 @@ e2e-test-quick: operator-sdk e2e-build e2e-push testenv-setup ## Run quick e2e s
 	@echo "Quick validation..."
 	kubectl get elb externalloadbalancer-master-dummy-test -n default -o yaml
 	kubectl wait --for=jsonpath='{.status.numnodes}'=1 elb/externalloadbalancer-master-dummy-test -n default --timeout=60s
-	@echo "Checking operator logs..."
-	kubectl logs -n lbconfig-operator-system -l control-plane=controller-manager --tail=50
 	@echo "Cleaning up..."
 	kubectl delete -f config/samples/lb_v1_externalloadbalancer-dummy.yaml || true
 	sleep 5
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f - || true
+	$(OPERATOR_SDK) cleanup lbconfig-operator || true
 	kubectl delete secret dummy-creds -n default || true
 	@echo "===================="
 	@echo "✅ Quick e2e test completed!"
 	@echo "===================="
 
 .PHONY: scorecard-run
-scorecard-run: operator-sdk e2e-build e2e-push testenv-setup ## Runs the scorecard validation with locally built images
+scorecard-run: operator-sdk e2e-build testenv-setup testenv-load-images ## Runs the scorecard validation with locally built images
 	kubectl config use-context kind-test-operator
 	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
-	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --timeout=5m || true
-	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n lbconfig-operator-system || true
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m || true
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
 	$(OPERATOR_SDK) scorecard ./bundle --wait-time 5m --service-account=lbconfig-operator-controller-manager
 	@echo "Cleaning up after scorecard..."
 	$(OPERATOR_SDK) cleanup lbconfig-operator || true
 
 .PHONY: testenv-teardown
-testenv-teardown: ## Teardown the test environment (KIND cluster)
-	$(KIND) delete cluster --name test-operator
+testenv-teardown: ## Teardown the test environment (KIND cluster and local registry)
+	@echo "Tearing down test environment..."
+	@$(KIND) delete cluster --name test-operator 2>/dev/null || echo "KIND cluster not found"
+	@$(BUILDER) stop kind-registry 2>/dev/null || echo "Registry container not running"
+	@$(BUILDER) rm -f kind-registry 2>/dev/null || echo "Registry container not found"
+	@rm -f /tmp/kind-registry-info.env 2>/dev/null || true
+	@echo "✅ Test environment cleaned up"
 
 .PHONY: dist
 dist: check-versions bundle bundle-push catalog-push podman-crossbuild  ## Build manifests and container images, pushing them to the registry
