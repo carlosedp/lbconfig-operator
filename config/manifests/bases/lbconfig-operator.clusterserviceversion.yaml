@@ -435,7 +435,7 @@ spec:
   - email: carlosedp@gmail.com
     name: Carlos Eduardo de Paula
   maturity: beta
-  minKubeVersion: 1.18.0
+  minKubeVersion: 1.19.0
   provider:
     name: Carlos Eduardo de Paula
   selector: {}

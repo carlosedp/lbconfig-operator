@@ -39,7 +39,7 @@ These tests run with `make test` and use [Ginkgo](https://onsi.github.io/ginkgo/
 
 2 - KIND cluster with Operator Lifecycle Manager
 
-The makefile target `olm-run` starts a KIND cluster, deploys OLM into it and then installs the operator. Check the [`Makefile`](../Makefile) for the commands used.
+The makefile target `e2e-test` starts a KIND cluster, deploys OLM into it and then installs the operator. Check the [`Makefile`](../Makefile) for the commands used.
 
 3 - Scorecard Tests
 

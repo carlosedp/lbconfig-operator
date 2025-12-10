@@ -19,6 +19,7 @@ This file aggregates all documentation for the operator. Some information is als
 - [Adding new Backends](Creating_Backends.md)
 - [Operator Tracing with Jaeger](Tracing.md)
 - [Developing and Testing](Developing_Testing.md)
+- [End-to-End Testing Guide](E2E_Testing.md)
 - [HAProxy Backend](./haproxy/Readme.md)
 - [Releasing a new version](./Release_new_version.md)
 

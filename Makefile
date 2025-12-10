@@ -4,6 +4,12 @@ VERSION ?= 0.5.1
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
 
+# E2E development version (for local testing, not for publishing)
+# Changes patch to 0 and adds -dev suffix (e.g., 0.5.1 -> 0.5.0-dev)
+E2E_VERSION ?= $(shell echo $(VERSION) | sed 's/\.[0-9]*$$/.0-dev/')
+E2E_IMG ?= ${REPO}/lbconfig-operator:v$(E2E_VERSION)
+E2E_BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(E2E_VERSION)
+
 # Tools version
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -236,6 +242,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GINKGO ?= $(LOCALBIN)/ginkgo
 KIND ?= $(LOCALBIN)/kind
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
@@ -269,10 +276,8 @@ $(ENVTEST): $(LOCALBIN)
 	@test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 .PHONY: operator-sdk
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 operator-sdk: ## Download operator-sdk locally if necessary.
 ifeq (,$(wildcard $(OPERATOR_SDK)))
-ifeq (, $(shell which operator-sdk 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(OPERATOR_SDK)) ;\
@@ -280,9 +285,6 @@ ifeq (, $(shell which operator-sdk 2>/dev/null))
 	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
 	chmod +x $(OPERATOR_SDK) ;\
 	}
-else
-OPERATOR_SDK = $(shell which operator-sdk)
-endif
 endif
 
 .PHONY: kind
@@ -296,16 +298,16 @@ kind: ## Download kind locally if necessary.
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: manifests kustomize deployment-manifests
+bundle: operator-sdk manifests kustomize deployment-manifests
 	$(SED) -i 's/minKubeVersion: .*/minKubeVersion: $(MIN_KUBERNETES_VERSION)/' config/manifests/bases/lbconfig-operator.clusterserviceversion.yaml
 	$(SED) -i 's/com.redhat.openshift.versions=.*/com.redhat.openshift.versions=v$(MIN_OPENSHIFT_VERSION)/' bundle.Dockerfile
 	$(SED) -i 's/com.redhat.openshift.versions: .*/com.redhat.openshift.versions: v$(MIN_OPENSHIFT_VERSION)/' bundle/metadata/annotations.yaml
-	operator-sdk generate kustomize manifests -q
+	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --manifests --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --manifests --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i "s|containerImage:.*|containerImage: $(IMG)|g" "bundle/manifests/lbconfig-operator.clusterserviceversion.yaml"
 	cp -rf ./config/kuttl ./bundle/tests/scorecard/
-	operator-sdk bundle validate -b $(BUILDER) ./bundle
+	$(OPERATOR_SDK) bundle validate -b $(BUILDER) ./bundle
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -345,33 +347,89 @@ catalog-push: catalog-build ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 .PHONY: olm-validate
-olm-validate: ## Validates the bundle image.
-	operator-sdk bundle validate -b $(BUILDER) $(BUNDLE_IMG)
+olm-validate: operator-sdk ## Validates the bundle image.
+	$(OPERATOR_SDK) bundle validate -b $(BUILDER) $(BUNDLE_IMG)
 
 .PHONY: testenv-setup
 testenv-setup: kind ## Setup the test environment (KIND cluster)
 	$(KIND) get clusters | grep -q test-operator || $(KIND) create cluster --name test-operator
 
-.PHONY: olm-run
-olm-run: olm-validate testenv-setup ## Runs the bundle image in a KIND cluster
+.PHONY: e2e-push
+e2e-push: ## Push e2e images to registry
+	@echo "Pushing operator image ($(E2E_IMG)) to registry..."
+	$(BUILDER) push $(E2E_IMG)
+	@echo "Pushing bundle image ($(E2E_BUNDLE_IMG)) to registry..."
+	$(BUILDER) push $(E2E_BUNDLE_IMG)
+
+.PHONY: e2e-build
+e2e-build: ## Build operator and bundle images for local e2e testing
+	@echo "Building operator image for e2e testing (version: $(E2E_VERSION))..."
+	$(BUILDER) build -t $(E2E_IMG) --build-arg VERSION=$(E2E_VERSION) --build-arg TARGETARCH=amd64 --build-arg TARGETOS=linux -f Dockerfile.cross .
+	@echo "Building bundle for e2e testing..."
+	$(MAKE) bundle VERSION=$(E2E_VERSION) IMG=$(E2E_IMG) BUNDLE_IMG=$(E2E_BUNDLE_IMG)
+	@echo "Building bundle image for e2e testing..."
+	$(BUILDER) build -f bundle.Dockerfile -t $(E2E_BUNDLE_IMG) .
+
+.PHONY: e2e-test
+e2e-test: operator-sdk e2e-build e2e-push testenv-setup ## Run full e2e tests with locally built images
+	@echo "Switching to KIND cluster context..."
 	kubectl config use-context kind-test-operator
-	operator-sdk olm install --version=$(OLM_VERSION) --timeout=5m || true
-	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m
-	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin
+	@echo "Installing CRDs and deploying operator..."
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	@echo "Waiting for operator deployment..."
+	kubectl wait --for=condition=available --timeout=120s deployment/lbconfig-operator-controller-manager -n lbconfig-operator-system || true
+	@echo "Creating test resources..."
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
 	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
-	sleep 3
-	kubectl get elb externalloadbalancer-master-dummy-test
-	operator-sdk cleanup lbconfig-operator
-	kubectl delete secret dummy-creds
+	@echo "Waiting for operator to reconcile..."
+	sleep 10
+	@echo "Running comprehensive e2e test suite..."
+	./hack/e2e-tests.sh
 	@echo "===================="
-	@echo "Don't forget to teardown the KIND cluster with 'make testenv-teardown'"
+	@echo "✅ E2E tests completed successfully!"
+	@echo "Cluster 'test-operator' is still running."
+	@echo "To teardown: make testenv-teardown"
+	@echo "To keep testing: kubectl config use-context kind-test-operator"
+	@echo "===================="
+
+.PHONY: e2e-test-quick
+e2e-test-quick: operator-sdk e2e-build e2e-push testenv-setup ## Run quick e2e smoke test without comprehensive validation
+	@echo "Switching to KIND cluster context..."
+	kubectl config use-context kind-test-operator
+	@echo "Installing CRDs and deploying operator..."
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	@echo "Waiting for operator deployment..."
+	kubectl wait --for=condition=available --timeout=120s deployment/lbconfig-operator-controller-manager -n lbconfig-operator-system || true
+	@echo "Creating test resources..."
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
+	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
+	@echo "Waiting for operator to reconcile..."
+	sleep 10
+	@echo "Quick validation..."
+	kubectl get elb externalloadbalancer-master-dummy-test -n default -o yaml
+	kubectl wait --for=jsonpath='{.status.numnodes}'=1 elb/externalloadbalancer-master-dummy-test -n default --timeout=60s
+	@echo "Checking operator logs..."
+	kubectl logs -n lbconfig-operator-system -l control-plane=controller-manager --tail=50
+	@echo "Cleaning up..."
+	kubectl delete -f config/samples/lb_v1_externalloadbalancer-dummy.yaml || true
+	sleep 5
+	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f - || true
+	kubectl delete secret dummy-creds -n default || true
+	@echo "===================="
+	@echo "✅ Quick e2e test completed!"
 	@echo "===================="
 
 .PHONY: scorecard-run
-scorecard-run: ## Runs the scorecard validation (depends on a KIND cluster)
-	operator-sdk run bundle $(BUNDLE_IMG) --timeout=5m || true
-	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin || true
-	operator-sdk scorecard ./bundle  --wait-time 5m --service-account=lbconfig-operator-controller-manager
+scorecard-run: operator-sdk e2e-build e2e-push testenv-setup ## Runs the scorecard validation with locally built images
+	kubectl config use-context kind-test-operator
+	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --timeout=5m || true
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n lbconfig-operator-system || true
+	$(OPERATOR_SDK) scorecard ./bundle --wait-time 5m --service-account=lbconfig-operator-controller-manager
+	@echo "Cleaning up after scorecard..."
+	$(OPERATOR_SDK) cleanup lbconfig-operator || true
 
 .PHONY: testenv-teardown
 testenv-teardown: ## Teardown the test environment (KIND cluster)
