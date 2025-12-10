@@ -386,10 +386,26 @@ e2e-push: ## Push e2e images to external registry (quay.io) - only for maintaine
 e2e-build: ## Build operator and bundle images for local e2e testing
 	@echo "Building operator image for e2e testing (version: $(E2E_VERSION))..."
 	$(BUILDER) build -t $(E2E_IMG) --build-arg VERSION=$(E2E_VERSION) --build-arg TARGETARCH=amd64 --build-arg TARGETOS=linux -f Dockerfile.cross .
+	@echo "Checking if bundle needs backup..."
+	@if git diff --quiet bundle/ config/manager/kustomization.yaml config/manifests/ manifests/ 2>/dev/null; then \
+		echo "Bundle unchanged, creating backup for restoration..." && \
+		tar czf /tmp/bundle-backup.tar.gz bundle/ config/manager/kustomization.yaml config/manifests/ manifests/ 2>/dev/null; \
+	else \
+		echo "Bundle has local changes, will NOT restore after e2e-build" && \
+		rm -f /tmp/bundle-backup.tar.gz; \
+	fi
 	@echo "Building bundle for e2e testing..."
 	$(MAKE) bundle VERSION=$(E2E_VERSION) IMG=$(E2E_IMG) BUNDLE_IMG=$(E2E_BUNDLE_IMG)
 	@echo "Building bundle image for e2e testing..."
 	$(BUILDER) build -f bundle.Dockerfile -t $(E2E_BUNDLE_IMG) .
+	@if [ -f /tmp/bundle-backup.tar.gz ]; then \
+		echo "Restoring original bundle state..." && \
+		tar xzf /tmp/bundle-backup.tar.gz && \
+		rm -f /tmp/bundle-backup.tar.gz && \
+		echo "✅ E2E images built (bundle/ restored to original state)"; \
+	else \
+		echo "✅ E2E images built (bundle/ contains updated manifests)"; \
+	fi
 
 .PHONY: e2e-test
 e2e-test: operator-sdk e2e-build testenv-setup testenv-load-images ## Run full e2e tests with OLM via local registry
@@ -397,6 +413,10 @@ e2e-test: operator-sdk e2e-build testenv-setup testenv-load-images ## Run full e
 	kubectl config use-context kind-test-operator
 	@echo "Installing OLM..."
 	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	@echo "Cleaning up previous operator deployment (if any)..."
+	@$(OPERATOR_SDK) cleanup lbconfig-operator --timeout=2m 2>/dev/null || true
+	@kubectl delete catalogsource lbconfig-operator-catalog -n default 2>/dev/null || true
+	@sleep 5
 	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
 	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m
 	@echo "Creating test resources..."
@@ -419,6 +439,10 @@ e2e-test-quick: operator-sdk e2e-build testenv-setup testenv-load-images ## Run 
 	kubectl config use-context kind-test-operator
 	@echo "Installing OLM..."
 	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	@echo "Cleaning up previous operator deployment (if any)..."
+	@$(OPERATOR_SDK) cleanup lbconfig-operator --timeout=2m 2>/dev/null || true
+	@kubectl delete catalogsource lbconfig-operator-catalog -n default 2>/dev/null || true
+	@sleep 5
 	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
 	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m
 	@echo "Creating test resources..."
@@ -455,6 +479,7 @@ testenv-teardown: ## Teardown the test environment (KIND cluster and local regis
 	@$(BUILDER) stop kind-registry 2>/dev/null || echo "Registry container not running"
 	@$(BUILDER) rm -f kind-registry 2>/dev/null || echo "Registry container not found"
 	@rm -f /tmp/kind-registry-info.env 2>/dev/null || true
+	@rm -f /tmp/bundle-backup.tar.gz 2>/dev/null || true
 	@echo "✅ Test environment cleaned up"
 
 .PHONY: dist
