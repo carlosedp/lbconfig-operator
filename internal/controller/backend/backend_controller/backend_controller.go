@@ -477,7 +477,7 @@ func (b *BackendController) HandleCleanup(ctx context.Context, lb *lbv1.External
 			return b.Provider.DeleteMonitor(&lb.Status.Monitor)
 		}(ctx)
 		if err != nil {
-			return fmt.Errorf("error in Monitor cleanup %s: %v", lb.Status.Monitor.Name, err)
+			return fmt.Errorf("error in monitor cleanup %s: %v", lb.Status.Monitor.Name, err)
 		}
 	}
 

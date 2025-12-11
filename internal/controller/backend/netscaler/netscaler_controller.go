@@ -331,7 +331,6 @@ func (p *NetscalerProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) 
 			ip := mem["servername"].(string)
 			port := int(mem["port"].(float64))
 			name := ip + ":" + strconv.Itoa(port)
-			// fmt.Printf(">>>>>> Member IP: %s: %+v\n", ip, mem)
 
 			node := &lbv1.Node{
 				Name: name,
