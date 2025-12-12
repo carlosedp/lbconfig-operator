@@ -32,7 +32,7 @@ jobs:
 
       # Kubebuilder Envtest assets
       - name: Kubebuilder Envtest
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.envtest-info.outputs.envtest-path }}
           key: Envtest-cache-${{ steps.envtest-info.outputs.envtest-version }}-${{ steps.envtest-info.outputs.goos }}-${{ steps.envtest-info.outputs.goarch }}
