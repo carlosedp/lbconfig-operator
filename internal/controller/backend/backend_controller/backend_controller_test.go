@@ -33,7 +33,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	. "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 	_ "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_loader"
 	d "github.com/carlosedp/lbconfig-operator/internal/controller/backend/dummy"

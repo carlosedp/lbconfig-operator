@@ -1,0 +1,25 @@
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-infra-sample
+  namespace: lbconfig-operator-system
+  labels:
+    app.kubernetes.io/name: lbconfig-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  vip: "192.168.1.45"
+  type: "infra"
+  ports:
+    - 80
+    - 443
+  monitor:
+    path: "/healthz"
+    port: 1936
+    monitortype: http
+  provider:
+    vendor: F5_BigIP
+    host: "https://192.168.1.35"
+    port: 443
+    creds: f5-creds
+    partition: "Common"
+    validatecerts: false

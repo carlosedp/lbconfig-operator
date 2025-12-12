@@ -11,17 +11,17 @@ This is a Kubernetes operator that automates external load-balancer configuratio
 ### Component Structure
 
 ```
+api/v1                                   # API Objects
 internal/controller/
-├── lb.lbconfig.carlosedp.com/          # Main reconciler
-│   └── externalloadbalancer_controller.go
-├── backend/
+├── externalloadbalancer_controller.go   # Main reconciler
+├── backend/                             # Backend management
 │   ├── backend_controller/              # Provider interface & orchestration
 │   ├── backend_loader/                  # Auto-registers all providers via init()
-│   ├── f5/                             # F5 BigIP implementation
-│   ├── netscaler/                      # Citrix ADC implementation
-│   ├── haproxy/                        # HAProxy Dataplane API implementation
-│   └── dummy/                          # Testing provider
-api/lb.lbconfig.carlosedp.com/v1/       # CRD types
+│   ├── f5/                              # F5 BigIP implementation
+│   ├── netscaler/                       # Citrix ADC implementation
+│   ├── haproxy/                         # HAProxy Dataplane API implementation
+│   └── dummy/                           # Testing provider
+api/v1/       # CRD types
 ```
 
 ### Provider Plugin Architecture
@@ -70,7 +70,7 @@ kubectl create secret generic dummy-creds \
   --from-literal=username=admin \
   --from-literal=password=admin \
   -n lbconfig-operator-system
-kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
+kubectl apply -n lbconfig-operator-system -f examples/lb_v1_externalloadbalancer-dummy.yaml
 ```
 
 ### Testing
@@ -81,6 +81,7 @@ kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
 - **Scorecard**: `make scorecard-run` - Validates operator with OLM scorecard tests
 
 **E2E Test Flow**:
+
 1. `e2e-build` - Builds operator binary, Docker image, bundle manifests, and bundle image (local arch only)
    - Uses dev version: sets patch to 0 and adds `-dev` suffix (e.g., `0.5.1` → `v0.5.0-dev`) to distinguish from published releases
    - Images tagged as `E2E_IMG` and `E2E_BUNDLE_IMG` variables
@@ -155,10 +156,10 @@ Prometheus metrics:
 
 ### Modifying CRD Spec
 
-1. Edit `api/lb.lbconfig.carlosedp.com/v1/externalloadbalancer_types.go`
+1. Edit `api/v1/externalloadbalancer_types.go`
 2. Add kubebuilder markers for validation/documentation
 3. Run `make generate` then `make manifests` then `make bundle`
-4. Update samples in `config/samples/`
+4. Update samples in `./examples/`
 
 ### Debugging Backend Issues
 

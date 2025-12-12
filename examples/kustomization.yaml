@@ -1,0 +1,9 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+  - namespace.yaml
+  - secret_v1_creds.yaml
+  - lb_v2_externalloadbalancer-master.yaml
+  - lb_v2_externalloadbalancer-infra.yaml
+  - lb_v2_externalloadbalancer-infra-shard.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
+namespace: lbconfig-operator-system

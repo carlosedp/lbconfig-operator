@@ -19,15 +19,6 @@ resources:
     domain: lbconfig.carlosedp.com
     group: lb
     kind: ExternalLoadBalancer
-    path: github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1
-    version: v1
-  - api:
-      crdVersion: v1
-      namespaced: true
-    controller: true
-    domain: lbconfig.carlosedp.com
-    group: lb.lbconfig.carlosedp.com
-    kind: ExternalLoadBalancer
-    path: github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1
+    path: github.com/carlosedp/lbconfig-operator/api/v1
     version: v1
 version: "3"

@@ -43,7 +43,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	lbv1 "github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1"
+	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	. "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 	. "github.com/carlosedp/lbconfig-operator/internal/controller/backend/netscaler"
 )

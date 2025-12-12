@@ -6,7 +6,7 @@
 set -e
 
 OPERATOR_NAMESPACE="${OPERATOR_NAMESPACE:-lbconfig-operator-system}"
-CR_NAMESPACE="${CR_NAMESPACE:-default}"
+CR_NAMESPACE="${CR_NAMESPACE:-lbconfig-operator-system}"
 TIMEOUT="${TIMEOUT:-120s}"
 VERBOSE="${VERBOSE:-false}"
 
@@ -15,6 +15,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+EXIT_ERROR=0
 
 log_info() {
   echo -e "${GREEN}[INFO]${NC} $1"
@@ -59,6 +61,20 @@ wait_for_condition() {
   fi
 }
 
+deploy_instance() {
+  log_info "=== Deploying lbconfig-operator Instance ==="
+
+  log_info "Creating test resources..."
+  kubectl apply -f examples/namespace.yaml
+  kubectl apply --namespace lbconfig-operator-system -f examples/secret_v1_creds.yaml
+  kubectl apply --namespace lbconfig-operator-system -f examples/lb_v2_externalloadbalancer-dummy.yaml
+
+  log_info "Waiting for operator to reconcile..."
+  sleep 10
+
+  log_info "✅ Operator instance deployed"
+}
+
 test_operator_deployment() {
   log_info "=== Testing Operator Deployment ==="
 
@@ -70,6 +86,7 @@ test_operator_deployment() {
   log_info "Checking operator logs for errors..."
   if kubectl logs -n "$OPERATOR_NAMESPACE" -l control-plane=controller-manager --tail=50 | grep -i "error" | grep -v "ignore"; then
     log_warn "Found error messages in operator logs (review above) ❎"
+    EXIT_ERROR=1
   else
     log_info "No critical errors found in operator logs ✅"
   fi
@@ -96,7 +113,7 @@ test_basic_cr_lifecycle() {
     log_info "Status.numnodes = $numnodes ✅"
   else
     log_error "Status.numnodes not set or zero ❎"
-    return 1
+    EXIT_ERROR=1
   fi
 
   # Check monitor name in status
@@ -105,7 +122,7 @@ test_basic_cr_lifecycle() {
     log_info "Status.monitor.name = $monitor_name ✅"
   else
     log_error "Status.monitor.name not set ❎"
-    return 1
+    EXIT_ERROR=1
   fi
 
   # Check pools in status
@@ -114,7 +131,7 @@ test_basic_cr_lifecycle() {
     log_info "Status.pools count = $pool_count ✅"
   else
     log_error "Status.pools not populated ❎"
-    return 1
+    EXIT_ERROR=1
   fi
 
   log_info "✅ Basic CR lifecycle validated"
@@ -137,7 +154,7 @@ test_cr_update() {
     log_info "VIP updated successfully: $new_vip ✅"
   else
     log_error "VIP not updated. Current: $new_vip ❎"
-    return 1
+    EXIT_ERROR=1
   fi
 
   # Add a new port
@@ -152,7 +169,7 @@ test_cr_update() {
     log_info "Ports updated successfully: $ports ✅"
   else
     log_error "Port 8443 not found in ports list ❎"
-    return 1
+    EXIT_ERROR=1
   fi
 
   # Check that pool count increased
@@ -161,6 +178,7 @@ test_cr_update() {
     log_info "Pool count increased as expected: $pool_count ✅"
   else
     log_warn "Pool count did not increase. Current: $pool_count ❎"
+    EXIT_ERROR=1
   fi
 
   log_info "✅ CR update tests completed"
@@ -169,30 +187,54 @@ test_cr_update() {
 test_metrics() {
   log_info "=== Testing Metrics Endpoint ==="
 
-  # Get operator pod name
-  local pod_name=$(kubectl get pod -n "$OPERATOR_NAMESPACE" -l control-plane=controller-manager -o jsonpath='{.items[0].metadata.name}')
+  # Create service account for metrics access
+  log_info "Creating metrics-reader service account..."
+  kubectl create sa metrics-reader -n "$OPERATOR_NAMESPACE" 2>/dev/null || true
 
-  if [[ -z "$pod_name" ]]; then
-    log_error "Could not find operator pod"
+  # Bind to existing lbconfig-operator-metrics-reader ClusterRole (created by OLM bundle)
+  kubectl create clusterrolebinding metrics-reader-binding \
+    --clusterrole=lbconfig-operator-metrics-reader \
+    --serviceaccount="$OPERATOR_NAMESPACE:metrics-reader" 2>/dev/null || true
+
+  # Generate token for the service account (minimum 10 minutes required)
+  local token
+  token=$(kubectl create token metrics-reader -n "$OPERATOR_NAMESPACE" --duration=10m)
+
+  if [[ -z "$token" ]]; then
+    log_error "Could not create token for metrics-reader"
     return 1
   fi
 
-  log_info "Checking metrics from pod: $pod_name"
-
-  # Port forward to metrics endpoint (runs in background)
-  kubectl port-forward -n "$OPERATOR_NAMESPACE" "$pod_name" 8589:8080 &
+  # Port forward to metrics service (runs in background)
+  kubectl port-forward -n "$OPERATOR_NAMESPACE" svc/lbconfig-operator-controller-manager-metrics-service 8589:8443 &
   local pf_pid=$!
 
-  sleep 2
+  sleep 3
 
-  if curl -s http://localhost:8589/metrics | grep -q "externallb_total"; then
-    log_info "Metrics endpoint accessible and contains operator metrics ✅"
-  else
-    log_warn "Metrics endpoint accessible but operator metrics not found ❎"
+  # Access metrics with bearer token - capture response for debugging
+  local response
+  response=$(curl -s -k -H "Authorization: Bearer $token" https://localhost:8589/metrics)
+
+  if [[ "$VERBOSE" == "true" ]]; then
+    log_info "Metrics response preview:"
+    echo "$response" | head -20
   fi
 
-  # Cleanup port-forward
+  if echo "$response" | grep -q "externallb_total"; then
+    log_info "Metrics endpoint accessible and contains operator metrics ✅"
+  elif echo "$response" | grep -qi "unauthorized\|forbidden"; then
+    log_warn "Metrics endpoint returned authentication error ❎"
+    [[ "$VERBOSE" == "true" ]] && echo "$response"
+  else
+    log_warn "Metrics endpoint accessible but operator metrics not found ❎"
+    EXIT_ERROR=1
+    [[ "$VERBOSE" == "true" ]] && log_info "Response may contain other metrics or be empty"
+  fi
+
+  # Cleanup
   kill $pf_pid 2>/dev/null || true
+  kubectl delete clusterrolebinding metrics-reader-binding 2>/dev/null || true
+  kubectl delete sa metrics-reader -n "$OPERATOR_NAMESPACE" 2>/dev/null || true
 
   log_info "✅ Metrics test completed"
 }
@@ -217,7 +259,7 @@ test_finalizer() {
   # Verify deletion
   if kubectl get elb "$cr_name" -n "$CR_NAMESPACE" &>/dev/null; then
     log_error "CR still exists after deletion attempt ❎"
-    return 1
+    EXIT_ERROR=1
   else
     log_info "CR successfully deleted ✅"
   fi
@@ -274,12 +316,20 @@ main() {
   log_info "Timeout: $TIMEOUT"
 
   # Run tests
+  deploy_instance
   test_operator_deployment
   test_basic_cr_lifecycle
   test_cr_update
-  test_metrics || log_warn "Metrics test failed (non-critical)"
+  test_metrics
   test_multiple_instances
   test_finalizer
+
+  if [[ $EXIT_ERROR -ne 0 ]]; then
+    log_error "==================================="
+    log_error "Some E2E tests failed ❎"
+    log_error "==================================="
+    exit 1
+  fi
 
   log_info "==================================="
   log_info "✅ All E2E tests completed successfully!"

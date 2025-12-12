@@ -1,6 +1,6 @@
 # HAProxy Test and Config with Dataplane API
 
-The operator now supports HAProxy backend via the [Dataplane API](https://github.com/haproxytech/dataplaneapi). There are sample CustomResource configs to use this backend at [`config/samples/lb_v1_externalloadbalancer-haproxy.yaml`](../../config/samples/lb_v1_externalloadbalancer-haproxy.yaml) and [`config/samples/lb_v1_externalloadbalancer-haproxy-infra.yaml`](../../config/samples/lb_v1_externalloadbalancer-haproxy-infra.yaml).
+The operator now supports HAProxy backend via the [Dataplane API](https://github.com/haproxytech/dataplaneapi). There are sample CustomResource configs to use this backend at [`examples/lb_v1_externalloadbalancer-haproxy.yaml`](../../examples/lb_v1_externalloadbalancer-haproxy.yaml) and [`examples/lb_v1_externalloadbalancer-haproxy-infra.yaml`](../../examples/lb_v1_externalloadbalancer-haproxy-infra.yaml).
 
 This directory has information about how to run HAProxy with the Dataplane API on Docker and also how to deploy it using Ansible to a Physical or Virtual machine.
 

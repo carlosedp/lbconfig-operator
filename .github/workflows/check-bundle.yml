@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  bundle-check-changed:
+  check-bundle:
     permissions:
       contents: read
       pull-requests: write

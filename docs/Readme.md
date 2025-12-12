@@ -39,7 +39,7 @@ The operator dynamically handles creating, updating or deleting the IPs of the p
 Apply the operator manifest into the cluster:
 
 ```sh
-kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.2.0/manifests/deploy.yaml
+kubectl apply -f https://github.com/carlosedp/lbconfig-operator/raw/v0.2.0/dist/install.yaml
 ```
 
 This creates the operator Namespace, CRD and deployment using the latest container version. The container image is built for `amd64`, `arm64`, `ppc64le` and `s390x` architectures.
@@ -132,7 +132,7 @@ spec:
   ...
 ```
 
-Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1?utm_source=gopls#Provider) which fields are backend-specific.
+Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
 CRD Fields:
 

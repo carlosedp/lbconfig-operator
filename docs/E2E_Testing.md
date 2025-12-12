@@ -140,7 +140,7 @@ make e2e-test
 kubectl config use-context kind-test-operator
 
 # Create additional test resources
-kubectl apply -f config/samples/lb_v1_externalloadbalancer-infra.yaml
+kubectl apply -f examples/lb_v1_externalloadbalancer-infra.yaml
 
 # Check operator logs
 kubectl logs -n lbconfig-operator-system -l control-plane=controller-manager -f

@@ -2,103 +2,12 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |-
-      [
-        {
-          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
-          "kind": "ExternalLoadBalancer",
-          "metadata": {
-            "name": "externalloadbalancer-infra-sample",
-            "namespace": "lbconfig-operator-system"
-          },
-          "spec": {
-            "monitor": {
-              "monitortype": "http",
-              "path": "/healthz",
-              "port": 1936
-            },
-            "ports": [
-              80,
-              443
-            ],
-            "provider": {
-              "creds": "f5-creds",
-              "host": "https://192.168.1.35",
-              "partition": "Common",
-              "port": 443,
-              "validatecerts": false,
-              "vendor": "F5_BigIP"
-            },
-            "type": "infra",
-            "vip": "192.168.1.45"
-          }
-        },
-        {
-          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
-          "kind": "ExternalLoadBalancer",
-          "metadata": {
-            "name": "externalloadbalancer-infra-sample-shard",
-            "namespace": "lbconfig-operator-system"
-          },
-          "spec": {
-            "monitor": {
-              "monitortype": "http",
-              "path": "/healthz",
-              "port": 1936
-            },
-            "nodelabels": {
-              "kubernetes.io/region": "DC1",
-              "node-role.kubernetes.io/infra": ""
-            },
-            "ports": [
-              80,
-              443
-            ],
-            "provider": {
-              "creds": "f5-creds",
-              "host": "https://192.168.1.35",
-              "partition": "Common",
-              "port": 443,
-              "validatecerts": false,
-              "vendor": "F5_BigIP"
-            },
-            "type": "infra",
-            "vip": "192.168.1.46"
-          }
-        },
-        {
-          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
-          "kind": "ExternalLoadBalancer",
-          "metadata": {
-            "name": "externalloadbalancer-master-sample",
-            "namespace": "lbconfig-operator-system"
-          },
-          "spec": {
-            "monitor": {
-              "monitortype": "https",
-              "path": "/healthz",
-              "port": 6443
-            },
-            "ports": [
-              6443
-            ],
-            "provider": {
-              "creds": "netscaler-creds",
-              "host": "https://192.168.1.36",
-              "port": 443,
-              "validatecerts": false,
-              "vendor": "Citrix_ADC"
-            },
-            "type": "master",
-            "vip": "192.168.1.40"
-          }
-        }
-      ]
+    alm-examples: '[]'
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
-    containerImage: quay.io/carlosedp/lbconfig-operator:v0.5.1
-    createdAt: "2025-12-10T19:29:45Z"
+    containerImage: quay.io/carlosedp/lbconfig-operator:v0.6.0
+    createdAt: "2025-12-12T18:19:40Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
@@ -107,7 +16,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/carlosedp/lbconfig-operator
     support: https://github.com/carlosedp/lbconfig-operator
-  name: lbconfig-operator.v0.5.1
+  name: lbconfig-operator.v0.6.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -318,7 +227,7 @@ spec:
 
     This project fully open-source and is hosted at [GitHub](https://github.com/carlosedp/lbconfig-operator). Always check the project page and issues for the latest updates and/or solutions to problems encountered. If a problem is detected, please fill an issue. Feature request and improvement issues are welcome.
 
-    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1?utm_source=gopls#Provider) which fields are backend-specific.
+    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
     ## Disclaimers
 
@@ -386,12 +295,15 @@ spec:
         serviceAccountName: lbconfig-operator-controller-manager
       deployments:
       - label:
+          app.kubernetes.io/managed-by: kustomize
+          app.kubernetes.io/name: lbconfig-operator
           control-plane: controller-manager
         name: lbconfig-operator-controller-manager
         spec:
           replicas: 1
           selector:
             matchLabels:
+              app.kubernetes.io/name: lbconfig-operator
               control-plane: controller-manager
           strategy: {}
           template:
@@ -399,40 +311,17 @@ spec:
               annotations:
                 kubectl.kubernetes.io/default-container: manager
               labels:
+                app.kubernetes.io/name: lbconfig-operator
                 control-plane: controller-manager
             spec:
               containers:
               - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=0
-                image: quay.io/carlosedp/kube-rbac-proxy:v0.15.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                  protocol: TCP
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 5m
-                    memory: 64Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
+                - --metrics-bind-address=:8443
                 - --leader-elect
+                - --health-probe-bind-address=:8081
                 command:
                 - /manager
-                image: quay.io/carlosedp/lbconfig-operator:v0.5.1
-                imagePullPolicy: Always
+                image: quay.io/carlosedp/lbconfig-operator:v0.6.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -460,6 +349,8 @@ spec:
                     - ALL
               securityContext:
                 runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
               serviceAccountName: lbconfig-operator-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:
@@ -507,8 +398,11 @@ spec:
   - supported: false
     type: AllNamespaces
   keywords:
-  - 'load-balance '
+  - load-balancer
   - infrastructure
+  - lbconfig
+  - F5
+  - Citrix
   labels:
     lbconfig-operator: "true"
   links:
@@ -525,5 +419,6 @@ spec:
   minKubeVersion: 1.19.0
   provider:
     name: Carlos Eduardo de Paula
+    url: https://github.com/carlosedp
   selector: {}
-  version: 0.5.1
+  version: 0.6.0

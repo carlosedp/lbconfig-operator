@@ -1,53 +1,10 @@
 # Current Operator version
-VERSION ?= 0.5.1
-# VERSION ?= $(shell git describe --tags | sed 's/^v//') # Use this to get the latest tag
+VERSION ?= 0.6.0
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
 
-# E2E development version (for local testing, not for publishing)
-# Changes patch to 0 and adds -dev suffix (e.g., 0.5.1 -> 0.5.0-dev)
-E2E_VERSION ?= $(shell echo $(VERSION) | sed 's/\.[0-9]*$$/.0-dev/')
-# For local testing with KIND, images will be tagged with localhost:5001 and pushed to container IP
-E2E_IMG_NAME ?= lbconfig-operator:v$(E2E_VERSION)
-E2E_BUNDLE_IMG_NAME ?= lbconfig-operator-bundle:v$(E2E_VERSION)
-# These will be used by OLM - localhost:5001 is accessible from KIND nodes
-LOCAL_REGISTRY ?= localhost:5001
-E2E_IMG ?= $(LOCAL_REGISTRY)/$(E2E_IMG_NAME)
-E2E_BUNDLE_IMG ?= $(LOCAL_REGISTRY)/$(E2E_BUNDLE_IMG_NAME)
-
-# Tools version
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.31.0
-KUSTOMIZE_VERSION ?= v5.8.0
-CONTROLLER_TOOLS_VERSION ?= v0.19.0
-OPERATOR_SDK_VERSION ?= v1.36.1
-OLM_VERSION ?= 0.38.0
-KIND_VERSION ?= v0.30.0
-
-MIN_KUBERNETES_VERSION ?= 1.19.0
-MIN_OPENSHIFT_VERSION ?= 4.6
-
-SED ?= "sed"
-
 # Operator repository
 REPO ?= quay.io/carlosedp
-
-# Publishing channel
-CHANNELS = "beta"
-DEFAULT_CHANNEL = "beta"
-
-# Architectures to build binaries and Docker images
-ARCHS ?= amd64 arm64 ppc64le s390x
-# Interpolated platform and architecture list for docker buildx separated by comma
-# PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
-# - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
-# - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
-PLATFORMS = $(shell echo $(ARCHS) | sed -e 's~[^ ]*~linux/&~g' | tr ' ' ',')
-
-# Which container runtime to use (check if Docker is available otherwise use Podman)
-BUILDER = podman
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${REPO}/lbconfig-operator:v$(VERSION)
@@ -60,6 +17,21 @@ ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
 endif
 
+# BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
+BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+
+# USE_IMAGE_DIGESTS defines if images are resolved via tags or digests
+# You can enable this value if you would like to use SHA Based Digests
+# To enable set flag to true
+USE_IMAGE_DIGESTS ?= false
+ifeq ($(USE_IMAGE_DIGESTS), true)
+	BUNDLE_GEN_FLAGS += --use-image-digests
+endif
+
+# Publishing channel
+CHANNELS = "beta"
+DEFAULT_CHANNEL = "beta"
+
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -68,6 +40,58 @@ ifneq ($(origin DEFAULT_CHANNEL), undefined)
 BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+
+# E2E development version (for local testing, not for publishing)
+# Changes patch to 0 and adds -dev suffix (e.g., 0.5.1 -> 0.5.0-dev)
+E2E_VERSION ?= $(shell echo $(VERSION) | sed 's/\.[0-9]*$$/.0-dev/')
+# For local testing with KIND, images will be tagged with localhost:5001 and pushed to container IP
+E2E_IMG_NAME ?= lbconfig-operator:v$(E2E_VERSION)
+E2E_BUNDLE_IMG_NAME ?= lbconfig-operator-bundle:v$(E2E_VERSION)
+# These will be used by OLM - localhost:5001 is accessible from KIND nodes
+LOCAL_REGISTRY ?= localhost:5001
+E2E_IMG ?= $(LOCAL_REGISTRY)/$(E2E_IMG_NAME)
+E2E_BUNDLE_IMG ?= $(LOCAL_REGISTRY)/$(E2E_BUNDLE_IMG_NAME)
+
+# Architectures to build binaries and Docker images
+ARCHS ?= amd64 arm64 ppc64le s390x
+PLATFORMS = $(shell echo $(ARCHS) | sed -e 's~[^ ]*~linux/&~g' | tr ' ' ',')
+
+# Which container runtime to use
+BUILDER = podman
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+KIND ?= $(LOCALBIN)/kind
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+GINKGO ?= $(LOCALBIN)/ginkgo
+OPM ?= $(LOCALBIN)/opm
+
+# Tools version
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+KUSTOMIZE_VERSION ?= v5.8.0
+CONTROLLER_TOOLS_VERSION  ?= v0.19.0
+KIND_VERSION ?= v0.30.0
+OPERATOR_SDK_VERSION ?= v1.42.0
+GOLANGCI_LINT_VERSION ?= v2.7.2
+GINKGO_VERSION ?= v2.27.3
+OPM_VERSION ?= v1.61.0
+OLM_VERSION ?= 0.38.0
+
+# Minimal Kubernetes and OpenShift Versions
+MIN_KUBERNETES_VERSION ?= 1.19.0
+MIN_OPENSHIFT_VERSION ?= 4.6
+
+# Dynamically generated versions
+ENVTEST_VERSION := $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
+ENVTEST_K8S_VERSION := $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -116,12 +140,6 @@ check-versions: ## Check versions of tools
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-# Generate deployment manifests for manual install
-.PHONY: deployment-manifests
-deployment-manifests: manifests kustomize ## Generate deployment manifests for the controller.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > manifests/deploy.yaml
-
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -134,17 +152,9 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test: manifests generate fmt vet envtest ginkgo ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --trace --race --cover --covermode=atomic --coverprofile=coverage.out .
-
-GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-GOLANGCI_LINT_VERSION ?= v1.54.2
-golangci-lint:
-	@[ -f $(GOLANGCI_LINT) ] || { \
-	set -e ;\
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) $(GOLANGCI_LINT_VERSION) ;\
-	}
+.PHONY: lint-config
+lint-config: golangci-lint ## Verify golangci-lint linter configuration
+	$(GOLANGCI_LINT) config verify
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
@@ -153,6 +163,175 @@ lint: golangci-lint ## Run golangci-lint linter & yamllint
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
+
+##@ Tests
+
+# .PHONY: test
+# test: manifests generate fmt vet setup-envtest ## Run tests.
+# 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+
+.PHONY: test
+test: manifests generate fmt vet setup-envtest envtest ginkgo ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --trace --race --cover --covermode=atomic --coverprofile=coverage.out .
+
+.PHONY: setup-envtest
+setup-envtest: envtest ## Download the binaries required for ENVTEST in the local bin directory.
+	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
+	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path || { \
+		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
+		exit 1; \
+	}
+
+.PHONY: olm-validate
+olm-validate: operator-sdk ## Validates the bundle image.
+	$(OPERATOR_SDK) bundle validate -b $(BUILDER) $(BUNDLE_IMG)
+
+# Below are targets to use Go e2e tests which are currently done further with other targets and a script in ./hack.
+# TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
+# The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
+# CertManager is installed by default; skip with:
+# - CERT_MANAGER_INSTALL_SKIP=true
+KIND_CLUSTER ?= lbconfig-operator-test-e2e
+
+# .PHONY: setup-test-e2e
+# setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
+# 	@command -v $(KIND) >/dev/null 2>&1 || { \
+# 		echo "Kind is not installed. Please install Kind manually."; \
+# 		exit 1; \
+# 	}
+# 	@case "$$($(KIND) get clusters)" in \
+# 		*"$(KIND_CLUSTER)"*) \
+# 			echo "Kind cluster '$(KIND_CLUSTER)' already exists. Skipping creation." ;; \
+# 		*) \
+# 			echo "Creating Kind cluster '$(KIND_CLUSTER)'..."; \
+# 			$(KIND) create cluster --name $(KIND_CLUSTER) ;; \
+# 	esac
+
+# .PHONY: test-e2e
+# test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+# 	KIND_CLUSTER=$(KIND_CLUSTER) go test ./test/e2e/ -v -ginkgo.v
+# 	$(MAKE) cleanup-test-e2e
+
+# .PHONY: cleanup-test-e2e
+# cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
+# 	@$(KIND) delete cluster --name $(KIND_CLUSTER)
+
+.PHONY: testenv-setup
+testenv-setup: kind ## Setup the test environment (KIND cluster with local registry)
+	@echo "Setting up local registry and KIND cluster..."
+	@./hack/setup-kind-registry.sh
+
+.PHONY: testenv-load-images
+testenv-load-images: ## Push locally built images to local registry
+	@if [ -f /tmp/kind-registry-info.env ]; then \
+		echo "Pushing operator image to local registry (localhost:5001)..." && \
+		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_IMG_NAME) && \
+		echo "Pushing bundle image to local registry (localhost:5001)..." && \
+		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_BUNDLE_IMG_NAME) && \
+		echo "✅ Images pushed to local registry"; \
+	else \
+		echo "❌ Registry info not found. Run 'make testenv-setup' first."; \
+		exit 1; \
+	fi
+
+.PHONY: e2e-build
+e2e-build: ## Build operator and bundle images for local e2e testing
+	@echo "Building operator image for e2e testing (version: $(E2E_VERSION))..."
+	$(BUILDER) build -t $(E2E_IMG) --build-arg VERSION=$(E2E_VERSION) --build-arg TARGETARCH=amd64 --build-arg TARGETOS=linux -f Dockerfile.cross .
+	@echo "Checking if bundle needs backup..."
+	@if git diff --quiet bundle/ config/manager/kustomization.yaml config/manifests/ manifests/ 2>/dev/null; then \
+		echo "Bundle unchanged, creating backup for restoration..." && \
+		tar czf /tmp/bundle-backup.tar.gz bundle/ config/manager/kustomization.yaml config/manifests/ manifests/ 2>/dev/null; \
+	else \
+		echo "Bundle has local changes, will NOT restore after e2e-build" && \
+		rm -f /tmp/bundle-backup.tar.gz; \
+	fi
+	@echo "Building bundle for e2e testing..."
+	$(MAKE) bundle VERSION=$(E2E_VERSION) IMG=$(E2E_IMG) BUNDLE_IMG=$(E2E_BUNDLE_IMG)
+	@echo "Building bundle image for e2e testing..."
+	$(BUILDER) build -f bundle.Dockerfile -t $(E2E_BUNDLE_IMG) .
+	@if [ -f /tmp/bundle-backup.tar.gz ]; then \
+		echo "Restoring original bundle state..." && \
+		tar xzf /tmp/bundle-backup.tar.gz && \
+		rm -f /tmp/bundle-backup.tar.gz && \
+		echo "✅ E2E images built (bundle/ restored to original state)"; \
+	else \
+		echo "✅ E2E images built (bundle/ contains updated manifests)"; \
+	fi
+
+.PHONY: e2e-test
+e2e-test: operator-sdk e2e-build testenv-setup testenv-load-images ## Run full e2e tests with OLM via local registry
+	@echo "Switching to KIND cluster context..."
+	kubectl config use-context kind-test-operator
+	@echo "Installing OLM..."
+	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	@echo "Creating operator namespace..."
+	kubectl apply -f examples/namespace.yaml
+	@echo "Cleaning up previous operator deployment (if any)..."
+	@$(OPERATOR_SDK) cleanup lbconfig-operator --namespace lbconfig-operator-system --timeout=2m 2>/dev/null || true
+	@kubectl delete catalogsource lbconfig-operator-catalog -n lbconfig-operator-system 2>/dev/null || true
+	@sleep 5
+	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --namespace lbconfig-operator-system --use-http --skip-tls-verify --timeout=5m
+	@echo "Running comprehensive e2e test suite..."
+	./hack/e2e-tests.sh
+	@echo "===================="
+	@echo "✅ E2E tests completed successfully!"
+	@echo "Cluster 'test-operator' is still running."
+	@echo "To teardown: make testenv-teardown"
+	@echo "To keep testing: kubectl config use-context kind-test-operator"
+	@echo "===================="
+
+.PHONY: e2e-test-quick
+e2e-test-quick: operator-sdk e2e-build testenv-setup testenv-load-images ## Run quick e2e smoke test with OLM
+	@echo "Switching to KIND cluster context..."
+	kubectl config use-context kind-test-operator
+	@echo "Installing OLM..."
+	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	@echo "Creating operator namespace..."
+	kubectl apply -f examples/namespace.yaml
+	@echo "Cleaning up previous operator deployment (if any)..."
+	@$(OPERATOR_SDK) cleanup lbconfig-operator --namespace lbconfig-operator-system --timeout=2m 2>/dev/null || true
+	@kubectl delete catalogsource lbconfig-operator-catalog -n lbconfig-operator-system 2>/dev/null || true
+	@sleep 5
+	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --namespace lbconfig-operator-system --use-http --skip-tls-verify --timeout=5m
+	@echo "Creating test resources..."
+	kubectl apply -f examples/secret_v1_creds.yaml
+	kubectl apply -f examples/lb_v2_externalloadbalancer-dummy.yaml
+	@echo "Waiting for operator to reconcile..."
+	sleep 10
+	@echo "Quick validation..."
+	kubectl get elb externalloadbalancer-master-dummy-test -n default -o yaml
+	kubectl wait --for=jsonpath='{.status.numnodes}'=1 elb/externalloadbalancer-master-dummy-test -n default --timeout=60s
+	@echo "Cleaning up..."
+	kubectl delete namespace lbconfig-operator-system || true
+	sleep 5
+	$(OPERATOR_SDK) cleanup lbconfig-operator --namespace lbconfig-operator-system || true
+	kubectl delete secret dummy-creds -n default || true
+	@echo "===================="
+	@echo "✅ Quick e2e test completed!"
+	@echo "===================="
+
+.PHONY: scorecard-run
+scorecard-run: operator-sdk e2e-build testenv-setup testenv-load-images ## Runs the scorecard validation with locally built images
+	kubectl config use-context kind-test-operator
+	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
+	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m || true
+	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
+	$(OPERATOR_SDK) scorecard ./bundle --wait-time 5m --service-account=lbconfig-operator-controller-manager
+	@echo "Cleaning up after scorecard..."
+	$(OPERATOR_SDK) cleanup lbconfig-operator || true
+
+.PHONY: testenv-teardown
+testenv-teardown: ## Teardown the test environment (KIND cluster and local registry)
+	@echo "Tearing down test environment..."
+	@$(KIND) delete cluster --name test-operator 2>/dev/null || echo "KIND cluster not found"
+	@$(BUILDER) stop kind-registry 2>/dev/null || echo "Registry container not running"
+	@$(BUILDER) rm -f kind-registry 2>/dev/null || echo "Registry container not found"
+	@rm -f /tmp/kind-registry-info.env 2>/dev/null || true
+	@rm -f /tmp/bundle-backup.tar.gz 2>/dev/null || true
+	@echo "✅ Test environment cleaned up"
 
 ##@ Build
 
@@ -211,6 +390,12 @@ podman-crossbuild: test ## Build and push a container image for the manager for 
 	podman build --platform $(PLATFORMS) --manifest ${IMG} -f Dockerfile .
 	podman manifest push ${IMG}
 
+.PHONY: build-installer
+build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+	mkdir -p dist
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > dist/install.yaml
+
 ##@ Deployment
 
 ifndef ignore-not-found
@@ -234,51 +419,69 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-##@ Build Dependencies
-
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
-
-## Tool Binaries
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
-GINKGO ?= $(LOCALBIN)/ginkgo
-KIND ?= $(LOCALBIN)/kind
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+##@ Tool Dependencies Install
 
 .PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
-		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
-		rm -rf $(LOCALBIN)/kustomize; \
-	fi
-	@test -s $(LOCALBIN)/kustomize || { \
-		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- $(shell echo $(KUSTOMIZE_VERSION) | sed 's/v//') $(LOCALBIN); \
-	}
+	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
 
-# Extract ginkgo version from go.mod removing the v prefix
-GINKGO_VERSION = $(shell grep github.com/onsi/ginkgo go.mod | awk '{print $$2}' | sed 's/v//')
+.PHONY: envtest
+envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
+$(ENVTEST): $(LOCALBIN)
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCI_LINT): $(LOCALBIN)
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
-	@test -s $(LOCALBIN)/ginkgo && $(LOCALBIN)/ginkgo version | grep -q $(GINKGO_VERSION) || GOBIN=$(LOCALBIN) go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v$(GINKGO_VERSION)
+	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo,$(GINKGO_VERSION))
 
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	@test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+.PHONY: kind
+kind: $(KIND)
+$(KIND): $(LOCALBIN)
+	$(call go-install-tool,$(KIND),sigs.k8s.io/kind,$(KIND_VERSION))
 
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	@test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
+# $1 - target path with name of binary (ideally with version)
+# $2 - package url which can be installed
+# $3 - specific version of package
+define go-install-tool
+@[ -f "$(1)-$(3)" ] || { \
+set -e; \
+package=$(2)@$(3) ;\
+echo "Downloading $${package}" ;\
+rm -f $(1) || true ;\
+GOBIN=$(LOCALBIN) go install $${package} ;\
+mv $(1) $(1)-$(3) ;\
+} ;\
+ln -sf $(1)-$(3) $(1)
+endef
+
+.PHONY: opm
+opm: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(OPM)))
+ifeq (,$(shell which opm 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPM)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
+	chmod +x $(OPM) ;\
+	}
+else
+OPM = $(shell which opm)
+endif
+endif
 
 .PHONY: operator-sdk
 operator-sdk: ## Download operator-sdk locally if necessary.
@@ -292,44 +495,20 @@ ifeq (,$(wildcard $(OPERATOR_SDK)))
 	}
 endif
 
-.PHONY: kind
-kind: ## Download kind locally if necessary.
-	@{ \
-	set -e ;\
-	mkdir -p $(LOCALBIN) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/kind@$(KIND_VERSION) ;\
-	}
+##@ Bundle and Catalog generation for distribution
 
 # Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize deployment-manifests
-	$(SED) -i 's/minKubeVersion: .*/minKubeVersion: $(MIN_KUBERNETES_VERSION)/' config/manifests/bases/lbconfig-operator.clusterserviceversion.yaml
-	$(SED) -i 's/com.redhat.openshift.versions=.*/com.redhat.openshift.versions=v$(MIN_OPENSHIFT_VERSION)/' bundle.Dockerfile
-	$(SED) -i 's/com.redhat.openshift.versions: .*/com.redhat.openshift.versions: v$(MIN_OPENSHIFT_VERSION)/' bundle/metadata/annotations.yaml
+bundle: operator-sdk manifests kustomize build-installer
+	sed -i 's/minKubeVersion: .*/minKubeVersion: $(MIN_KUBERNETES_VERSION)/' config/manifests/bases/lbconfig-operator.clusterserviceversion.yaml
+	sed -i 's/com.redhat.openshift.versions=.*/com.redhat.openshift.versions=v$(MIN_OPENSHIFT_VERSION)/' bundle.Dockerfile
+	sed -i 's/com.redhat.openshift.versions: .*/com.redhat.openshift.versions: v$(MIN_OPENSHIFT_VERSION)/' bundle/metadata/annotations.yaml
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --manifests --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS) -q --overwrite --manifests --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i "s|containerImage:.*|containerImage: $(IMG)|g" "bundle/manifests/lbconfig-operator.clusterserviceversion.yaml"
 	cp -rf ./config/kuttl ./bundle/tests/scorecard/
 	$(OPERATOR_SDK) bundle validate -b $(BUILDER) ./bundle
-
-.PHONY: opm
-OPM = ./bin/opm
-opm: ## Download opm locally if necessary.
-ifeq (,$(wildcard $(OPM)))
-ifeq (,$(shell which opm 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.55.0/$${OS}-$${ARCH}-opm ;\
-	chmod +x $(OPM) ;\
-	}
-else
-OPM = $(shell which opm)
-endif
-endif
 
 .PHONY: bundle-build
 bundle-build: bundle ## Build the bundle image.
@@ -351,140 +530,11 @@ catalog-build: opm bundle-push ## Build a catalog image.
 catalog-push: catalog-build ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-.PHONY: olm-validate
-olm-validate: operator-sdk ## Validates the bundle image.
-	$(OPERATOR_SDK) bundle validate -b $(BUILDER) $(BUNDLE_IMG)
-
-.PHONY: testenv-setup
-testenv-setup: kind ## Setup the test environment (KIND cluster with local registry)
-	@echo "Setting up local registry and KIND cluster..."
-	@./hack/setup-kind-registry.sh
-
-.PHONY: testenv-load-images
-testenv-load-images: ## Push locally built images to local registry
-	@if [ -f /tmp/kind-registry-info.env ]; then \
-		echo "Pushing operator image to local registry (localhost:5001)..." && \
-		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_IMG_NAME) && \
-		echo "Pushing bundle image to local registry (localhost:5001)..." && \
-		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_BUNDLE_IMG_NAME) && \
-		echo "✅ Images pushed to local registry"; \
-	else \
-		echo "❌ Registry info not found. Run 'make testenv-setup' first."; \
-		exit 1; \
-	fi
-
-.PHONY: e2e-push
-e2e-push: ## Push e2e images to external registry (quay.io) - only for maintainers publishing dev builds
-	@echo "Pushing operator image to quay.io..."
-	$(BUILDER) tag $(E2E_IMG) ${REPO}/lbconfig-operator:v$(E2E_VERSION)
-	$(BUILDER) push ${REPO}/lbconfig-operator:v$(E2E_VERSION)
-	@echo "Pushing bundle image to quay.io..."
-	$(BUILDER) tag $(E2E_BUNDLE_IMG) $(IMAGE_TAG_BASE)-bundle:v$(E2E_VERSION)
-	$(BUILDER) push $(IMAGE_TAG_BASE)-bundle:v$(E2E_VERSION)
-
-.PHONY: e2e-build
-e2e-build: ## Build operator and bundle images for local e2e testing
-	@echo "Building operator image for e2e testing (version: $(E2E_VERSION))..."
-	$(BUILDER) build -t $(E2E_IMG) --build-arg VERSION=$(E2E_VERSION) --build-arg TARGETARCH=amd64 --build-arg TARGETOS=linux -f Dockerfile.cross .
-	@echo "Checking if bundle needs backup..."
-	@if git diff --quiet bundle/ config/manager/kustomization.yaml config/manifests/ manifests/ 2>/dev/null; then \
-		echo "Bundle unchanged, creating backup for restoration..." && \
-		tar czf /tmp/bundle-backup.tar.gz bundle/ config/manager/kustomization.yaml config/manifests/ manifests/ 2>/dev/null; \
-	else \
-		echo "Bundle has local changes, will NOT restore after e2e-build" && \
-		rm -f /tmp/bundle-backup.tar.gz; \
-	fi
-	@echo "Building bundle for e2e testing..."
-	$(MAKE) bundle VERSION=$(E2E_VERSION) IMG=$(E2E_IMG) BUNDLE_IMG=$(E2E_BUNDLE_IMG)
-	@echo "Building bundle image for e2e testing..."
-	$(BUILDER) build -f bundle.Dockerfile -t $(E2E_BUNDLE_IMG) .
-	@if [ -f /tmp/bundle-backup.tar.gz ]; then \
-		echo "Restoring original bundle state..." && \
-		tar xzf /tmp/bundle-backup.tar.gz && \
-		rm -f /tmp/bundle-backup.tar.gz && \
-		echo "✅ E2E images built (bundle/ restored to original state)"; \
-	else \
-		echo "✅ E2E images built (bundle/ contains updated manifests)"; \
-	fi
-
-.PHONY: e2e-test
-e2e-test: operator-sdk e2e-build testenv-setup testenv-load-images ## Run full e2e tests with OLM via local registry
-	@echo "Switching to KIND cluster context..."
-	kubectl config use-context kind-test-operator
-	@echo "Installing OLM..."
-	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
-	@echo "Cleaning up previous operator deployment (if any)..."
-	@$(OPERATOR_SDK) cleanup lbconfig-operator --timeout=2m 2>/dev/null || true
-	@kubectl delete catalogsource lbconfig-operator-catalog -n default 2>/dev/null || true
-	@sleep 5
-	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
-	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m
-	@echo "Creating test resources..."
-	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
-	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
-	@echo "Waiting for operator to reconcile..."
-	sleep 10
-	@echo "Running comprehensive e2e test suite..."
-	OPERATOR_NAMESPACE=default ./hack/e2e-tests.sh
-	@echo "===================="
-	@echo "✅ E2E tests completed successfully!"
-	@echo "Cluster 'test-operator' is still running."
-	@echo "To teardown: make testenv-teardown"
-	@echo "To keep testing: kubectl config use-context kind-test-operator"
-	@echo "===================="
-
-.PHONY: e2e-test-quick
-e2e-test-quick: operator-sdk e2e-build testenv-setup testenv-load-images ## Run quick e2e smoke test with OLM
-	@echo "Switching to KIND cluster context..."
-	kubectl config use-context kind-test-operator
-	@echo "Installing OLM..."
-	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
-	@echo "Cleaning up previous operator deployment (if any)..."
-	@$(OPERATOR_SDK) cleanup lbconfig-operator --timeout=2m 2>/dev/null || true
-	@kubectl delete catalogsource lbconfig-operator-catalog -n default 2>/dev/null || true
-	@sleep 5
-	@echo "Deploying operator bundle ($(E2E_BUNDLE_IMG))..."
-	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m
-	@echo "Creating test resources..."
-	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
-	kubectl apply -f config/samples/lb_v1_externalloadbalancer-dummy.yaml
-	@echo "Waiting for operator to reconcile..."
-	sleep 10
-	@echo "Quick validation..."
-	kubectl get elb externalloadbalancer-master-dummy-test -n default -o yaml
-	kubectl wait --for=jsonpath='{.status.numnodes}'=1 elb/externalloadbalancer-master-dummy-test -n default --timeout=60s
-	@echo "Cleaning up..."
-	kubectl delete -f config/samples/lb_v1_externalloadbalancer-dummy.yaml || true
-	sleep 5
-	$(OPERATOR_SDK) cleanup lbconfig-operator || true
-	kubectl delete secret dummy-creds -n default || true
-	@echo "===================="
-	@echo "✅ Quick e2e test completed!"
-	@echo "===================="
-
-.PHONY: scorecard-run
-scorecard-run: operator-sdk e2e-build testenv-setup testenv-load-images ## Runs the scorecard validation with locally built images
-	kubectl config use-context kind-test-operator
-	$(OPERATOR_SDK) olm install --version=$(OLM_VERSION) --timeout=5m || true
-	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --use-http --skip-tls-verify --timeout=5m || true
-	kubectl create secret generic dummy-creds --from-literal=username=admin --from-literal=password=admin -n default || true
-	$(OPERATOR_SDK) scorecard ./bundle --wait-time 5m --service-account=lbconfig-operator-controller-manager
-	@echo "Cleaning up after scorecard..."
-	$(OPERATOR_SDK) cleanup lbconfig-operator || true
-
-.PHONY: testenv-teardown
-testenv-teardown: ## Teardown the test environment (KIND cluster and local registry)
-	@echo "Tearing down test environment..."
-	@$(KIND) delete cluster --name test-operator 2>/dev/null || echo "KIND cluster not found"
-	@$(BUILDER) stop kind-registry 2>/dev/null || echo "Registry container not running"
-	@$(BUILDER) rm -f kind-registry 2>/dev/null || echo "Registry container not found"
-	@rm -f /tmp/kind-registry-info.env 2>/dev/null || true
-	@rm -f /tmp/bundle-backup.tar.gz 2>/dev/null || true
-	@echo "✅ Test environment cleaned up"
-
 .PHONY: dist
 dist: check-versions bundle bundle-push catalog-push podman-crossbuild  ## Build manifests and container images, pushing them to the registry
 	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
+
+##@ Utils
 
 .PHONY: clean
 clean: ## Clean up all generated files

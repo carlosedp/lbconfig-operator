@@ -1,0 +1,23 @@
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-master-sample
+  namespace: lbconfig-operator-system
+  labels:
+    app.kubernetes.io/name: lbconfig-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  vip: "192.168.1.40"
+  type: "master"
+  ports:
+    - 6443
+  monitor:
+    path: "/healthz"
+    port: 6443
+    monitortype: "https"
+  provider:
+    vendor: Citrix_ADC
+    host: "https://192.168.1.36"
+    port: 443
+    creds: netscaler-creds
+    validatecerts: false

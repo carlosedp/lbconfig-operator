@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[{"apiVersion":"","kind":"ExternalLoadBalancer","metadata":{"name":""},"spec":{}}]'
+    alm-examples: '[]'
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
@@ -225,7 +225,7 @@ spec:
 
     This project fully open-source and is hosted at [GitHub](https://github.com/carlosedp/lbconfig-operator). Always check the project page and issues for the latest updates and/or solutions to problems encountered. If a problem is detected, please fill an issue. Feature request and improvement issues are welcome.
 
-    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/lb.lbconfig.carlosedp.com/v1?utm_source=gopls#Provider) which fields are backend-specific.
+    Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
     ## Disclaimers
 
@@ -238,178 +238,8 @@ spec:
     mediatype: image/png
   install:
     spec:
-      clusterPermissions:
-      - rules:
-        - apiGroups:
-          - coordination.k8s.io
-          resources:
-          - leases
-          verbs:
-          - create
-          - get
-          - list
-          - update
-        - apiGroups:
-          - ""
-          resources:
-          - nodes
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - lb.lbconfig.carlosedp.com
-          resources:
-          - externalloadbalancers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - lb.lbconfig.carlosedp.com
-          resources:
-          - externalloadbalancers/status
-          verbs:
-          - get
-          - patch
-          - update
-        serviceAccountName: lbconfig-operator-controller-manager
-      - rules:
-        - apiGroups:
-          - authentication.k8s.io
-          resources:
-          - tokenreviews
-          verbs:
-          - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          verbs:
-          - create
-        serviceAccountName: lbconfig-operator-controller-manager
-      deployments:
-      - name: lbconfig-operator-controller-manager
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              control-plane: controller-manager
-          strategy: {}
-          template:
-            metadata:
-              annotations:
-                kubectl.kubernetes.io/default-container: manager
-              labels:
-                control-plane: controller-manager
-            spec:
-              containers:
-              - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=0
-                image: quay.io/carlosedp/kube-rbac-proxy:v0.15.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                  protocol: TCP
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 5m
-                    memory: 64Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
-                - --leader-elect
-                command:
-                - /manager
-                image: quay.io/carlosedp/lbconfig-operator:v0.0.0
-                livenessProbe:
-                  httpGet:
-                    path: /healthz
-                    port: 8081
-                  initialDelaySeconds: 15
-                  periodSeconds: 20
-                name: manager
-                readinessProbe:
-                  httpGet:
-                    path: /readyz
-                    port: 8081
-                  initialDelaySeconds: 5
-                  periodSeconds: 10
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 10m
-                    memory: 64Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              securityContext:
-                runAsNonRoot: true
-              serviceAccountName: lbconfig-operator-controller-manager
-              terminationGracePeriodSeconds: 10
-      permissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - coordination.k8s.io
-          resources:
-          - leases
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - patch
-        serviceAccountName: lbconfig-operator-controller-manager
-    strategy: deployment
+      deployments: null
+    strategy: ""
   installModes:
   - supported: true
     type: OwnNamespace
@@ -420,8 +250,11 @@ spec:
   - supported: false
     type: AllNamespaces
   keywords:
-  - 'load-balance '
+  - load-balancer
   - infrastructure
+  - lbconfig
+  - F5
+  - Citrix
   labels:
     lbconfig-operator: "true"
   links:
@@ -438,5 +271,6 @@ spec:
   minKubeVersion: 1.19.0
   provider:
     name: Carlos Eduardo de Paula
+    url: https://github.com/carlosedp
   selector: {}
   version: 0.0.0
