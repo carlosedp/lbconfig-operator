@@ -292,7 +292,7 @@ e2e-test-quick: operator-sdk e2e-build testenv-setup testenv-load-images ## Run 
 	$(OPERATOR_SDK) run bundle $(E2E_BUNDLE_IMG) --namespace lbconfig-operator-system --use-http --skip-tls-verify --timeout=5m
 	@echo "Creating test resources..."
 	kubectl apply -f examples/secret_v1_creds.yaml
-	kubectl apply -f examples/lb_v2_externalloadbalancer-dummy.yaml
+	kubectl apply -f examples/lb_v1_externalloadbalancer-dummy.yaml
 	@echo "Waiting for operator to reconcile..."
 	sleep 10
 	@echo "Quick validation..."

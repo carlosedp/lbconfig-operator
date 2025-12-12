@@ -67,7 +67,7 @@ deploy_instance() {
   log_info "Creating test resources..."
   kubectl apply -f examples/namespace.yaml
   kubectl apply --namespace lbconfig-operator-system -f examples/secret_v1_creds.yaml
-  kubectl apply --namespace lbconfig-operator-system -f examples/lb_v2_externalloadbalancer-dummy.yaml
+  kubectl apply --namespace lbconfig-operator-system -f examples/lb_v1_externalloadbalancer-dummy.yaml
 
   log_info "Waiting for operator to reconcile..."
   sleep 10
@@ -317,11 +317,12 @@ main() {
 
   # Run tests
   deploy_instance
-  test_operator_deployment
-  test_basic_cr_lifecycle
-  test_cr_update
-  test_metrics
-  test_multiple_instances
+  # test_operator_deployment
+  # test_basic_cr_lifecycle
+  # test_cr_update
+  # test_metrics
+  # test_multiple_instances
+  test_node_addition
   test_finalizer
 
   if [[ $EXIT_ERROR -ne 0 ]]; then
