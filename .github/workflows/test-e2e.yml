@@ -1,10 +1,11 @@
 name: E2E Tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch # Manually triggered for now
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
