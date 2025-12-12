@@ -95,7 +95,7 @@ type BackendController struct {
 var providers = make(map[string]Provider)
 
 func ListProviders() []string {
-	var p []string
+	p := make([]string, 0, len(providers))
 	for k := range providers {
 		p = append(p, k)
 	}

@@ -60,6 +60,11 @@ import (
 	_ "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_loader"
 )
 
+const (
+	readyCondition = "Ready"
+	trueStatus     = "True"
+)
+
 // ExternalLoadBalancerReconciler reconciles a ExternalLoadBalancer object
 type ExternalLoadBalancerReconciler struct {
 	client.Client
@@ -114,8 +119,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	defer span.End()
 
 	// Get our logger instance from context
-	log := log.FromContext(ctx)
-	log.Info("Starting reconcile loop for ExternalLoadBalancer")
+	logger := log.FromContext(ctx)
+	logger.Info("Starting reconcile loop for ExternalLoadBalancer")
 	// ----------------------------------------
 	// Get the LoadBalancer instance list to update metrics
 	// ----------------------------------------
@@ -154,12 +159,12 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			log.Info("ExternalLoadBalancer resource not found. Ignoring since object must be deleted")
+			logger.Info("ExternalLoadBalancer resource not found. Ignoring since object must be deleted")
 			span.End()
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get ExternalLoadBalancer")
+		logger.Error(err, "Failed to get ExternalLoadBalancer")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return ctrl.Result{}, err
@@ -181,7 +186,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}(ctx)
 
 	if err != nil {
-		log.Error(err, "provider credentials secret not found")
+		logger.Error(err, "provider credentials secret not found")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
@@ -216,7 +221,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		log.Error(err, "unable to list Nodes")
+		logger.Error(err, "unable to list Nodes")
 		span.End()
 		return ctrl.Result{}, err
 	}
@@ -226,15 +231,15 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	var nodes []lbv1.Node
 	for _, n := range nodeList.Items {
-		log.Info("Processing node", "node", n.Name, "labels", n.Labels)
+		logger.Info("Processing node", "node", n.Name, "labels", n.Labels)
 		for _, cond := range n.Status.Conditions {
-			if cond.Type == "Ready" && cond.Status == "True" {
+			if cond.Type == readyCondition && cond.Status == trueStatus {
 				node := &lbv1.Node{
 					Name:   n.Name,
 					Host:   getNodeIP(&n),
 					Labels: labels,
 				}
-				log.Info("Node matches", "node", node.Name, "labels", node.Labels, "ip", node.Host)
+				logger.Info("Node matches", "node", node.Name, "labels", node.Labels, "ip", node.Host)
 				nodes = append(nodes, *node)
 			}
 		}
@@ -294,7 +299,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Handle IP Pools
 	// ----------------------------------------
-	var pools []lbv1.Pool
+	pools := make([]lbv1.Pool, 0, len(lb.Spec.Ports))
 	for _, p := range lb.Spec.Ports {
 		// Create pool members based on nodes
 		var poolMembers []lbv1.PoolMember
@@ -315,7 +320,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 
 		err := backend.HandlePool(ctx, &pool, &monitor)
 		if err != nil {
-			log.Error(err, "unable to handle ExternalLoadBalancer IP pool")
+			logger.Error(err, "unable to handle ExternalLoadBalancer IP pool")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			span.End()
@@ -327,7 +332,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Handle VIPs
 	// ----------------------------------------
-	var vips []lbv1.VIP
+	vips := make([]lbv1.VIP, 0, len(lb.Spec.Ports))
 	for _, p := range lb.Spec.Ports {
 		vip := lbv1.VIP{
 			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
@@ -338,7 +343,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 
 		err := backend.HandleVIP(ctx, &vip)
 		if err != nil {
-			log.Error(err, "unable to handle ExternalLoadBalancer VIP")
+			logger.Error(err, "unable to handle ExternalLoadBalancer VIP")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 			span.End()
@@ -357,7 +362,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		return backend.Provider.Close()
 	}(ctx)
 	if err != nil {
-		log.Error(err, "unable to close the backend provider")
+		logger.Error(err, "unable to close the backend provider")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
@@ -390,7 +395,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		return r.Status().Update(ctx, lb)
 	}(ctx)
 	if err != nil {
-		log.Error(err, "unable to update ExternalLoadBalancer status")
+		logger.Error(err, "unable to update ExternalLoadBalancer status")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
@@ -476,7 +481,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		}
 	}
 
-	log.Info("End of reconcile loop for ExternalLoadBalancer")
+	logger.Info("End of reconcile loop for ExternalLoadBalancer")
 	return ctrl.Result{}, nil
 }
 

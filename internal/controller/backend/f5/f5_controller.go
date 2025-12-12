@@ -278,7 +278,7 @@ func (p *F5Provider) DeletePool(pool *lbv1.Pool) error {
 func (p *F5Provider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	// // Get pool members
-	var members []lbv1.PoolMember
+	members := make([]lbv1.PoolMember, 0)
 	poolMembers, err := p.f5.PoolMembers(pool.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting F5 pool members: %v", err)

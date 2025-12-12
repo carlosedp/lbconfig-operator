@@ -67,7 +67,7 @@ func createTestNode(name string, labels map[string]string, address string, ready
 func getMetricsBody(metricsPort string) string {
 	resp, err := http.Get("http://localhost:" + metricsPort + "/metrics")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	gomega.Expect(resp.StatusCode).To(gomega.Equal(200))

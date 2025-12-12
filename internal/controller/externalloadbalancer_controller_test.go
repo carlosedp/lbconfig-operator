@@ -128,7 +128,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 
 	It("should return error creating a new ExternalLoadBalancer without labels", func() {
 		lb3 := loadBalancer.DeepCopy()
-		lb3.ObjectMeta.Name = "test-load-balancer-err2"
+		lb3.Name = "test-load-balancer-err2"
 		lb3.Spec.Type = ""
 		Expect(k8sClient.Create(ctx, lb3)).Should(Succeed())
 		Eventually(func() error {
@@ -171,14 +171,14 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		}, duration, interval).Should(Equal(0))
 
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
-		Expect(len(nodeList.Items)).Should(Equal(0))
+		Expect(nodeList.Items).Should(BeEmpty())
 
 		By("By creating a Master Node")
 		node := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
 
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
-		Expect(len(nodeList.Items)).Should(Equal(1))
+		Expect(nodeList.Items).Should(HaveLen(1))
 
 		By("By checking the ExternalLoadBalancer has one Node")
 		Eventually(func() (int, error) {
@@ -207,7 +207,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
-		Expect(len(nodeList.Items)).Should(Equal(2))
+		Expect(nodeList.Items).Should(HaveLen(2))
 
 		By("By checking the ExternalLoadBalancer still has one Node")
 		Eventually(func() (int, error) {
@@ -246,7 +246,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		node.Status.Addresses = IPs
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
-		Expect(len(nodeList.Items)).Should(Equal(3))
+		Expect(nodeList.Items).Should(HaveLen(3))
 
 		By("By checking the ExternalLoadBalancer has two Nodes")
 		Eventually(func() (int, error) {
@@ -276,7 +276,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		node = createNotReadyNode("master-node-3", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.3")
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
-		Expect(len(nodeList.Items)).Should(Equal(4))
+		Expect(nodeList.Items).Should(HaveLen(4))
 
 		By("By checking the ExternalLoadBalancer still has two Nodes")
 		Eventually(func() (int, error) {
@@ -295,7 +295,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 
 		By("By checking the ExternalLoadBalancer metric instance still has 2 nodes")
 		metricsBody := getMetricsBody(metricsPort)
-		fmt.Fprintf(GinkgoWriter, "metricsBody: %s\n", metricsBody)
+		_, _ = fmt.Fprintf(GinkgoWriter, "metricsBody: %s\n", metricsBody)
 		metricsOutput := fmt.Sprintf(`externallb_nodes{backend_vendor="%s",name="%s",namespace="%s",port="%s",type="%s",vip="%s"} %d`, loadBalancer.Spec.Provider.Vendor, loadBalancer.Name, Namespace, strconv.Itoa(loadBalancer.Spec.Provider.Port), loadBalancer.Spec.Type, loadBalancer.Spec.Vip, 2)
 		Expect(metricsBody).To(ContainSubstring(metricsOutput))
 	})
@@ -305,7 +305,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "master-node-1"}, node)).Should(Succeed())
 		Expect(k8sClient.Delete(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
-		Expect(len(nodeList.Items)).Should(Equal(3))
+		Expect(nodeList.Items).Should(HaveLen(3))
 
 		By("By checking the ExternalLoadBalancer has one Node")
 		Eventually(func() (int, error) {

@@ -76,7 +76,12 @@ func init() {
 	}
 }
 
-// We use round robin for the backend servers if least response is choosen since HAProxy doesn't have it.
+const (
+	sslEnabled    = "enabled"
+	sslVerifyNone = "none"
+)
+
+// We use round robin for the backend servers if least response is chosen since HAProxy doesn't have it.
 // SOURCEIPHASH not enabled yet in CRD since it is not supported by F5.
 var LBMethodMap = map[string]string{"ROUNDROBIN": "roundrobin", "LEASTCONNECTION": "leastconn", "LEASTRESPONSETIME": "roundrobin", "SOURCEIPHASH": "source"}
 
@@ -112,11 +117,11 @@ func (p *HAProxyProvider) Create(ctx context.Context, lbBackend lbv1.Provider, u
 // Connect creates a connection to the IP Load Balancer
 func (p *HAProxyProvider) Connect() error {
 	// Use Sites to grab the current config version of the HAProxy
-	sites, err := p.haproxy.Sites.GetSites(&sites.GetSitesParams{Context: p.ctx}, p.auth)
+	sitesResp, err := p.haproxy.Sites.GetSites(&sites.GetSitesParams{Context: p.ctx}, p.auth)
 	if err != nil {
 		return err
 	}
-	p.version = sites.Payload.Version
+	p.version = sitesResp.Payload.Version
 	p.log.Info("Got HAProxy config version", "version", p.version)
 
 	// Create a new transaction with previous version
@@ -140,7 +145,7 @@ func (p *HAProxyProvider) HealthCheck() error {
 
 // Close closes the connection to the Load Balancer
 func (p *HAProxyProvider) Close() error {
-	p.log.Info("Commiting transaction", "transaction", p.transaction)
+	p.log.Info("Committing transaction", "transaction", p.transaction)
 	_, _, err := p.haproxy.Transactions.CommitTransaction(&transactions.CommitTransactionParams{
 		ID:          p.transaction,
 		Context:     p.ctx,
@@ -325,7 +330,7 @@ func (p *HAProxyProvider) DeletePool(pool *lbv1.Pool) error {
 func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 	// // Get pool members
-	var members []lbv1.PoolMember
+	members := make([]lbv1.PoolMember, 0)
 	poolMembers, err := p.haproxy.Server.GetServers(&server.GetServersParams{
 		Backend:       &pool.Name,
 		TransactionID: &p.transaction,
@@ -359,7 +364,7 @@ func (p *HAProxyProvider) GetPoolMembers(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 // CreatePoolMember creates a member to be added to pool in the Load Balancer
 func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
-	server := &server.CreateServerParams{
+	serverParams := &server.CreateServerParams{
 		Backend: &pool.Name,
 		Data: &models.Server{
 			Name:    m.Node.Name,
@@ -375,10 +380,10 @@ func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 		Context:       p.ctx,
 	}
 	if p.monitor.MonitorType == "https" {
-		server.Data.CheckSsl = "enabled"
-		server.Data.Verify = "none"
+		serverParams.Data.CheckSsl = sslEnabled
+		serverParams.Data.Verify = sslVerifyNone
 	}
-	_, _, err := p.haproxy.Server.CreateServer(server, p.auth)
+	_, _, err := p.haproxy.Server.CreateServer(serverParams, p.auth)
 
 	if err != nil {
 		_ = p.CloseError()
@@ -399,7 +404,7 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 		}
 	}()
 
-	server := &server.ReplaceServerParams{
+	serverParams := &server.ReplaceServerParams{
 		Backend: &pool.Name,
 		Name:    m.Node.Name,
 		Data: &models.Server{
@@ -417,10 +422,10 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 		Context:       p.ctx,
 	}
 	if p.monitor.MonitorType == "https" {
-		server.Data.CheckSsl = "enabled"
-		server.Data.Verify = "none"
+		serverParams.Data.CheckSsl = sslEnabled
+		serverParams.Data.Verify = sslVerifyNone
 	}
-	_, _, err := p.haproxy.Server.ReplaceServer(server, p.auth)
+	_, _, err := p.haproxy.Server.ReplaceServer(serverParams, p.auth)
 
 	if err != nil {
 		_ = p.CloseError()

@@ -129,36 +129,36 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 
 		It("Should create a provider with registered backend provider", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			Expect(reflect.TypeOf(createdBackend.Provider)).Should(Equal(reflect.TypeOf(&d.DummyProvider{})))
 		})
 
 		It("Should handle a provider monitor", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			err = createdBackend.HandleMonitors(ctx, &monitor)
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("Should handle a provider pool", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			err = createdBackend.HandlePool(ctx, pool, &monitor)
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("Should handle a provider VIP", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			err = createdBackend.HandleVIP(ctx, VIP)
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("Should handle a provider cleanup", func() {
 			createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			err = createdBackend.HandleCleanup(ctx, loadBalancer)
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 	})

@@ -42,6 +42,13 @@ import (
 	backend "github.com/carlosedp/lbconfig-operator/internal/controller/backend/backend_controller"
 )
 
+const (
+	yesValue       = "YES"
+	httpsProtocol  = "https"
+	readyCondition = "Ready"
+	trueStatus     = "True"
+)
+
 // ----------------------------------------
 // Provider creation and connection
 // ----------------------------------------
@@ -124,7 +131,7 @@ func (p *NetscalerProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, er
 	}
 
 	// Return monitor details in case it exists
-	path := strings.TrimLeft(string(m["httprequest"].(string)), "GET ")
+	path := strings.TrimLeft(m["httprequest"].(string), "GET ")
 
 	mon := &lbv1.Monitor{
 		Name:        m["monitorname"].(string),
@@ -133,8 +140,8 @@ func (p *NetscalerProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, er
 		Port:        int(m["destport"].(float64)),
 	}
 
-	if m["secure"] == "YES" {
-		mon.MonitorType = "https"
+	if m["secure"] == yesValue {
+		mon.MonitorType = httpsProtocol
 	}
 
 	return mon, nil
@@ -155,8 +162,8 @@ func (p *NetscalerProvider) CreateMonitor(m *lbv1.Monitor) error {
 		lbMonitor.Destport = m.Port
 	}
 	// on Netscaler, HTTP and HTTPS are the same with different flags
-	if m.MonitorType == "https" {
-		lbMonitor.Secure = "YES"
+	if m.MonitorType == httpsProtocol {
+		lbMonitor.Secure = yesValue
 		lbMonitor.Sslprofile = "ns_default_ssl_profile_backend"
 	}
 
@@ -183,8 +190,8 @@ func (p *NetscalerProvider) EditMonitor(m *lbv1.Monitor) error {
 		lbMonitor.Destport = m.Port
 	}
 	// on Netscaler, HTTP and HTTPS are the same with different flags
-	if m.MonitorType == "https" {
-		lbMonitor.Secure = "YES"
+	if m.MonitorType == httpsProtocol {
+		lbMonitor.Secure = yesValue
 		lbMonitor.Sslprofile = "ns_default_ssl_profile_backend"
 	}
 
@@ -200,7 +207,7 @@ func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
 	// err := p.client.DeleteResource(service.Lbmonitor.Type(), m.Name)
 
 	var t string
-	if m.MonitorType == "https" {
+	if m.MonitorType == httpsProtocol {
 		t = "HTTP"
 	} else {
 		t = m.MonitorType
@@ -465,7 +472,7 @@ func (p *NetscalerProvider) CreateVIP(v *lbv1.VIP) error {
 	binding := lb.Lbvserverservicegroupbinding{
 		Servicegroupname: v.Pool,
 		Name:             v.Name,
-		//Weight				: weight,
+		// Weight				: weight,
 	}
 	err = p.client.BindResource(service.Lbvserver.Type(), v.Name, service.Servicegroup.Type(), v.Pool, &binding)
 	if err != nil {
@@ -494,7 +501,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 	binding := lb.Lbvserverservicegroupbinding{
 		Servicegroupname: v.Pool,
 		Name:             v.Name,
-		//Weight				: weight,
+		// Weight				: weight,
 	}
 	err = p.client.BindResource(service.Lbvserver.Type(), v.Name, service.Servicegroup.Type(), v.Pool, &binding)
 	if err != nil {
@@ -504,7 +511,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 	return nil
 }
 
-// DeleteVIP deletes a Virtual Server in the Load Balancer
+// DeleteVIP removes a VIP
 func (p *NetscalerProvider) DeleteVIP(v *lbv1.VIP) error {
 	err := p.client.DeleteResource(service.Lbvserver.Type(), v.Name)
 	if err != nil {

@@ -13,3 +13,4 @@
 - [ ] Have dynamic loading for Backend plugins instead of importing on backend_loader
 - [x] Add remaining tools to check_versions.sh script
 - [x] Adjust readme here new manifest is ./dist instead of ./manifests
+- [x] Fix linting errors

@@ -57,7 +57,7 @@ import (
 
 	lbv1 "github.com/carlosedp/lbconfig-operator/api/v1"
 	controllers "github.com/carlosedp/lbconfig-operator/internal/controller"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -70,7 +70,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(lbv1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 }
 
 // tracerProvider returns an OpenTelemetry TracerProvider configured to use
@@ -291,7 +291,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ExternalLoadBalancer")
 		os.Exit(1)
 	}
-	//+kubebuilder:scaffold:builder
+	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")

@@ -199,7 +199,7 @@ var _ = Describe("When using a f5 backend", func() {
 		var err error
 		BeforeEach(func() {
 			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = createdBackend.Provider.Connect()
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -232,8 +232,8 @@ var _ = Describe("When using a f5 backend", func() {
 			port := strings.Split(gjson.Get(httpdata.data, "destination").String(), ".")[1]
 			mon_type := strings.Split(gjson.Get(httpdata.data, "defaultsFrom").String(), "/")[2]
 			Eventually(port, timeout, interval).Should(Equal("80"))
-			Eventually(gjson.Get(httpdata.data, "send").String(), timeout, interval).Should(Equal("GET /health"))
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-monitor"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "send").String() }, timeout, interval).Should(Equal("GET /health"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "name").String() }, timeout, interval).Should(Equal("test-monitor"))
 			Eventually(mon_type, timeout, interval).Should(Equal("http"))
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -253,8 +253,8 @@ var _ = Describe("When using a f5 backend", func() {
 			// fmt.Fprintf(GinkgoWriter, "%s", httpdata)
 			mon_type := strings.Split(gjson.Get(httpdata.data, "defaultsFrom").String(), "/")[2]
 			Eventually(mon_type, timeout, interval).Should(Equal("http"))
-			Eventually(gjson.Get(httpdata.data, "send").String(), timeout, interval).Should(Equal("GET /health"))
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-monitor"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "send").String() }, timeout, interval).Should(Equal("GET /health"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "name").String() }, timeout, interval).Should(Equal("test-monitor"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -264,7 +264,7 @@ var _ = Describe("When using a f5 backend", func() {
 		var err error
 		BeforeEach(func() {
 			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = createdBackend.Provider.Connect()
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -280,7 +280,7 @@ var _ = Describe("When using a f5 backend", func() {
 			err = createdBackend.Provider.CreatePool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
-			Eventually(gjson.Get(httpdata.data, "loadBalancingMode").String(), timeout, interval).Should(Equal("least-connections-member"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "loadBalancingMode").String() }, timeout, interval).Should(Equal("least-connections-member"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -295,7 +295,7 @@ var _ = Describe("When using a f5 backend", func() {
 			err = createdBackend.Provider.EditPool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-pool"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "name").String() }, timeout, interval).Should(Equal("test-pool"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -325,14 +325,14 @@ var _ = Describe("When using a f5 backend", func() {
 			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "enable")
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool/members/1.1.1.5:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
-			Eventually(gjson.Get(httpdata.data, "session").String(), timeout, interval).Should(Equal("user-enabled"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "session").String() }, timeout, interval).Should(Equal("user-enabled"))
 			Expect(err).NotTo(HaveOccurred())
 			// Disable
 			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "disable")
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool/members/1.1.1.5:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
 			// Expect(httpdata.data).Should(Equal(""))
-			Eventually(gjson.Get(httpdata.data, "session").String(), timeout, interval).Should(Equal("user-disabled"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "session").String() }, timeout, interval).Should(Equal("user-disabled"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -342,7 +342,7 @@ var _ = Describe("When using a f5 backend", func() {
 		var err error
 		BeforeEach(func() {
 			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = createdBackend.Provider.Connect()
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -359,7 +359,7 @@ var _ = Describe("When using a f5 backend", func() {
 			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
 
 			// Expect(httpdata["servicegroup_lbmonitor_binding"]).Should(Equal(""))
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-vip"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "name").String() }, timeout, interval).Should(Equal("test-vip"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -374,7 +374,7 @@ var _ = Describe("When using a f5 backend", func() {
 			err = createdBackend.Provider.EditVIP(VIP)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/virtual/~Common~test-vip"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PATCH"))
-			Eventually(gjson.Get(httpdata.data, "name").String(), timeout, interval).Should(Equal("test-vip"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "name").String() }, timeout, interval).Should(Equal("test-vip"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})

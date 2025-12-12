@@ -148,7 +148,7 @@ var _ = Describe("When using a HAProxy backend", func() {
 	BeforeEach(func() {
 		httpdata = httpdataStruct{}
 		server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(GinkgoWriter, "Received a request for %s, method %s\n", r.URL.String(), r.Method)
+			_, _ = fmt.Fprintf(GinkgoWriter, "Received a request for %s, method %s\n", r.URL.String(), r.Method)
 			httpdata.url = append(httpdata.url, r.URL.String())
 			httpdata.method = append(httpdata.method, r.Method)
 			body, _ := io.ReadAll(r.Body)
@@ -176,7 +176,7 @@ var _ = Describe("When using a HAProxy backend", func() {
 
 	It("Should create the backend", func() {
 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(createdBackend).NotTo(BeNil())
 		Expect(ListProviders()).To(ContainElement(strings.ToLower("HAProxy")))
 		Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&HAProxyProvider{})))
@@ -185,7 +185,7 @@ var _ = Describe("When using a HAProxy backend", func() {
 
 	It("Should connect to the backend", func() {
 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		_ = createdBackend.Provider.Connect()
 		// Expect(err).To(BeNil())
 		// fmt.Fprintf(GinkgoWriter, "URL: %s", httpurl)
@@ -197,29 +197,29 @@ var _ = Describe("When using a HAProxy backend", func() {
 		var err error
 		BeforeEach(func() {
 			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			_ = createdBackend.Provider.Connect()
 		})
 
 		Context("when handling load balancer monitors", func() {
 			It("Should get a monitor", func() {
 				_, err = createdBackend.Provider.GetMonitor(monitor)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should create a monitor", func() {
 				err := createdBackend.Provider.CreateMonitor(monitor)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should delete the monitor", func() {
 				err = createdBackend.Provider.DeleteMonitor(monitor)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should edit the monitor", func() {
 				err = createdBackend.Provider.EditMonitor(monitor)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
@@ -243,7 +243,7 @@ var _ = Describe("When using a HAProxy backend", func() {
 				//   <map[string]interface {} | len:1>: {
 				//       "name": <string>"test-pool",
 				//   }
-				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "name").String() }, timeout, interval).Should(Equal("test-pool"))
 				// We get an error because the lib expects a specific return and our mock server don't do this.
 				// Lets just check the status code.
 				//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
@@ -269,7 +269,7 @@ var _ = Describe("When using a HAProxy backend", func() {
 				Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
 
 				// Expect(err).To(MatchError(MatchRegexp("status 200")))
-				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-pool"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "name").String() }, timeout, interval).Should(Equal("test-pool"))
 				// Expect(err).To(BeNil())
 			})
 		})
@@ -291,9 +291,9 @@ var _ = Describe("When using a HAProxy backend", func() {
 				i := indexOf(url, httpdata.url)
 				Eventually(httpdata.method[i], timeout, interval).Should(Equal("POST"))
 				//   {"default_backend":"test-pool","mode":"tcp","name":"test-vip"}
-				Eventually(gjson.Get(httpdata.data[i], "default_backend").String(), timeout, interval).Should(Equal("test-pool"))
-				Eventually(gjson.Get(httpdata.data[i], "mode").String(), timeout, interval).Should(Equal("tcp"))
-				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-vip"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "default_backend").String() }, timeout, interval).Should(Equal("test-pool"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "mode").String() }, timeout, interval).Should(Equal("tcp"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "name").String() }, timeout, interval).Should(Equal("test-vip"))
 				// We get an error because the lib expects a specific return and our mock server don't do this.
 				// Lets just check the status code.
 				//   s: "error creating pool(ERR) test-pool: unexpected success response: content available as default response in error (status 200): '[POST /services/haproxy/configuration/backends][200] createBackend default  &{Code:<nil> Message:<nil> Error:map[resp:OK]}'",
@@ -316,8 +316,8 @@ var _ = Describe("When using a HAProxy backend", func() {
 				Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
 				i := indexOf(url, httpdata.url)
 				Eventually(httpdata.method[i], timeout, interval).Should(Equal("PUT"))
-				Eventually(gjson.Get(httpdata.data[i], "name").String(), timeout, interval).Should(Equal("test-vip"))
-				Eventually(gjson.Get(httpdata.data[i], "mode").String(), timeout, interval).Should(Equal("http"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "name").String() }, timeout, interval).Should(Equal("test-vip"))
+				Eventually(func() string { return gjson.Get(httpdata.data[i], "mode").String() }, timeout, interval).Should(Equal("http"))
 				Expect(err).To(MatchError(MatchRegexp("status 200")))
 			})
 		})
@@ -330,5 +330,5 @@ func indexOf(element string, data []string) int {
 			return k
 		}
 	}
-	return -1 //not found.
+	return -1 // not found.
 }

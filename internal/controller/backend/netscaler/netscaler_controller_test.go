@@ -180,7 +180,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 
 	It("Should create the backend", func() {
 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(createdBackend).NotTo(BeNil())
 		Expect(ListProviders()).To(ContainElement(strings.ToLower("Citrix_ADC")))
 		Expect(reflect.TypeOf(createdBackend.Provider)).To(Equal(reflect.TypeOf(&NetscalerProvider{})))
@@ -189,9 +189,9 @@ var _ = Describe("When using a Netscaler backend", func() {
 
 	It("Should connect to the backend", func() {
 		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		err = createdBackend.Provider.Connect()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	Context("when handling load balancer monitors", func() {
@@ -199,7 +199,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 		var err error
 		BeforeEach(func() {
 			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = createdBackend.Provider.Connect()
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -208,7 +208,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 			_, _ = createdBackend.Provider.GetMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor/test-monitor"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
-			// Expect(err).To(BeNil())
+			// Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should create a monitor", func() {
@@ -227,18 +227,18 @@ var _ = Describe("When using a Netscaler backend", func() {
 			// 		"type": <string>"HTTP",
 			// 	},
 			// }
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.destport").String(), timeout, interval).Should(Equal("80"))
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.httprequest").String(), timeout, interval).Should(Equal("GET /health"))
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.monitorname").String(), timeout, interval).Should(Equal("test-monitor"))
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.type").String(), timeout, interval).Should(Equal("HTTP"))
-			Expect(err).To(BeNil())
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.destport").String() }, timeout, interval).Should(Equal("80"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.httprequest").String() }, timeout, interval).Should(Equal("GET /health"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.monitorname").String() }, timeout, interval).Should(Equal("test-monitor"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.type").String() }, timeout, interval).Should(Equal("HTTP"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete the monitor", func() {
 			err = createdBackend.Provider.DeleteMonitor(monitor)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/lbmonitor/test-monitor?args=monitorname:test-monitor,type:http"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should edit the monitor", func() {
@@ -256,11 +256,11 @@ var _ = Describe("When using a Netscaler backend", func() {
 			// 		"type": <string>"HTTP",
 			// 	},
 			// }
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.destport").String(), timeout, interval).Should(Equal("80"))
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.httprequest").String(), timeout, interval).Should(Equal("GET /health"))
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.monitorname").String(), timeout, interval).Should(Equal("test-monitor"))
-			Eventually(gjson.Get(httpdata.data, "lbmonitor.type").String(), timeout, interval).Should(Equal("HTTP"))
-			Expect(err).To(BeNil())
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.destport").String() }, timeout, interval).Should(Equal("80"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.httprequest").String() }, timeout, interval).Should(Equal("GET /health"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.monitorname").String() }, timeout, interval).Should(Equal("test-monitor"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "lbmonitor.type").String() }, timeout, interval).Should(Equal("HTTP"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -269,7 +269,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 		var err error
 		BeforeEach(func() {
 			createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = createdBackend.Provider.Connect()
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -278,7 +278,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 			_, _ = createdBackend.Provider.GetPool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
-			// Expect(err).To(BeNil())
+			// Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should create a pool", func() {
@@ -289,15 +289,17 @@ var _ = Describe("When using a Netscaler backend", func() {
 			// 	"servicegroupname": <string>"test-pool",
 			// }
 			// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
-			Eventually(gjson.Get(httpdata.data, "servicegroup_lbmonitor_binding.servicegroupname").String(), timeout, interval).Should(Equal("test-pool"))
-			Expect(err).To(BeNil())
+			Eventually(func() string {
+				return gjson.Get(httpdata.data, "servicegroup_lbmonitor_binding.servicegroupname").String()
+			}, timeout, interval).Should(Equal("test-pool"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete the pool", func() {
 			err = createdBackend.Provider.DeletePool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should edit the pool", func() {
@@ -308,8 +310,10 @@ var _ = Describe("When using a Netscaler backend", func() {
 			// 	"servicegroupname": <string>"test-pool",
 			// }
 			// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
-			Eventually(gjson.Get(httpdata.data, "servicegroup_lbmonitor_binding.servicegroupname").String(), timeout, interval).Should(Equal("test-pool"))
-			Expect(err).To(BeNil())
+			Eventually(func() string {
+				return gjson.Get(httpdata.data, "servicegroup_lbmonitor_binding.servicegroupname").String()
+			}, timeout, interval).Should(Equal("test-pool"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should get pool members", func() {
@@ -353,7 +357,7 @@ var _ = Describe("When using a Netscaler backend", func() {
 			var err error
 			BeforeEach(func() {
 				createdBackend, err = CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				err = createdBackend.Provider.Connect()
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -397,8 +401,10 @@ var _ = Describe("When using a Netscaler backend", func() {
 				// 	},
 				// }
 
-				Eventually(gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.name").String(), timeout, interval).Should(Equal("test-vip"))
-				Eventually(gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.servicegroupname").String(), timeout, interval).Should(Equal("test-pool"))
+				Eventually(func() string { return gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.name").String() }, timeout, interval).Should(Equal("test-vip"))
+				Eventually(func() string {
+					return gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.servicegroupname").String()
+				}, timeout, interval).Should(Equal("test-pool"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -415,8 +421,10 @@ var _ = Describe("When using a Netscaler backend", func() {
 				Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
 				// Expect(httpdata.data).To(Equal(""))
 				// Here we are checking the second call where the VIP is bound to the pool
-				Eventually(gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.name").String(), timeout, interval).Should(Equal("test-vip"))
-				Eventually(gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.servicegroupname").String(), timeout, interval).Should(Equal("test-pool"))
+				Eventually(func() string { return gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.name").String() }, timeout, interval).Should(Equal("test-vip"))
+				Eventually(func() string {
+					return gjson.Get(httpdata.data, "lbvserver_servicegroup_binding.servicegroupname").String()
+				}, timeout, interval).Should(Equal("test-pool"))
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})

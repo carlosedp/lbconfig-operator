@@ -54,12 +54,12 @@ func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
 	var newIP string
 
 	for _, cond := range o.Status.Conditions {
-		if cond.Type == "Ready" {
+		if cond.Type == readyCondition {
 			oldCond = cond.Status
 		}
 	}
 	for _, cond := range n.Status.Conditions {
-		if cond.Type == "Ready" {
+		if cond.Type == readyCondition {
 			newCond = cond.Status
 		}
 	}
@@ -73,7 +73,7 @@ func hasNodeChanged(o *corev1.Node, n *corev1.Node) bool {
 }
 
 func getNodeIP(node *corev1.Node) string {
-	var nodeReady bool = false
+	var nodeReady = false
 	var nodeIPs = make(map[corev1.NodeAddressType]string)
 	var IP string
 	for _, cond := range node.Status.Conditions {
