@@ -7,7 +7,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.6.0
-    createdAt: "2025-12-12T20:09:30Z"
+    createdAt: "2025-12-12T20:10:26Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""

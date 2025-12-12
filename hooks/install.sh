@@ -5,7 +5,7 @@ HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
 GIT_HOOKS_DIR="$(git rev-parse --git-dir)/hooks"
 
 # Check if hooks are already installed (via symlink)
-if [ -L "${GIT_HOOKS_DIR}/pre-commit" ] && [ "$(readlink -f "${GIT_HOOKS_DIR}/pre-commit")" = "$(readlink -f "${HOOKS_DIR}/pre-commit")" ]; then
+if [ -L "${GIT_HOOKS_DIR}/pre-push" ] && [ "$(readlink -f "${GIT_HOOKS_DIR}/pre-push")" = "$(readlink -f "${HOOKS_DIR}/pre-push")" ]; then
     exit 0  # Already installed, exit silently
 fi
 
@@ -33,4 +33,4 @@ done
 
 echo "✅ Git hooks installed successfully!"
 echo ""
-echo "To bypass hooks temporarily, use: git commit --no-verify"
+echo "To bypass hooks temporarily, use: git push --no-verify"
