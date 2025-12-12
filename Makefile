@@ -109,6 +109,10 @@ SHELL = /usr/bin/env bash -o pipefail
 .PHONY: all
 all: build
 
+.PHONY: setup
+setup: install-hooks ## Initial setup for development (install Git hooks)
+	@echo "✅ Development environment setup complete"
+
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -134,10 +138,14 @@ print-%: ## Print any variable from the Makefile. Use as `make print-VARIABLE`
 check-versions: ## Check versions of tools
 	@./hack/check_versions.sh
 
+.PHONY: install-hooks
+install-hooks: ## Install Git hooks from the hooks/ directory
+	@./hooks/install.sh
+
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: install-hooks controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
@@ -171,7 +179,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 # 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 .PHONY: test
-test: manifests generate fmt vet setup-envtest envtest ginkgo ## Run tests.
+test: install-hooks manifests generate fmt vet setup-envtest envtest ginkgo ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) run -r --randomize-all --randomize-suites --fail-on-pending --keep-going --trace --race --cover --covermode=atomic --coverprofile=coverage.out .
 
 .PHONY: setup-envtest
@@ -193,23 +201,9 @@ olm-validate: operator-sdk ## Validates the bundle image.
 # - CERT_MANAGER_INSTALL_SKIP=true
 KIND_CLUSTER ?= lbconfig-operator-test-e2e
 
-# .PHONY: setup-test-e2e
-# setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
-# 	@command -v $(KIND) >/dev/null 2>&1 || { \
-# 		echo "Kind is not installed. Please install Kind manually."; \
-# 		exit 1; \
-# 	}
-# 	@case "$$($(KIND) get clusters)" in \
-# 		*"$(KIND_CLUSTER)"*) \
-# 			echo "Kind cluster '$(KIND_CLUSTER)' already exists. Skipping creation." ;; \
-# 		*) \
-# 			echo "Creating Kind cluster '$(KIND_CLUSTER)'..."; \
-# 			$(KIND) create cluster --name $(KIND_CLUSTER) ;; \
-# 	esac
-
-# .PHONY: test-e2e
-# test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-# 	KIND_CLUSTER=$(KIND_CLUSTER) go test ./test/e2e/ -v -ginkgo.v
+.PHONY: test-e2e
+test-e2e: testenv-setup manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+	KIND_CLUSTER=$(KIND_CLUSTER) go test ./test/e2e/ -v -ginkgo.v
 # 	$(MAKE) cleanup-test-e2e
 
 # .PHONY: cleanup-test-e2e

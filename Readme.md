@@ -131,6 +131,32 @@ spec:
   ...
 ```
 
+## Development
+
+### Getting Started
+
+After cloning the repository, run the setup command to prepare your development environment:
+
+```sh
+make setup
+```
+
+This installs Git hooks that automatically run `make bundle` before commits to keep bundle manifests in sync.
+
+Alternatively, the hooks are automatically installed when you run common development commands like:
+- `make test`
+- `make manifests`
+
+To bypass the pre-commit hook temporarily: `git commit --no-verify`
+
+### Manual Hook Installation
+
+If needed, you can manually install the hooks:
+
+```sh
+make install-hooks
+```
+
 ## Additional information
 
 Please check the [additional documentation](docs/Readme.md) for more information like tracing, adding new providers, development, release and more.

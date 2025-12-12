@@ -1,0 +1,22 @@
+#!/bin/zsh
+# Pre-commit hook to run make bundle
+
+echo "Running make bundle before commit..."
+
+# Run make bundle
+if ! make bundle; then
+    echo "❌ make bundle failed. Commit aborted."
+    exit 1
+fi
+
+# Check if bundle files were modified (ignoring createdAt timestamp changes)
+if ! git diff --quiet -I'^    createdAt: ' bundle/; then
+    echo "⚠️  Bundle files were updated by make bundle."
+    echo "Please review the changes and add them to your commit:"
+    echo "  git add bundle/"
+    echo "  git commit --amend --no-edit"
+    exit 1
+fi
+
+echo "✅ make bundle completed successfully, no bundle changes detected."
+exit 0
