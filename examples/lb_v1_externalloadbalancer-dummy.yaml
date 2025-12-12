@@ -8,8 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   vip: "10.0.0.10"
-  nodelabels:
-    "node-role.kubernetes.io/control-plane": ""
+  type: master
   ports:
     - 6443
   monitor:

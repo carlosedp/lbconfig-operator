@@ -10,16 +10,27 @@ KIND_BIN="${KIND_BIN:-./bin/kind}"
 REG_NAME='kind-registry'
 REG_PORT='5001'
 
+# Detect container runtime (prefer podman, fallback to docker)
+if command -v podman &>/dev/null; then
+  CONTAINER_RUNTIME="podman"
+elif command -v docker &>/dev/null; then
+  CONTAINER_RUNTIME="docker"
+else
+  echo "❌ Neither podman nor docker found. Please install one."
+  exit 1
+fi
+echo "Using container runtime: ${CONTAINER_RUNTIME}"
+
 # Ensure KIND network exists first
-if ! podman network exists kind 2>/dev/null; then
+if ! ${CONTAINER_RUNTIME} network exists kind 2>/dev/null && ! ${CONTAINER_RUNTIME} network ls | grep -q kind; then
   echo "Creating KIND network..."
-  podman network create kind
+  ${CONTAINER_RUNTIME} network create kind
 fi
 
 # Create registry container unless it already exists
-if [ "$(podman inspect -f '{{.State.Running}}' "${REG_NAME}" 2>/dev/null || true)" != 'true' ]; then
+if [ "$(${CONTAINER_RUNTIME} inspect -f '{{.State.Running}}' "${REG_NAME}" 2>/dev/null || true)" != 'true' ]; then
   echo "Creating local registry container on KIND network..."
-  podman run \
+  ${CONTAINER_RUNTIME} run \
     -d --restart=always \
     -p "127.0.0.1:${REG_PORT}:5000" \
     --network=kind \
@@ -32,7 +43,13 @@ else
 fi
 
 # Get the registry container IP from KIND network
-REG_IP=$(podman inspect kind-registry --format '{{.NetworkSettings.Networks.kind.IPAddress}}' 2>/dev/null || echo "")
+# Docker and Podman have different network inspect formats
+if [ "${CONTAINER_RUNTIME}" = "podman" ]; then
+  REG_IP=$(${CONTAINER_RUNTIME} inspect kind-registry --format '{{.NetworkSettings.Networks.kind.IPAddress}}' 2>/dev/null || echo "")
+else
+  REG_IP=$(${CONTAINER_RUNTIME} inspect kind-registry --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null || echo "")
+fi
+
 if [ -z "$REG_IP" ]; then
   echo "❌ Failed to get registry IP on KIND network"
   exit 1
@@ -82,6 +99,10 @@ echo "✅ Registry configured for KIND cluster"
 # Wait for cluster to be ready
 echo "Waiting for cluster to be ready..."
 kubectl wait --for=condition=ready node --all --timeout=60s
+
+# Label nodes for lbconfig-operator tests
+echo "Labeling nodes for lbconfig-operator..."
+kubectl label node --all node-role.kubernetes.io/master="" --overwrite 2>/dev/null || true
 
 # Document the local registry
 cat <<EOF | kubectl apply -f -

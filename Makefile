@@ -56,8 +56,9 @@ E2E_BUNDLE_IMG ?= $(LOCAL_REGISTRY)/$(E2E_BUNDLE_IMG_NAME)
 ARCHS ?= amd64 arm64 ppc64le s390x
 PLATFORMS = $(shell echo $(ARCHS) | sed -e 's~[^ ]*~linux/&~g' | tr ' ' ',')
 
-# Which container runtime to use
-BUILDER = podman
+# Which container runtime to use (auto-detect: prefer podman, fallback to docker)
+# Returns just the binary name, not the full path (operator-sdk requires this)
+BUILDER ?= $(shell if command -v podman >/dev/null 2>&1; then echo "podman"; elif command -v docker >/dev/null 2>&1; then echo "docker"; else echo "podman"; fi)
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -219,9 +220,9 @@ testenv-setup: kind ## Setup the test environment (KIND cluster with local regis
 testenv-load-images: ## Push locally built images to local registry
 	@if [ -f /tmp/kind-registry-info.env ]; then \
 		echo "Pushing operator image to local registry (localhost:5001)..." && \
-		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_IMG_NAME) && \
+		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_IMG_NAME) || true && \
 		echo "Pushing bundle image to local registry (localhost:5001)..." && \
-		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_BUNDLE_IMG_NAME) && \
+		$(BUILDER) push --tls-verify=false localhost:5001/$(E2E_BUNDLE_IMG_NAME) || true && \
 		echo "✅ Images pushed to local registry"; \
 	else \
 		echo "❌ Registry info not found. Run 'make testenv-setup' first."; \

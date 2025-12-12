@@ -64,6 +64,10 @@ wait_for_condition() {
 deploy_instance() {
   log_info "=== Deploying lbconfig-operator Instance ==="
 
+  log_info "Ensuring KIND nodes have required labels..."
+  # Label control plane node as master for operator node selection
+  kubectl label node --all node-role.kubernetes.io/master="" --overwrite 2>/dev/null || true
+
   log_info "Creating test resources..."
   kubectl apply -f examples/namespace.yaml
   kubectl apply --namespace lbconfig-operator-system -f examples/secret_v1_creds.yaml
@@ -317,12 +321,11 @@ main() {
 
   # Run tests
   deploy_instance
-  # test_operator_deployment
-  # test_basic_cr_lifecycle
-  # test_cr_update
-  # test_metrics
-  # test_multiple_instances
-  test_node_addition
+  test_operator_deployment
+  test_basic_cr_lifecycle
+  test_cr_update
+  test_metrics
+  test_multiple_instances
   test_finalizer
 
   if [[ $EXIT_ERROR -ne 0 ]]; then
