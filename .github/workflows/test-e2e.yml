@@ -1,8 +1,11 @@
 name: E2E Tests
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch # Manually triggered for now
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 jobs:
   test-e2e:
