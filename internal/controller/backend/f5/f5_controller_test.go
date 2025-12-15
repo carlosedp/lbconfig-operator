@@ -51,7 +51,6 @@ import (
 // Define utility constants for object names and testing timeouts/durations and intervals.
 const (
 	timeout  = time.Second * 10
-	duration = time.Second * 10
 	interval = time.Millisecond * 250
 )
 
@@ -194,6 +193,15 @@ var _ = Describe("When using a f5 backend", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	It("Should close connection", func() {
+		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+		Expect(err).NotTo(HaveOccurred())
+		err = createdBackend.Provider.Connect()
+		Expect(err).NotTo(HaveOccurred())
+		err = createdBackend.Provider.Close()
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	Context("when handling load balancer monitors", func() {
 		var createdBackend *BackendController
 		var err error
@@ -272,8 +280,6 @@ var _ = Describe("When using a f5 backend", func() {
 			_, _ = createdBackend.Provider.GetPool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
-			// Getting error "error getting F5 Monitor test-monitor: invalid character 'O' looking for beginning of value"
-			// Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("Should create a pool", func() {

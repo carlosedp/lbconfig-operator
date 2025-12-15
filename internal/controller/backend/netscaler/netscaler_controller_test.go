@@ -50,7 +50,6 @@ import (
 
 const (
 	timeout  = time.Second * 10
-	duration = time.Second * 10
 	interval = time.Millisecond * 250
 )
 
@@ -194,6 +193,15 @@ var _ = Describe("When using a Netscaler backend", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
+	It("Should close connection", func() {
+		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+		Expect(err).ToNot(HaveOccurred())
+		err = createdBackend.Provider.Connect()
+		Expect(err).ToNot(HaveOccurred())
+		err = createdBackend.Provider.Close()
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	Context("when handling load balancer monitors", func() {
 		var createdBackend *BackendController
 		var err error
@@ -278,7 +286,6 @@ var _ = Describe("When using a Netscaler backend", func() {
 			_, _ = createdBackend.Provider.GetPool(pool)
 			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup/test-pool"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("GET"))
-			// Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should create a pool", func() {

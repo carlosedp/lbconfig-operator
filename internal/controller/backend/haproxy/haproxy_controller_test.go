@@ -52,7 +52,6 @@ import (
 // Define utility constants for object names and testing timeouts/durations and intervals.
 const (
 	timeout  = time.Second * 10
-	duration = time.Second * 10
 	interval = time.Millisecond * 250
 )
 
@@ -192,6 +191,14 @@ var _ = Describe("When using a HAProxy backend", func() {
 		// fmt.Fprintf(GinkgoWriter, "DATA: %s", httpdata)
 	})
 
+	It("Should close connection", func() {
+		createdBackend, err := CreateBackend(ctx, &loadBalancer.Spec.Provider, "username", "password")
+		Expect(err).ToNot(HaveOccurred())
+		_ = createdBackend.Provider.Connect()
+		err = createdBackend.Provider.Close()
+		Expect(err).ToNot(HaveOccurred())
+	})
+
 	Context("when managing HAProxy", func() {
 		var createdBackend *BackendController
 		var err error
@@ -224,15 +231,10 @@ var _ = Describe("When using a HAProxy backend", func() {
 		})
 
 		Context("when handling load balancer pools", func() {
-			// It("Should get a pool", func() {
-			// 	_, _ = createdBackend.Provider.GetPool(pool)
-			// 	url := "/v2/services/haproxy/configuration/backends/test-pool"
-			// 	Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			// 	i := indexOf(url, httpdata.url)
-			// 	Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
-			// 	// Our mock returns an empty map, so we can't check for equality
-			// 	// Expect(err).To(BeNil())
-			// })
+			It("Should get pool members", func() {
+				_, err := createdBackend.Provider.GetPoolMembers(pool)
+				Expect(err).ToNot(HaveOccurred())
+			})
 
 			It("Should create a pool", func() {
 				err = createdBackend.Provider.CreatePool(pool)
@@ -275,15 +277,6 @@ var _ = Describe("When using a HAProxy backend", func() {
 		})
 
 		Context("when handling load balancer VIPs", func() {
-			// It("Should get a VIP", func() {
-			// 	_, _ = createdBackend.Provider.GetVIP(VIP)
-
-			// 	url := "/v2/services/haproxy/configuration/frontends/test-vip"
-			// 	Eventually(httpdata.url, timeout, interval).Should(ContainElement(url))
-			// 	i := indexOf(url, httpdata.url)
-			// 	Eventually(httpdata.method[i], timeout, interval).Should(Equal("GET"))
-			// })
-
 			It("Should create a VIP", func() {
 				err := createdBackend.Provider.CreateVIP(VIP)
 				url := "/v2/services/haproxy/configuration/frontends"
