@@ -141,7 +141,7 @@ After cloning the repository, run the setup command to prepare your development 
 make setup
 ```
 
-This installs Git hooks that automatically run `make bundle` before pushing to keep bundle manifests in sync.
+This installs Git hooks that, before pushing, run `make lint` (golangci-lint, same config and version as CI) and `make bundle` to keep bundle manifests in sync. This catches lint issues locally instead of waiting for the GitHub CI run.
 
 Alternatively, the hooks are automatically installed when you run common development commands like:
 - `make test`

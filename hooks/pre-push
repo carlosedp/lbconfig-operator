@@ -1,5 +1,14 @@
-#!/bin/zsh
-# Pre-push hook to run make bundle
+#!/usr/bin/env bash
+# Pre-push hook to run the linter and make bundle
+
+echo "Running make lint before push..."
+
+# Run golangci-lint (same config and version as CI)
+if ! make lint; then
+    echo "❌ make lint failed. Push aborted."
+    echo "Fix the issues (try 'make lint-fix') or bypass with 'git push --no-verify'."
+    exit 1
+fi
 
 echo "Running make bundle before push..."
 

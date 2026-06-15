@@ -77,10 +77,10 @@ func init() {
 }
 
 const (
-	sslEnabled         = "enabled"
-	sslVerifyNone      = "none"
-	monitorTypeHTTP    = "http"
-	monitorTypeHTTPS   = "https"
+	sslEnabled       = "enabled"
+	sslVerifyNone    = "none"
+	monitorTypeHTTP  = "http"
+	monitorTypeHTTPS = "https"
 )
 
 // We use round robin for the backend servers if least response is chosen since HAProxy doesn't have it.
