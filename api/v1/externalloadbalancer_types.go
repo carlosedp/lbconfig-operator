@@ -26,10 +26,18 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
-	SchemeBuilder.Register(&ExternalLoadBalancer{}, &ExternalLoadBalancerList{})
+	SchemeBuilder.Register(addKnownTypes)
+}
+
+// addKnownTypes registers the API types with the given scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(GroupVersion, &ExternalLoadBalancer{}, &ExternalLoadBalancerList{})
+	metav1.AddToGroupVersion(scheme, GroupVersion)
+	return nil
 }
 
 // User-side configuration for an external load balancer via CRDs
