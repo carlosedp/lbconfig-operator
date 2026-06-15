@@ -57,20 +57,20 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 		It("Should compute labels from LoadBalancer instance", func() {
 			loadBalancer := lbv1.ExternalLoadBalancer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-load-balancer",
+					Name:      testLoadBalancerName,
 					Namespace: Namespace,
 				},
 				Spec: lbv1.ExternalLoadBalancerSpec{
 					Type: "master",
 				},
 			}
-			Expect(computeLabels(loadBalancer)).To(Equal(map[string]string{"node-role.kubernetes.io/master": ""}))
+			Expect(computeLabels(loadBalancer)).To(Equal(map[string]string{masterNodeLabel: ""}))
 		})
 
 		It("Should compute custom labels from LoadBalancer instance", func() {
 			loadBalancer := lbv1.ExternalLoadBalancer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-load-balancer",
+					Name:      testLoadBalancerName,
 					Namespace: Namespace,
 				},
 				Spec: lbv1.ExternalLoadBalancerSpec{
@@ -81,18 +81,18 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 		})
 
 		It("Should check if nodes changed conditions", func() {
-			n1 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
-			n2 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
-			n3 := createNotReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
+			n1 := createReadyNode("master-node-1", map[string]string{masterNodeLabel: ""}, "1.1.1.1")
+			n2 := createReadyNode("master-node-1", map[string]string{masterNodeLabel: ""}, "1.1.1.1")
+			n3 := createNotReadyNode("master-node-2", map[string]string{masterNodeLabel: ""}, "1.1.1.2")
 
 			Expect(hasNodeChanged(n1, n2)).To(BeFalse())
 			Expect(hasNodeChanged(n1, n3)).To(BeTrue())
 		})
 
 		It("Should check if nodes changed IP addresses", func() {
-			n1 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
-			n2 := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
-			n3 := createReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
+			n1 := createReadyNode("master-node-1", map[string]string{masterNodeLabel: ""}, "1.1.1.1")
+			n2 := createReadyNode("master-node-1", map[string]string{masterNodeLabel: ""}, "1.1.1.1")
+			n3 := createReadyNode("master-node-2", map[string]string{masterNodeLabel: ""}, "1.1.1.2")
 
 			Expect(hasNodeChanged(n1, n2)).To(BeFalse())
 			Expect(hasNodeChanged(n1, n3)).To(BeTrue())

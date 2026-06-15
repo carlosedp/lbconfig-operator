@@ -52,6 +52,8 @@ import (
 const (
 	timeout  = time.Second * 10
 	interval = time.Millisecond * 250
+
+	masterNodeLabel = "node-role.kubernetes.io/master"
 )
 
 func TestF5(t *testing.T) {
@@ -111,14 +113,14 @@ var pool = &lbv1.Pool{
 		Node: lbv1.Node{
 			Name:   "test-node-1",
 			Host:   "1.1.1.1",
-			Labels: map[string]string{"node-role.kubernetes.io/master": ""},
+			Labels: map[string]string{masterNodeLabel: ""},
 		},
 		Port: 80},
 		{
 			Node: lbv1.Node{
 				Name:   "test-node-2",
 				Host:   "1.1.1.2",
-				Labels: map[string]string{"node-role.kubernetes.io/master": ""},
+				Labels: map[string]string{masterNodeLabel: ""},
 			},
 			Port: 80},
 	},
@@ -128,7 +130,7 @@ var poolmember = &lbv1.PoolMember{
 	Node: lbv1.Node{
 		Name:   "test-node-5",
 		Host:   "1.1.1.5",
-		Labels: map[string]string{"node-role.kubernetes.io/master": ""},
+		Labels: map[string]string{masterNodeLabel: ""},
 	},
 	Port: 80,
 }

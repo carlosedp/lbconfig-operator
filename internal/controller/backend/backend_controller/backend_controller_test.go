@@ -44,6 +44,11 @@ func TestBackendController(t *testing.T) {
 	RunSpecs(t, "Backend Controller Suite")
 }
 
+const (
+	dummyHostIP = "1.2.3.4"
+	testNodeIP  = "1.1.1.1"
+)
+
 var loadBalancer = &lbv1.ExternalLoadBalancer{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "dummy-backend",
@@ -53,7 +58,7 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 		Vip: "10.0.0.1",
 		Provider: lbv1.Provider{
 			Vendor: "Dummy",
-			Host:   "1.2.3.4",
+			Host:   dummyHostIP,
 			Port:   443,
 			Creds:  "secretname",
 		},
@@ -71,7 +76,7 @@ var pool = &lbv1.Pool{
 	Members: []lbv1.PoolMember{{
 		Node: lbv1.Node{
 			Name:   "test-node-1",
-			Host:   "1.1.1.1",
+			Host:   testNodeIP,
 			Labels: map[string]string{"node-role.kubernetes.io/master": ""},
 		},
 		Port: 80},
@@ -88,7 +93,7 @@ var pool = &lbv1.Pool{
 var VIP = &lbv1.VIP{
 	Name: "test-vip",
 	Pool: pool.Name,
-	IP:   "1.2.3.4",
+	IP:   dummyHostIP,
 }
 
 var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
@@ -115,7 +120,7 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 					Vip: "10.0.0.1",
 					Provider: lbv1.Provider{
 						Vendor: "unknown",
-						Host:   "1.2.3.4",
+						Host:   dummyHostIP,
 						Port:   443,
 						Creds:  "secretname",
 					},
@@ -167,7 +172,7 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 			m := lbv1.PoolMember{
 				Node: lbv1.Node{
 					Name: "node1",
-					Host: "1.1.1.1",
+					Host: testNodeIP,
 				},
 				Port: 80,
 			}
@@ -180,7 +185,7 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 			m := lbv1.PoolMember{
 				Node: lbv1.Node{
 					Name: "node1",
-					Host: "1.1.1.1",
+					Host: testNodeIP,
 				},
 				Port: 80,
 			}

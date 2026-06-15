@@ -47,6 +47,9 @@ const (
 	timeout  = time.Second * 10
 	duration = time.Second * 10
 	interval = time.Millisecond * 250
+
+	testLoadBalancerName = "test-load-balancer"
+	masterNodeLabel      = "node-role.kubernetes.io/master"
 )
 
 var node *corev1.Node
@@ -67,7 +70,7 @@ var credsSecret = &corev1.Secret{
 
 var loadBalancer = &lbv1.ExternalLoadBalancer{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "test-load-balancer",
+		Name:      testLoadBalancerName,
 		Namespace: "default",
 	},
 	Spec: lbv1.ExternalLoadBalancerSpec{
@@ -174,7 +177,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 		Expect(nodeList.Items).Should(BeEmpty())
 
 		By("By creating a Master Node")
-		node := createReadyNode("master-node-1", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.1")
+		node := createReadyNode("master-node-1", map[string]string{masterNodeLabel: ""}, "1.1.1.1")
 
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
@@ -218,7 +221,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 			return len(loadBalancer.Status.Nodes), nil
 		}, timeout, interval).Should(Equal(1))
 
-		nodeAddresses = []string{}
+		nodeAddresses = make([]string, 0, len(loadBalancer.Status.Nodes))
 		for _, node := range loadBalancer.Status.Nodes {
 			nodeAddresses = append(nodeAddresses, node.Host)
 		}
@@ -232,7 +235,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 
 	It("should create node not managed by this load balancer", func() {
 		By("By creating an additional Master Node")
-		node = createReadyNode("master-node-2", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.2")
+		node = createReadyNode("master-node-2", map[string]string{masterNodeLabel: ""}, "1.1.1.2")
 		IPs := []corev1.NodeAddress{
 			{
 				Type:    corev1.NodeInternalIP,
@@ -257,7 +260,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 			return len(loadBalancer.Status.Nodes), nil
 		}, timeout, interval).Should(Equal(2))
 
-		nodeAddresses = []string{}
+		nodeAddresses = make([]string, 0, len(loadBalancer.Status.Nodes))
 		for _, node := range loadBalancer.Status.Nodes {
 			nodeAddresses = append(nodeAddresses, node.Host)
 		}
@@ -273,7 +276,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 
 	It("should create a master node not that is not ready", func() {
 		By("By creating an additional Master Node that is not ready")
-		node = createNotReadyNode("master-node-3", map[string]string{"node-role.kubernetes.io/master": ""}, "1.1.1.3")
+		node = createNotReadyNode("master-node-3", map[string]string{masterNodeLabel: ""}, "1.1.1.3")
 		Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 		Expect(k8sClient.List(ctx, &nodeList)).Should(Succeed())
 		Expect(nodeList.Items).Should(HaveLen(4))
@@ -287,7 +290,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 			return len(loadBalancer.Status.Nodes), nil
 		}, timeout, interval).Should(Equal(2))
 
-		nodeAddresses = []string{}
+		nodeAddresses = make([]string, 0, len(loadBalancer.Status.Nodes))
 		for _, node := range loadBalancer.Status.Nodes {
 			nodeAddresses = append(nodeAddresses, node.Host)
 		}
@@ -316,7 +319,7 @@ var _ = Describe("ExternalLoadBalancer controller", Ordered, func() {
 			return len(loadBalancer.Status.Nodes), nil
 		}, timeout, interval).Should(Equal(1))
 
-		nodeAddresses = []string{}
+		nodeAddresses = make([]string, 0, len(loadBalancer.Status.Nodes))
 		for _, node := range loadBalancer.Status.Nodes {
 			nodeAddresses = append(nodeAddresses, node.Host)
 		}

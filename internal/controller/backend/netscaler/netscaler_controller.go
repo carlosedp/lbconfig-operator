@@ -43,10 +43,12 @@ import (
 )
 
 const (
-	yesValue       = "YES"
-	httpsProtocol  = "https"
-	readyCondition = "Ready"
-	trueStatus     = "True"
+	yesValue        = "YES"
+	httpsProtocol   = "https"
+	readyCondition  = "Ready"
+	trueStatus      = "True"
+	monitorTypeHTTP = "HTTP"
+	serviceTypeTCP  = "TCP"
 )
 
 // ----------------------------------------
@@ -152,7 +154,7 @@ func (p *NetscalerProvider) GetMonitor(monitor *lbv1.Monitor) (*lbv1.Monitor, er
 func (p *NetscalerProvider) CreateMonitor(m *lbv1.Monitor) error {
 	lbMonitor := lb.Lbmonitor{
 		Monitorname: m.Name,
-		Type:        "HTTP",
+		Type:        monitorTypeHTTP,
 		Interval:    5,
 		Downtime:    16,
 		Httprequest: "GET " + m.Path,
@@ -180,7 +182,7 @@ func (p *NetscalerProvider) CreateMonitor(m *lbv1.Monitor) error {
 func (p *NetscalerProvider) EditMonitor(m *lbv1.Monitor) error {
 	lbMonitor := lb.Lbmonitor{
 		Monitorname: m.Name,
-		Type:        "HTTP",
+		Type:        monitorTypeHTTP,
 		Interval:    5,
 		Downtime:    16,
 		Httprequest: "GET " + m.Path,
@@ -208,7 +210,7 @@ func (p *NetscalerProvider) DeleteMonitor(m *lbv1.Monitor) error {
 
 	var t string
 	if m.MonitorType == httpsProtocol {
-		t = "HTTP"
+		t = monitorTypeHTTP
 	} else {
 		t = m.MonitorType
 	}
@@ -266,7 +268,7 @@ func (p *NetscalerProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 func (p *NetscalerProvider) CreatePool(pool *lbv1.Pool) error {
 	nsSvcGrp := &basic.Servicegroup{
 		Servicegroupname: pool.Name,
-		Servicetype:      "TCP",
+		Servicetype:      serviceTypeTCP,
 	}
 	_, err := p.client.AddResource(service.Servicegroup.Type(), pool.Name, nsSvcGrp)
 	if err != nil {
@@ -289,7 +291,7 @@ func (p *NetscalerProvider) CreatePool(pool *lbv1.Pool) error {
 func (p *NetscalerProvider) EditPool(pool *lbv1.Pool) error {
 	nsSvcGrp := &basic.Servicegroup{
 		Servicegroupname: pool.Name,
-		Servicetype:      "TCP",
+		Servicetype:      serviceTypeTCP,
 	}
 	_, err := p.client.AddResource(service.Servicegroup.Type(), pool.Name, nsSvcGrp)
 	if err != nil {
@@ -460,7 +462,7 @@ func (p *NetscalerProvider) CreateVIP(v *lbv1.VIP) error {
 		Name:        v.Name,
 		Ipv46:       v.IP,
 		Port:        v.Port,
-		Servicetype: "TCP",
+		Servicetype: serviceTypeTCP,
 		Lbmethod:    p.lbmethod,
 	}
 	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)
@@ -489,7 +491,7 @@ func (p *NetscalerProvider) EditVIP(v *lbv1.VIP) error {
 		Name:        v.Name,
 		Ipv46:       v.IP,
 		Port:        v.Port,
-		Servicetype: "TCP",
+		Servicetype: serviceTypeTCP,
 		Lbmethod:    p.lbmethod,
 	}
 	_, err := p.client.AddResource(service.Lbvserver.Type(), v.Name, &nsLB)

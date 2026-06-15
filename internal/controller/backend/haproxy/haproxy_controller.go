@@ -81,6 +81,7 @@ const (
 	sslVerifyNone    = "none"
 	monitorTypeHTTP  = "http"
 	monitorTypeHTTPS = "https"
+	modeTCP          = "tcp"
 )
 
 // We use round robin for the backend servers if least response is chosen since HAProxy doesn't have it.
@@ -242,7 +243,7 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 		Balance: &models.Balance{
 			Algorithm: &p.lbmethod,
 		},
-		Mode: "tcp",
+		Mode: modeTCP,
 	}
 
 	// Only configure httpchk for http/https monitor types
@@ -275,7 +276,7 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 		Balance: &models.Balance{
 			Algorithm: &p.lbmethod,
 		},
-		Mode: "tcp",
+		Mode: modeTCP,
 	}
 
 	// Only configure httpchk for http/https monitor types
@@ -385,7 +386,7 @@ func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 			Address: m.Node.Host,
 			Port:    ptr.To[int64](int64(m.Port)),
 			ServerParams: models.ServerParams{
-				Check:           "enabled",
+				Check:           sslEnabled,
 				Inter:           ptr.To[int64](1000), // in ms
 				HealthCheckPort: ptr.To[int64](int64(p.monitor.Port)),
 			},
@@ -414,7 +415,7 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 		if status == "enable" {
 			return "disabled"
 		} else {
-			return "enabled"
+			return sslEnabled
 		}
 	}()
 
@@ -426,7 +427,7 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 			Address: m.Node.Host,
 			Port:    ptr.To[int64](int64(m.Port)),
 			ServerParams: models.ServerParams{
-				Check:           "enabled",
+				Check:           sslEnabled,
 				Maintenance:     maintenanceStatus,
 				Inter:           ptr.To[int64](1000),
 				HealthCheckPort: ptr.To[int64](int64(p.monitor.Port)),
@@ -516,7 +517,7 @@ func (p *HAProxyProvider) CreateVIP(v *lbv1.VIP) error {
 	_, _, err := p.haproxy.Frontend.CreateFrontend(&frontend.CreateFrontendParams{
 		Data: &models.Frontend{
 			Name:           v.Name,
-			Mode:           "tcp",
+			Mode:           modeTCP,
 			DefaultBackend: v.Pool,
 		},
 		TransactionID: &p.transaction,
