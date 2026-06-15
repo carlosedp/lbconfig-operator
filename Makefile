@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.6.0
+VERSION ?= 0.6.1-dev
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
 
@@ -377,7 +377,8 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 
 .PHONY: podman-crossbuild
 podman-crossbuild: test ## Build and push a container image for the manager for cross-platform support with Podman
-		@for ARCH in $(ARCHS) ; do \
+	@echo "Building binaries for all supported platforms on output/ directory..."
+	@for ARCH in $(ARCHS) ; do \
 		OS=linux ; \
 		echo "Building binary for $$ARCH at output/manager-$$OS-$$ARCH" ; \
 		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=0 \
@@ -385,9 +386,11 @@ podman-crossbuild: test ## Build and push a container image for the manager for 
 		-ldflags '-X "main.Version=$(VERSION)" -s -w -extldflags "-static"' \
 		-o output/manager-$$OS-$$ARCH ./cmd/main.go ; \
 	done
+	@echo "Building and pushing multi-platform image with Podman for platforms: $(PLATFORMS)..."
 	podman manifest create ${IMG}
 	podman build --platform $(PLATFORMS) --manifest ${IMG} -f Dockerfile .
 	podman manifest push ${IMG}
+	@echo "✅ Cross-platform image built and pushed: ${IMG}"
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
@@ -532,6 +535,28 @@ catalog-push: catalog-build ## Push a catalog image.
 .PHONY: dist
 dist: check-versions bundle bundle-push catalog-push podman-crossbuild  ## Build manifests and container images, pushing them to the registry
 	@sed -i -e 's|v[0-9]*\.[0-9]*\.[0-9]*|v$(VERSION)|g' Readme.md
+
+.PHONY: release
+release: ## Create a release by tagging the current commit and pushing to GitHub
+	@echo "Creating git tag v$(VERSION) and pushing to origin..."
+	git tag -a v$(VERSION) -m "Release version $(VERSION)"
+	git push origin v$(VERSION)
+	@echo "Git tag v$(VERSION) created and pushed to origin."
+# Check if GitHub gh CLI is installed before suggesting to create a GitHub release
+	@if ! command -v gh &> /dev/null; then \
+		echo "⚠️  GitHub CLI (gh) not found. Please install it to easily create a GitHub release:"; \
+		echo "   https://cli.github.com/manual/gh_release_create"; \
+	else \
+		gh release create v$(VERSION) --generate-notes; \
+	fi
+	@echo "✅ Release created successfully."
+
+.PHONY: bump-version
+bump-version: ## Bump the version for the next development cycle (e.g.,
+	@echo "Bumping version to next development version..."
+	@NEXT_VERSION=$$(echo $(VERSION) | awk -F. -v OFS=. '{$$NF += 1; print}')-dev && \
+	sed -i -e "s/^VERSION ?= .*/VERSION ?= $$NEXT_VERSION/g" Makefile && \
+	echo "Version bumped to $$NEXT_VERSION in Makefile for next development cycle."
 
 ##@ Utils
 

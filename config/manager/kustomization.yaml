@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/carlosedp/lbconfig-operator
-  newTag: v0.6.0
+  newTag: v0.6.1-dev

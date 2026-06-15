@@ -702,7 +702,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: quay.io/carlosedp/lbconfig-operator:v0.6.0
+        image: quay.io/carlosedp/lbconfig-operator:v0.6.1-dev
         livenessProbe:
           httpGet:
             path: /healthz
