@@ -77,8 +77,10 @@ func init() {
 }
 
 const (
-	sslEnabled    = "enabled"
-	sslVerifyNone = "none"
+	sslEnabled         = "enabled"
+	sslVerifyNone      = "none"
+	monitorTypeHTTP    = "http"
+	monitorTypeHTTPS   = "https"
 )
 
 // We use round robin for the backend servers if least response is chosen since HAProxy doesn't have it.
@@ -244,7 +246,7 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 	}
 
 	// Only configure httpchk for http/https monitor types
-	if p.monitor.MonitorType == "http" || p.monitor.MonitorType == "https" {
+	if p.monitor.MonitorType == monitorTypeHTTP || p.monitor.MonitorType == monitorTypeHTTPS {
 		backendData.AdvCheck = "httpchk"
 		backendData.HttpchkParams = &models.HttpchkParams{
 			Method: "GET",
@@ -277,7 +279,7 @@ func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
 	}
 
 	// Only configure httpchk for http/https monitor types
-	if p.monitor.MonitorType == "http" || p.monitor.MonitorType == "https" {
+	if p.monitor.MonitorType == monitorTypeHTTP || p.monitor.MonitorType == monitorTypeHTTPS {
 		backendData.AdvCheck = "httpchk"
 		backendData.HttpchkParams = &models.HttpchkParams{
 			Method: "GET",
@@ -391,7 +393,7 @@ func (p *HAProxyProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) 
 		TransactionID: &p.transaction,
 		Context:       p.ctx,
 	}
-	if p.monitor.MonitorType == "https" {
+	if p.monitor.MonitorType == monitorTypeHTTPS {
 		serverParams.Data.CheckSsl = sslEnabled
 		serverParams.Data.Verify = sslVerifyNone
 	}
@@ -433,7 +435,7 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 		TransactionID: &p.transaction,
 		Context:       p.ctx,
 	}
-	if p.monitor.MonitorType == "https" {
+	if p.monitor.MonitorType == monitorTypeHTTPS {
 		serverParams.Data.CheckSsl = sslEnabled
 		serverParams.Data.Verify = sslVerifyNone
 	}
