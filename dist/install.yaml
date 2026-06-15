@@ -685,7 +685,6 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: lbconfig-operator
       control-plane: controller-manager
   template:
     metadata:

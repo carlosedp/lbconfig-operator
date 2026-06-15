@@ -7,7 +7,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.6.1-dev
-    createdAt: "2026-06-15T21:32:31Z"
+    createdAt: "2026-06-15T23:16:24Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
@@ -303,7 +303,6 @@ spec:
           replicas: 1
           selector:
             matchLabels:
-              app.kubernetes.io/name: lbconfig-operator
               control-plane: controller-manager
           strategy: {}
           template:
