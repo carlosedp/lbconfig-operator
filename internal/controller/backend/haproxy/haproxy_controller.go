@@ -235,19 +235,25 @@ func (p *HAProxyProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 
 // CreatePool creates a server pool in the Load Balancer
 func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
-	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
-		Data: &models.Backend{
-			Name:     pool.Name,
-			AdvCheck: "httpchk",
-			Balance: &models.Balance{
-				Algorithm: &p.lbmethod,
-			},
-			Mode: "tcp",
-			HttpchkParams: &models.HttpchkParams{
-				Method: "GET",
-				URI:    p.monitor.Path,
-			},
+	backendData := &models.Backend{
+		Name: pool.Name,
+		Balance: &models.Balance{
+			Algorithm: &p.lbmethod,
 		},
+		Mode: "tcp",
+	}
+
+	// Only configure httpchk for http/https monitor types
+	if p.monitor.MonitorType == "http" || p.monitor.MonitorType == "https" {
+		backendData.AdvCheck = "httpchk"
+		backendData.HttpchkParams = &models.HttpchkParams{
+			Method: "GET",
+			URI:    p.monitor.Path,
+		}
+	}
+
+	_, _, err := p.haproxy.Backend.CreateBackend(&backend.CreateBackendParams{
+		Data:          backendData,
 		Context:       p.ctx,
 		TransactionID: &p.transaction,
 	}, p.auth)
@@ -262,21 +268,27 @@ func (p *HAProxyProvider) CreatePool(pool *lbv1.Pool) error {
 
 // EditPool modifies a server pool in the Load Balancer
 func (p *HAProxyProvider) EditPool(pool *lbv1.Pool) error {
+	backendData := &models.Backend{
+		Name: pool.Name,
+		Balance: &models.Balance{
+			Algorithm: &p.lbmethod,
+		},
+		Mode: "tcp",
+	}
+
+	// Only configure httpchk for http/https monitor types
+	if p.monitor.MonitorType == "http" || p.monitor.MonitorType == "https" {
+		backendData.AdvCheck = "httpchk"
+		backendData.HttpchkParams = &models.HttpchkParams{
+			Method: "GET",
+			URI:    p.monitor.Path,
+		}
+	}
+
 	// Create Pool with pre-existing monitor
 	backendOK, _, err := p.haproxy.Backend.ReplaceBackend(&backend.ReplaceBackendParams{
-		Name: pool.Name,
-		Data: &models.Backend{
-			Name:     pool.Name,
-			AdvCheck: "httpchk",
-			Balance: &models.Balance{
-				Algorithm: &p.lbmethod,
-			},
-			Mode: "tcp",
-			HttpchkParams: &models.HttpchkParams{
-				Method: "GET",
-				URI:    p.monitor.Path,
-			},
-		},
+		Name:          pool.Name,
+		Data:          backendData,
 		Context:       p.ctx,
 		TransactionID: &p.transaction,
 	}, p.auth)
