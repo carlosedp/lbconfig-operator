@@ -107,6 +107,10 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Default goal when running `make` with no arguments. Set explicitly so it does
+# not depend on target ordering (the $(LOCALBIN) rule appears earlier in the file).
+.DEFAULT_GOAL := all
+
 .PHONY: all
 all: build
 
