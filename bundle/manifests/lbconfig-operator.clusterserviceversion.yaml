@@ -2,12 +2,70 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[]'
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
+          "kind": "ExternalLoadBalancer",
+          "metadata": {
+            "name": "externalloadbalancer-infra-sample",
+            "namespace": "lbconfig-operator-system"
+          },
+          "spec": {
+            "monitor": {
+              "monitortype": "http",
+              "path": "/healthz",
+              "port": 1936
+            },
+            "ports": [
+              80,
+              443
+            ],
+            "provider": {
+              "creds": "f5-creds",
+              "host": "https://192.168.1.35",
+              "partition": "Common",
+              "port": 443,
+              "validatecerts": false,
+              "vendor": "F5_BigIP"
+            },
+            "type": "infra",
+            "vip": "192.168.1.45"
+          }
+        },
+        {
+          "apiVersion": "lb.lbconfig.carlosedp.com/v1",
+          "kind": "ExternalLoadBalancer",
+          "metadata": {
+            "name": "externalloadbalancer-master-sample",
+            "namespace": "lbconfig-operator-system"
+          },
+          "spec": {
+            "monitor": {
+              "monitortype": "https",
+              "path": "/healthz",
+              "port": 6443
+            },
+            "ports": [
+              6443
+            ],
+            "provider": {
+              "creds": "netscaler-creds",
+              "host": "https://192.168.1.36",
+              "port": 443,
+              "validatecerts": false,
+              "vendor": "Citrix_ADC"
+            },
+            "type": "master",
+            "vip": "192.168.1.40"
+          }
+        }
+      ]
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.6.1-dev
-    createdAt: "2026-06-15T23:16:24Z"
+    createdAt: "2026-06-15T23:57:28Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
