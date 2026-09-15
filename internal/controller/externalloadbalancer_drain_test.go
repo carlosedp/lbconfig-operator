@@ -239,6 +239,7 @@ var _ = Describe("ExternalLoadBalancer graceful connection draining with a F5 BI
 		Eventually(func() bool {
 			return apierrors.IsNotFound(k8sClient.Get(ctx, lbKey, &lbv1.ExternalLoadBalancer{}))
 		}, timeout, interval).Should(BeTrue())
-		Expect(sim.poolExists(drainPoolName)).To(BeFalse())
+		// A reconciliation still reading the deleted instance from its cache must not configure it again
+		Consistently(func() bool { return sim.poolExists(drainPoolName) }, 2*time.Second, interval).Should(BeFalse())
 	})
 })

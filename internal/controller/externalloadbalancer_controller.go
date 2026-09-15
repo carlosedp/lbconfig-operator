@@ -172,6 +172,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("lb.provider", lb.Spec.Provider.Vendor))
 
+	// An instance being deleted without our finalizer was already removed from the load balancer. A reconciliation
+	// can still read it from a cache that has not seen the deletion yet, and must not configure it again.
+	if lb.GetDeletionTimestamp() != nil && !contains(lb.GetFinalizers(), ExternalLoadBalancerFinalizer) {
+		logger.Info("ExternalLoadBalancer is being deleted and was already finalized")
+		span.End()
+		return ctrl.Result{}, nil
+	}
+
 	// ----------------------------------------
 	// Set the Load Balancer backend
 	// ----------------------------------------
@@ -266,6 +274,67 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
 		return ctrl.Result{}, err
+	}
+
+	// ----------------------------------------
+	// Check if the ExternalLoadBalancer instance is marked to be deleted, which is
+	// indicated by the deletion timestamp being set. This is checked before any
+	// configuration is applied, since a reconciliation reading the instance from a
+	// cache that has not seen the finalizer removal yet would otherwise configure
+	// the load balancer again right after it was cleaned up.
+	// ----------------------------------------
+	isLoadBalancerMarkedToBeDeleted := func(ctx context.Context) bool {
+		_, span := otel.Tracer(name).Start(ctx, "GetDeletionTimestamp")
+		defer span.End()
+		return lb.GetDeletionTimestamp() != nil
+	}(ctx)
+
+	if isLoadBalancerMarkedToBeDeleted {
+
+		finalizers := func(ctx context.Context) []string {
+			_, span := otel.Tracer(name).Start(ctx, "GetFinalizers - Remove finalizer")
+			defer span.End()
+			return lb.GetFinalizers()
+		}(ctx)
+
+		if contains(finalizers, ExternalLoadBalancerFinalizer) {
+			// Run finalization logic for ExternalLoadBalancerFinalizer. If the
+			// finalization logic fails, don't remove the finalizer so
+			// that we can retry during the next reconciliation.
+
+			err = func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "finalizeLoadBalancer")
+				defer span.End()
+				return r.finalizeLoadBalancer(ctx, backend, lb)
+			}(ctx)
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				span.End()
+				return ctrl.Result{}, err
+			}
+
+			// Remove ExternalLoadBalancerFinalizer. Once all finalizers have been
+			// removed, the object will be deleted.
+			func(ctx context.Context) {
+				_, span := otel.Tracer(name).Start(ctx, "RemoveFinalizer")
+				defer span.End()
+				controllerutil.RemoveFinalizer(lb, ExternalLoadBalancerFinalizer)
+			}(ctx)
+
+			err = func(ctx context.Context) error {
+				_, span := otel.Tracer(name).Start(ctx, "Update LoadBalancer after removing finalizer")
+				defer span.End()
+				return r.Update(ctx, lb)
+			}(ctx)
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				span.End()
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// ----------------------------------------
@@ -410,64 +479,6 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
 		return ctrl.Result{}, err
-	}
-
-	// ----------------------------------------
-	// Check if the ExternalLoadBalancer instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	// ----------------------------------------
-	isLoadBalancerMarkedToBeDeleted := func(ctx context.Context) bool {
-		_, span := otel.Tracer(name).Start(ctx, "GetDeletionTimestamp")
-		defer span.End()
-		return lb.GetDeletionTimestamp() != nil
-	}(ctx)
-
-	if isLoadBalancerMarkedToBeDeleted {
-
-		finalizers := func(ctx context.Context) []string {
-			_, span := otel.Tracer(name).Start(ctx, "GetFinalizers - Remove finalizer")
-			defer span.End()
-			return lb.GetFinalizers()
-		}(ctx)
-
-		if contains(finalizers, ExternalLoadBalancerFinalizer) {
-			// Run finalization logic for ExternalLoadBalancerFinalizer. If the
-			// finalization logic fails, don't remove the finalizer so
-			// that we can retry during the next reconciliation.
-
-			err = func(ctx context.Context) error {
-				_, span := otel.Tracer(name).Start(ctx, "finalizeLoadBalancer")
-				defer span.End()
-				return r.finalizeLoadBalancer(ctx, backend, lb)
-			}(ctx)
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				span.End()
-				return ctrl.Result{}, err
-			}
-
-			// Remove ExternalLoadBalancerFinalizer. Once all finalizers have been
-			// removed, the object will be deleted.
-			func(ctx context.Context) {
-				_, span := otel.Tracer(name).Start(ctx, "RemoveFinalizer")
-				defer span.End()
-				controllerutil.RemoveFinalizer(lb, ExternalLoadBalancerFinalizer)
-			}(ctx)
-
-			err = func(ctx context.Context) error {
-				_, span := otel.Tracer(name).Start(ctx, "Update LoadBalancer after removing finalizer")
-				defer span.End()
-				return r.Update(ctx, lb)
-			}(ctx)
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-				span.End()
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
 	}
 
 	// Add finalizer for this CR
