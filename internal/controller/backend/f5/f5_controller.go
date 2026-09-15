@@ -333,12 +333,17 @@ func (p *F5Provider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error
 	return nil
 }
 
+// memberPath returns the partition-qualified member name (eg. /Common/1.2.3.4:443). BIG-IP only finds a
+// member through a partition-qualified pool and member (ltm/pool/~Common~pool/members/~Common~1.2.3.4:443)
+// and answers "Object not found" otherwise; go-bigip turns the slashes into tildes.
+func (p *F5Provider) memberPath(m *lbv1.PoolMember) string {
+	return p.partition + m.Node.Host + ":" + strconv.Itoa(m.Port)
+}
+
 // EditPoolMember modifies a server pool member in the Load Balancer
 // status could be "enable" or "disable"
 func (p *F5Provider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
-	// Pool members must be addressed through the partition-qualified pool name (eg. ~Common~pool/members/1.2.3.4:443),
-	// otherwise BIG-IP answers "Object not found" for the member.
-	err := p.f5.PoolMemberStatus(p.partition+pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port), status)
+	err := p.f5.PoolMemberStatus(p.partition+pool.Name, p.memberPath(m), status)
 	if err != nil {
 		return fmt.Errorf("error editing member %s in pool %s: %v", m.Node.Host, pool.Name, err)
 	}
@@ -354,7 +359,7 @@ func (p *F5Provider) DisablePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) erro
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *F5Provider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	// First delete member from pool
-	err := p.f5.DeletePoolMember(p.partition+pool.Name, m.Node.Host+":"+strconv.Itoa(m.Port))
+	err := p.f5.DeletePoolMember(p.partition+pool.Name, p.memberPath(m))
 	if err != nil {
 		return fmt.Errorf("error removing member %s from pool %s: %v", m.Node.Host, pool.Name, err)
 	}

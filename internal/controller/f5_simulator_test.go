@@ -55,8 +55,10 @@ const (
 )
 
 // f5Simulator is a minimal in-memory F5 BIG-IP iControl REST API serving the calls done by the F5 provider.
-// Like a real BIG-IP, a pool member is only found through the partition-qualified pool name
-// (eg. /mgmt/tm/ltm/pool/~Common~pool/members/10.0.0.1:80), otherwise it answers "Object not found".
+// Like a real BIG-IP, a pool member is only found through a partition-qualified pool and member name
+// (eg. /mgmt/tm/ltm/pool/~Common~pool/members/~Common~10.0.0.1:80), otherwise it answers "Object not found".
+// A live BIG-IP still applied a status change sent to the bare member name while answering "Object not found";
+// the simulator rejects the request outright.
 type f5Simulator struct {
 	server   *httptest.Server
 	mu       sync.Mutex
@@ -338,9 +340,9 @@ func (s *f5Simulator) servePoolMembers(w http.ResponseWriter, method string, poo
 }
 
 func (s *f5Simulator) servePoolMember(w http.ResponseWriter, method string, pool *simPool, segment string, req simRequest) {
-	name, _ := simName(segment)
+	name, qualified := simName(segment)
 	member, ok := pool.members[name]
-	if !ok {
+	if !ok || !qualified {
 		simNotFound(w, name)
 		return
 	}

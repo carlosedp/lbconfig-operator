@@ -323,7 +323,7 @@ var _ = Describe("When using a f5 backend", func() {
 
 		It("Should delete pool members", func() {
 			err = createdBackend.Provider.DeletePoolMember(poolmember, pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/1.1.1.5:80"))
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/~Common~1.1.1.5:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("DELETE"))
 			Expect(err).NotTo(HaveOccurred())
 		})
@@ -331,13 +331,13 @@ var _ = Describe("When using a f5 backend", func() {
 		It("Should edit pool members", func() {
 			// Enable
 			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "enable")
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/1.1.1.5:80"))
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/~Common~1.1.1.5:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
 			Eventually(func() string { return gjson.Get(httpdata.data, "session").String() }, timeout, interval).Should(Equal("user-enabled"))
 			Expect(err).NotTo(HaveOccurred())
 			// Disable
 			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "disable")
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/1.1.1.5:80"))
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/~Common~1.1.1.5:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
 			// Expect(httpdata.data).Should(Equal(""))
 			Eventually(func() string { return gjson.Get(httpdata.data, "session").String() }, timeout, interval).Should(Equal("user-disabled"))
@@ -346,7 +346,7 @@ var _ = Describe("When using a f5 backend", func() {
 
 		It("Should disable pool member for graceful draining", func() {
 			err = createdBackend.Provider.DisablePoolMember(poolmember, pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/1.1.1.5:80"))
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/~Common~test-pool/members/~Common~1.1.1.5:80"))
 			Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
 			// A disabled member keeps its active connections but gets no new ones, while "offline" would also set state user-down
 			Eventually(func() string { return gjson.Get(httpdata.data, "session").String() }, timeout, interval).Should(Equal("user-disabled"))
