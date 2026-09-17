@@ -26,6 +26,7 @@ package controllers
 
 import (
 	"reflect"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -117,4 +118,26 @@ func containsLabels(as, bs map[string]string) bool {
 		}
 	}
 	return reflect.DeepEqual(bs, labels)
+}
+
+// soonestRequeue returns the shortest positive duration between current and candidate, 0 meaning no requeue
+func soonestRequeue(current, candidate time.Duration) time.Duration {
+	if candidate > 0 && (current == 0 || candidate < current) {
+		return candidate
+	}
+	return current
+}
+
+// drainingMembersForPools keeps only the draining members that belong to one of the given pools
+func drainingMembersForPools(drainingMembers []lbv1.DrainingMember, pools []lbv1.Pool) []lbv1.DrainingMember {
+	active := make([]lbv1.DrainingMember, 0, len(drainingMembers))
+	for _, dm := range drainingMembers {
+		for _, p := range pools {
+			if dm.PoolName == p.Name {
+				active = append(active, dm)
+				break
+			}
+		}
+	}
+	return active
 }

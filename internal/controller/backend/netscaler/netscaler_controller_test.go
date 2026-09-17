@@ -346,18 +346,32 @@ var _ = Describe("When using a Netscaler backend", func() {
 		})
 
 		It("Should edit pool members", func() {
-			// // Enable
+			// Enable
 			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "enable")
-			// Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool/members/1.1.1.5:80"))
-			// Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
-			// Eventually(gjson.Get(httpdata.data, "session").String(), timeout, interval).Should(Equal("user-enabled"))
-			// Expect(err).NotTo(HaveOccurred())
-			// // Disable
-			// err = createdBackend.Provider.EditPoolMember(poolmember, pool, "disable")
-			// Eventually(httpdata.url, timeout, interval).Should(Equal("/mgmt/tm/ltm/pool/test-pool/members/1.1.1.5:80"))
-			// Eventually(httpdata.method, timeout, interval).Should(Equal("PUT"))
-			// Expect(httpdata.data).Should(Equal(""))
-			// Eventually(gjson.Get(httpdata.data, "session").String(), timeout, interval).Should(Equal("user-disabled"))
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup?action=enable"))
+			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "servicegroup.servicegroupname").String() }, timeout, interval).Should(Equal("test-pool"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "servicegroup.servername").String() }, timeout, interval).Should(Equal("1.1.1.5"))
+			Eventually(func() int64 { return gjson.Get(httpdata.data, "servicegroup.port").Int() }, timeout, interval).Should(Equal(int64(80)))
+			Expect(err).NotTo(HaveOccurred())
+			// Disable
+			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "disable")
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup?action=disable"))
+			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
+			Expect(err).NotTo(HaveOccurred())
+			// Unsupported status
+			err = createdBackend.Provider.EditPoolMember(poolmember, pool, "offline")
+			Expect(err).To(MatchError(ContainSubstring("invalid status")))
+		})
+
+		It("Should disable pool member for graceful draining", func() {
+			err = createdBackend.Provider.DisablePoolMember(poolmember, pool)
+			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup?action=disable"))
+			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "servicegroup.servicegroupname").String() }, timeout, interval).Should(Equal("test-pool"))
+			Eventually(func() string { return gjson.Get(httpdata.data, "servicegroup.servername").String() }, timeout, interval).Should(Equal("1.1.1.5"))
+			Eventually(func() int64 { return gjson.Get(httpdata.data, "servicegroup.port").Int() }, timeout, interval).Should(Equal(int64(80)))
+			Eventually(func() string { return gjson.Get(httpdata.data, "servicegroup.graceful").String() }, timeout, interval).Should(Equal("YES"))
 			Expect(err).NotTo(HaveOccurred())
 		})
 

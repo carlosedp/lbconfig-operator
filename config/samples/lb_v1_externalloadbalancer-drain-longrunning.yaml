@@ -1,0 +1,30 @@
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-drain-longrunning
+  namespace: lbconfig-operator-system
+spec:
+  vip: "192.168.1.100"
+  type: "infra"
+  ports:
+    - 80
+    - 443
+  monitor:
+    path: "/healthz"
+    port: 1936
+    monitortype: "http"
+  provider:
+    vendor: HAProxy
+    host: "https://192.168.1.30"
+    port: 5555
+    creds: haproxy-creds
+    validatecerts: false
+  # Enable graceful connection draining with 5 minute timeout
+  # Recommended for applications with:
+  # - Long-running HTTP requests (file uploads, streaming)
+  # - WebSocket connections
+  # - Server-Sent Events (SSE)
+  # - Long-polling connections
+  drain:
+    enabled: true
+    timeoutSeconds: 300  # 5 minutes

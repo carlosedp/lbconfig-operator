@@ -175,6 +175,12 @@ func (p *DummyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, stat
 	return nil
 }
 
+// DisablePoolMember disables a pool member to prevent new connections while allowing existing connections to complete
+func (p *DummyProvider) DisablePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+	p.log.Info("Disabling pool member (dummy)", "node", m.Node.Name, "host", m.Node.Host, "pool", pool.Name)
+	return nil
+}
+
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *DummyProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 	p.log.Info("Deleting pool member", "node", m.Node.Name, "host", m.Node.Host)

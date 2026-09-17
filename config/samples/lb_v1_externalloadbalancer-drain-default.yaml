@@ -1,0 +1,27 @@
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-drain-default
+  namespace: lbconfig-operator-system
+spec:
+  vip: "192.168.1.40"
+  type: "master"
+  ports:
+    - 6443
+    - 22623
+  monitor:
+    path: "/healthz"
+    port: 6443
+    monitortype: "https"
+  provider:
+    vendor: F5_BigIP
+    host: "https://192.168.1.20"
+    port: 443
+    creds: f5-creds
+    validatecerts: false
+  # Enable graceful connection draining with default 30 second timeout
+  # When nodes are removed, they will be disabled first to prevent new connections,
+  # then deleted after 30 seconds to allow existing connections to complete
+  drain:
+    enabled: true
+    timeoutSeconds: 30

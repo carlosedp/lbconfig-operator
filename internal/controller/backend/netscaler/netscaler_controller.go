@@ -388,6 +388,45 @@ func (p *NetscalerProvider) CreatePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool
 // EditPoolMember modifies a server pool member in the Load Balancer
 // status could be "enable" or "disable"
 func (p *NetscalerProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, status string) error {
+	if status != "enable" && status != "disable" {
+		return fmt.Errorf("invalid status %q for member %s in pool %s, must be enable or disable", status, m.Node.Host, pool.Name)
+	}
+
+	memberParams := basic.Servicegroup{
+		Servicegroupname: pool.Name,
+		Servername:       m.Node.Host,
+		Port:             m.Port,
+	}
+
+	err := p.client.ActOnResource(service.Servicegroup.Type(), &memberParams, status)
+
+	if err != nil {
+		return fmt.Errorf("error setting member %s in pool %s to %s: %v", m.Node.Host, pool.Name, status, err)
+	}
+
+	return nil
+}
+
+// DisablePoolMember disables a pool member to prevent new connections while allowing existing connections to complete
+// Uses Citrix ADC's graceful shutdown which transitions the member to TROFS (Transition Out of Service) state
+func (p *NetscalerProvider) DisablePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+	p.log.Info("Disabling pool member gracefully", "node", m.Node.Name, "host", m.Node.Host, "pool", pool.Name)
+
+	// Disable the servicegroup member gracefully
+	// This uses the servicegroup disable action which supports graceful shutdown
+	disableParams := basic.Servicegroup{
+		Servicegroupname: pool.Name,
+		Servername:       m.Node.Host,
+		Port:             m.Port,
+		Graceful:         "YES", // Enable graceful shutdown - enters TROFS state
+	}
+
+	err := p.client.ActOnResource(service.Servicegroup.Type(), &disableParams, "disable")
+
+	if err != nil {
+		return fmt.Errorf("error gracefully disabling member %s in pool %s: %v", m.Node.Host, pool.Name, err)
+	}
+
 	return nil
 }
 

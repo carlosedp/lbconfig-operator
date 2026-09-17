@@ -21,6 +21,7 @@ This file aggregates all documentation for the operator. Some information is als
 - [Developing and Testing](Developing_Testing.md)
 - [End-to-End Testing Guide](E2E_Testing.md)
 - [HAProxy Backend](./haproxy/Readme.md)
+- [Graceful Connection Draining](../config/samples/DRAIN_EXAMPLES.md)
 - [Releasing a new version](./Release_new_version.md)
 
 
@@ -132,6 +133,60 @@ spec:
   ...
 ```
 
+#### Graceful Connection Draining
+
+The operator supports graceful connection draining to prevent connection drops when pool members are removed during node maintenance, cluster upgrades, or autoscaling operations. When enabled, the operator orchestrates a 3-phase process:
+
+1. **Disable**: The pool member is disabled on the load balancer, preventing new connections while allowing existing connections to continue
+2. **Wait**: The operator waits for a configurable timeout period to allow existing connections to complete naturally
+3. **Delete**: After the timeout expires, the pool member is fully removed from the load balancer
+
+This time-based approach is simple, predictable, and works consistently across all load balancer providers without requiring complex connection tracking.
+
+**Configuration:**
+
+```yaml
+spec:
+  drain:
+    enabled: true           # Enable graceful draining (default: false)
+    timeoutSeconds: 30      # Timeout in seconds (default: 30, min: 1, max: 3600)
+  ...
+```
+
+**Provider Support:**
+
+The F5 BigIP, Citrix ADC and HAProxy providers support graceful draining with provider-specific implementations:
+
+- **F5 BigIP**: Uses session `user-disabled` state for native graceful drain support
+- **Citrix ADC/NetScaler**: Uses graceful service disable, entering TROFS (Transition Out of Service) state
+- **HAProxy**: Uses maintenance mode via the DataPlane API (closest available to drain state)
+- **Dummy**: Does not keep pool state, so members are never drained
+
+**Use Cases and Recommended Timeouts:**
+
+- **Short-lived connections (30-60s)**: REST APIs, standard HTTP applications, API gateways
+- **Long-running connections (5-10min)**: WebSocket connections, SSE, long-polling, file uploads/downloads, streaming APIs
+- **Immediate removal**: Keep draining disabled (the default) for very short-lived connections or applications that handle reconnection gracefully
+
+**State Tracking:**
+
+Draining members are tracked in the ExternalLoadBalancer status, persisting across reconciliation loops and operator restarts:
+
+```yaml
+status:
+  drainingMembers:
+    - poolName: "Pool-api-6443"
+      node:
+        name: "worker-3"
+        host: "10.0.1.23"
+      port: 6443
+      startTime: "2025-12-10T21:50:00Z"
+```
+
+If a node comes back before its drain timeout expires (for example its label is re-applied), its member is re-enabled on the load balancer instead of being deleted.
+
+For detailed examples, configuration guidance, and troubleshooting, see the [Graceful Connection Draining documentation](../config/samples/DRAIN_EXAMPLES.md).
+
 Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
 CRD Fields:
@@ -153,6 +208,9 @@ spec:
     path: "/healthz"      # Monitor URL to be configured in the Load Balancer instance
     port: 6443            # Monitor port to be configured in the Load Balancer instance
     monitortype: "https"  # Monitor protocol to be configured in the Load Balancer instance
+  drain:                  # Optional graceful connection draining configuration (optional)
+    enabled: true         # Enable graceful draining when removing pool members (default: false) (optional)
+    timeoutSeconds: 30    # Time to wait before deleting members (default: 30, min: 1, max: 3600) (optional)
   provider:               # This section defines the backend provider or vendor of the Load Balancer
     vendor: F5_BigIP      # See supported vendors in the section above (mandatory)
     host: "192.168.1.35"  # The IP of the API for the Load Balancer to be managed (mandatory)

@@ -78,6 +78,26 @@ spec:
           spec:
             description: ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
             properties:
+              drain:
+                description: |-
+                  Drain configures graceful connection draining for pool members.
+                  When enabled, pool members are disabled before deletion to allow existing connections to complete.
+                properties:
+                  enabled:
+                    default: false
+                    description: |-
+                      Enabled determines if graceful draining is enabled.
+                      When enabled, pool members are disabled before deletion to allow existing connections to complete.
+                    type: boolean
+                  timeoutSeconds:
+                    default: 30
+                    description: |-
+                      TimeoutSeconds is the duration in seconds to wait for connections to drain before deleting the pool member.
+                      This allows time for active connections to complete gracefully. To remove members immediately, keep draining disabled.
+                    maximum: 3600
+                    minimum: 1
+                    type: integer
+                type: object
               monitor:
                 description: Monitor is the path and port to monitor the LoadBalancer
                   members
@@ -209,6 +229,52 @@ spec:
             description: ExternalLoadBalancerStatus defines the observed state of
               ExternalLoadBalancer
             properties:
+              drainingMembers:
+                description: |-
+                  DrainingMembers tracks pool members that are currently in the draining state.
+                  These members have been disabled and are waiting for their drain timeout to expire.
+                items:
+                  description: |-
+                    DrainingMember represents a pool member that is currently in the draining state.
+                    This tracks members that have been disabled and are waiting for connections to complete.
+                  properties:
+                    node:
+                      description: Node is the node information for this member
+                      properties:
+                        host:
+                          description: Host is the host IP set dynamically by the
+                            controller
+                          type: string
+                        label:
+                          additionalProperties:
+                            type: string
+                          description: Label is the node labels this node has
+                          type: object
+                        name:
+                          description: Name is the host name set dynamically by the
+                            controller
+                          type: string
+                      required:
+                      - host
+                      type: object
+                    poolName:
+                      description: PoolName is the name of the pool this member belongs
+                        to
+                      type: string
+                    port:
+                      description: Port is the port for this pool member
+                      type: integer
+                    startTime:
+                      description: StartTime is when the drain process started
+                      format: date-time
+                      type: string
+                  required:
+                  - node
+                  - poolName
+                  - port
+                  - startTime
+                  type: object
+                type: array
               labels:
                 additionalProperties:
                   type: string

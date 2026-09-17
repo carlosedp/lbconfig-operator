@@ -25,6 +25,8 @@ SOFTWARE.
 package controllers
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,6 +98,23 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 
 			Expect(hasNodeChanged(n1, n2)).To(BeFalse())
 			Expect(hasNodeChanged(n1, n3)).To(BeTrue())
+		})
+
+		It("Should pick the soonest requeue time", func() {
+			Expect(soonestRequeue(0, 0)).To(BeZero())
+			Expect(soonestRequeue(0, 5*time.Second)).To(Equal(5 * time.Second))
+			Expect(soonestRequeue(5*time.Second, 0)).To(Equal(5 * time.Second))
+			Expect(soonestRequeue(5*time.Second, 2*time.Second)).To(Equal(2 * time.Second))
+			Expect(soonestRequeue(2*time.Second, 5*time.Second)).To(Equal(2 * time.Second))
+		})
+
+		It("Should keep only the draining members of the managed pools", func() {
+			managed := lbv1.DrainingMember{PoolName: "Pool-lb-80", Node: lbv1.Node{Host: "1.1.1.1"}, Port: 80}
+			stale := lbv1.DrainingMember{PoolName: "Pool-lb-8080", Node: lbv1.Node{Host: "1.1.1.1"}, Port: 8080}
+			pools := []lbv1.Pool{{Name: "Pool-lb-80"}}
+
+			Expect(drainingMembersForPools([]lbv1.DrainingMember{managed, stale}, pools)).To(ConsistOf(managed))
+			Expect(drainingMembersForPools(nil, pools)).To(BeEmpty())
 		})
 	})
 })

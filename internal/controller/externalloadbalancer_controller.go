@@ -31,6 +31,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	plog "log"
 
@@ -171,6 +172,14 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 	span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("lb.provider", lb.Spec.Provider.Vendor))
 
+	// An instance being deleted without our finalizer was already removed from the load balancer. A reconciliation
+	// can still read it from a cache that has not seen the deletion yet, and must not configure it again.
+	if lb.GetDeletionTimestamp() != nil && !contains(lb.GetFinalizers(), ExternalLoadBalancerFinalizer) {
+		logger.Info("ExternalLoadBalancer is being deleted and was already finalized")
+		span.End()
+		return ctrl.Result{}, nil
+	}
+
 	// ----------------------------------------
 	// Set the Load Balancer backend
 	// ----------------------------------------
@@ -202,7 +211,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	if lb.Spec.Type == "" && lb.Spec.NodeLabels == nil {
 		err = fmt.Errorf("undefined loadbalancer type or no nodelabels defined")
-		return ctrl.Result{Requeue: false}, err
+		return ctrl.Result{}, err
 	}
 
 	labels := func(ctx context.Context) map[string]string {
@@ -268,143 +277,11 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	// ----------------------------------------
-	// Connect to Backend Provider
-	// ----------------------------------------
-	err = func(ctx context.Context) error {
-		_, span := otel.Tracer(name).Start(ctx, "Provider - Connect")
-		defer span.End()
-		return backend.Provider.Connect()
-	}(ctx)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		span.End()
-		return ctrl.Result{}, err
-	}
-
-	// ----------------------------------------
-	// Handle Monitor
-	// ----------------------------------------
-	monitorName := "Monitor-" + lb.Name
-	lb.Spec.Monitor.Name = monitorName
-	monitor := lb.Spec.Monitor
-	err = backend.HandleMonitors(ctx, &monitor)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		span.End()
-		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
-	}
-
-	// ----------------------------------------
-	// Handle IP Pools
-	// ----------------------------------------
-	pools := make([]lbv1.Pool, 0, len(lb.Spec.Ports))
-	for _, p := range lb.Spec.Ports {
-		// Create pool members based on nodes
-		var poolMembers []lbv1.PoolMember
-		for _, n := range nodes {
-			poolMember := &lbv1.PoolMember{
-				Node: n,
-				Port: p,
-			}
-			poolMembers = append(poolMembers, *poolMember)
-		}
-
-		// Create the pool object
-		pool := lbv1.Pool{
-			Name:    "Pool-" + lb.Name + "-" + strconv.Itoa(p),
-			Monitor: monitor.Name,
-			Members: poolMembers,
-		}
-
-		err := backend.HandlePool(ctx, &pool, &monitor)
-		if err != nil {
-			logger.Error(err, "unable to handle ExternalLoadBalancer IP pool")
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.End()
-			return ctrl.Result{}, err
-		}
-		pools = append(pools, pool)
-	}
-
-	// ----------------------------------------
-	// Handle VIPs
-	// ----------------------------------------
-	vips := make([]lbv1.VIP, 0, len(lb.Spec.Ports))
-	for _, p := range lb.Spec.Ports {
-		vip := lbv1.VIP{
-			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
-			IP:   lb.Spec.Vip,
-			Pool: "Pool-" + lb.Name + "-" + strconv.Itoa(p),
-			Port: p,
-		}
-
-		err := backend.HandleVIP(ctx, &vip)
-		if err != nil {
-			logger.Error(err, "unable to handle ExternalLoadBalancer VIP")
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.End()
-			return ctrl.Result{}, err
-		}
-		vips = append(vips, vip)
-	}
-
-	// ----------------------------------------
-	// Close Provider and save config if required.
-	// Depends on provider implementation
-	// ----------------------------------------
-	err = func(ctx context.Context) error {
-		_, span := otel.Tracer(name).Start(ctx, "Provider - Close")
-		defer span.End()
-		return backend.Provider.Close()
-	}(ctx)
-	if err != nil {
-		logger.Error(err, "unable to close the backend provider")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		span.End()
-		return ctrl.Result{}, err
-	}
-
-	// ----------------------------------------
-	// Update ExternalLoadBalancer Status
-	// ----------------------------------------
-	_ = func(ctx context.Context) error {
-		_, span := otel.Tracer(name).Start(ctx, "Get LoadBalancer for Status update")
-		defer span.End()
-		return r.Get(ctx, req.NamespacedName, lb)
-	}(ctx)
-
-	lb.Status = lbv1.ExternalLoadBalancerStatus{
-		VIPs:     vips,
-		Monitor:  monitor,
-		Ports:    lb.Spec.Ports,
-		Nodes:    nodes,
-		Pools:    pools,
-		Provider: lb.Spec.Provider,
-		Labels:   labels,
-		NumNodes: len(nodes),
-	}
-
-	err = func(ctx context.Context) error {
-		_, span := otel.Tracer(name).Start(ctx, "Update LoadBalancer Status")
-		defer span.End()
-		return r.Status().Update(ctx, lb)
-	}(ctx)
-	if err != nil {
-		logger.Error(err, "unable to update ExternalLoadBalancer status")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		span.End()
-		return ctrl.Result{}, err
-	}
-
-	// ----------------------------------------
 	// Check if the ExternalLoadBalancer instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
+	// indicated by the deletion timestamp being set. This is checked before any
+	// configuration is applied, since a reconciliation reading the instance from a
+	// cache that has not seen the finalizer removal yet would otherwise configure
+	// the load balancer again right after it was cleaned up.
 	// ----------------------------------------
 	isLoadBalancerMarkedToBeDeleted := func(ctx context.Context) bool {
 		_, span := otel.Tracer(name).Start(ctx, "GetDeletionTimestamp")
@@ -460,6 +337,150 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, nil
 	}
 
+	// ----------------------------------------
+	// Connect to Backend Provider
+	// ----------------------------------------
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - Connect")
+		defer span.End()
+		return backend.Provider.Connect()
+	}(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return ctrl.Result{}, err
+	}
+
+	// ----------------------------------------
+	// Handle Monitor
+	// ----------------------------------------
+	monitorName := "Monitor-" + lb.Name
+	lb.Spec.Monitor.Name = monitorName
+	monitor := lb.Spec.Monitor
+	err = backend.HandleMonitors(ctx, &monitor)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
+	}
+
+	// ----------------------------------------
+	// Handle IP Pools
+	// ----------------------------------------
+	pools := make([]lbv1.Pool, 0, len(lb.Spec.Ports))
+	// Members being drained are tracked in the status so draining survives requeues and operator restarts
+	drainingMembers := lb.Status.DrainingMembers
+	var drainRequeueAfter time.Duration // Soonest time a draining member is due for removal
+
+	for _, p := range lb.Spec.Ports {
+		// Create pool members based on nodes
+		var poolMembers []lbv1.PoolMember
+		for _, n := range nodes {
+			poolMember := &lbv1.PoolMember{
+				Node: n,
+				Port: p,
+			}
+			poolMembers = append(poolMembers, *poolMember)
+		}
+
+		// Create the pool object
+		pool := lbv1.Pool{
+			Name:    "Pool-" + lb.Name + "-" + strconv.Itoa(p),
+			Monitor: monitor.Name,
+			Members: poolMembers,
+		}
+
+		requeueAfter, updatedDrainingMembers, err := backend.HandlePool(ctx, &pool, &monitor, lb, drainingMembers)
+		if err != nil {
+			logger.Error(err, "unable to handle ExternalLoadBalancer IP pool")
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.End()
+			return ctrl.Result{}, err
+		}
+
+		drainingMembers = updatedDrainingMembers
+		drainRequeueAfter = soonestRequeue(drainRequeueAfter, requeueAfter)
+
+		pools = append(pools, pool)
+	}
+
+	// ----------------------------------------
+	// Handle VIPs
+	// ----------------------------------------
+	vips := make([]lbv1.VIP, 0, len(lb.Spec.Ports))
+	for _, p := range lb.Spec.Ports {
+		vip := lbv1.VIP{
+			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
+			IP:   lb.Spec.Vip,
+			Pool: "Pool-" + lb.Name + "-" + strconv.Itoa(p),
+			Port: p,
+		}
+
+		err := backend.HandleVIP(ctx, &vip)
+		if err != nil {
+			logger.Error(err, "unable to handle ExternalLoadBalancer VIP")
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.End()
+			return ctrl.Result{}, err
+		}
+		vips = append(vips, vip)
+	}
+
+	// ----------------------------------------
+	// Close Provider and save config if required.
+	// Depends on provider implementation
+	// ----------------------------------------
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - Close")
+		defer span.End()
+		return backend.Provider.Close()
+	}(ctx)
+	if err != nil {
+		logger.Error(err, "unable to close the backend provider")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return ctrl.Result{}, err
+	}
+
+	// ----------------------------------------
+	// Update ExternalLoadBalancer Status
+	// ----------------------------------------
+	_ = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Get LoadBalancer for Status update")
+		defer span.End()
+		return r.Get(ctx, req.NamespacedName, lb)
+	}(ctx)
+
+	lb.Status = lbv1.ExternalLoadBalancerStatus{
+		VIPs:            vips,
+		Monitor:         monitor,
+		Ports:           lb.Spec.Ports,
+		Nodes:           nodes,
+		Pools:           pools,
+		Provider:        lb.Spec.Provider,
+		Labels:          labels,
+		NumNodes:        len(nodes),
+		DrainingMembers: drainingMembersForPools(drainingMembers, pools),
+	}
+
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Update LoadBalancer Status")
+		defer span.End()
+		return r.Status().Update(ctx, lb)
+	}(ctx)
+	if err != nil {
+		logger.Error(err, "unable to update ExternalLoadBalancer status")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return ctrl.Result{}, err
+	}
+
 	// Add finalizer for this CR
 	finalizers := func(ctx context.Context) []string {
 		_, span := otel.Tracer(name).Start(ctx, "GetFinalizers - Add Finalizer")
@@ -482,6 +503,13 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	logger.Info("End of reconcile loop for ExternalLoadBalancer")
+
+	// Requeue to remove draining members once their drain timeout expires
+	if drainRequeueAfter > 0 {
+		logger.Info("Requeuing to check draining members", "after", drainRequeueAfter.String())
+		return ctrl.Result{RequeueAfter: drainRequeueAfter}, nil
+	}
+
 	return ctrl.Result{}, nil
 }
 

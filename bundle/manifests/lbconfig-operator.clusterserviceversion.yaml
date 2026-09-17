@@ -65,7 +65,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.6.1-dev
-    createdAt: "2026-06-15T23:57:28Z"
+    createdAt: "2026-09-11T19:23:56Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
@@ -90,6 +90,21 @@ spec:
         name: externalloadbalancer
         version: lb.lbconfig.carlosedp.com/v1
       specDescriptors:
+      - description: |-
+          Drain configures graceful connection draining for pool members.
+          When enabled, pool members are disabled before deletion to allow existing connections to complete.
+        displayName: Drain
+        path: drain
+      - description: |-
+          Enabled determines if graceful draining is enabled.
+          When enabled, pool members are disabled before deletion to allow existing connections to complete.
+        displayName: Enabled
+        path: drain.enabled
+      - description: |-
+          TimeoutSeconds is the duration in seconds to wait for connections to drain before deleting the pool member.
+          This allows time for active connections to complete gracefully. To remove members immediately, keep draining disabled.
+        displayName: Timeout Seconds
+        path: drain.timeoutSeconds
       - description: Monitor is the path and port to monitor the LoadBalancer members
         displayName: Monitor
         path: monitor
@@ -158,6 +173,11 @@ spec:
         displayName: Vip
         path: vip
       statusDescriptors:
+      - description: |-
+          DrainingMembers tracks pool members that are currently in the draining state.
+          These members have been disabled and are waiting for their drain timeout to expire.
+        displayName: Draining Members
+        path: drainingMembers
       - displayName: Labels
         path: labels
       - displayName: Monitor

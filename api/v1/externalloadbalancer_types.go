@@ -100,6 +100,12 @@ type ExternalLoadBalancerSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Required
 	Provider Provider `json:"provider"`
+
+	// Drain configures graceful connection draining for pool members.
+	// When enabled, pool members are disabled before deletion to allow existing connections to complete.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Optional
+	Drain *DrainConfig `json:"drain,omitempty"`
 }
 
 // Monitor defines a monitor object in the LoadBalancer.
@@ -186,6 +192,25 @@ type Provider struct {
 	LBMethod string `json:"lbmethod,omitempty"`
 }
 
+// DrainConfig configures graceful connection draining for pool members.
+type DrainConfig struct {
+	// Enabled determines if graceful draining is enabled.
+	// When enabled, pool members are disabled before deletion to allow existing connections to complete.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled,omitempty"`
+
+	// TimeoutSeconds is the duration in seconds to wait for connections to drain before deleting the pool member.
+	// This allows time for active connections to complete gracefully. To remove members immediately, keep draining disabled.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=3600
+	// +kubebuilder:default=30
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+}
+
 // Internal types
 
 // Pool defines a pool object in the LoadBalancer.
@@ -214,6 +239,19 @@ type PoolMember struct {
 	Node Node `json:"node"`
 	// Port is the port for this pool member
 	Port int `json:"port"`
+}
+
+// DrainingMember represents a pool member that is currently in the draining state.
+// This tracks members that have been disabled and are waiting for connections to complete.
+type DrainingMember struct {
+	// PoolName is the name of the pool this member belongs to
+	PoolName string `json:"poolName"`
+	// Node is the node information for this member
+	Node Node `json:"node"`
+	// Port is the port for this pool member
+	Port int `json:"port"`
+	// StartTime is when the drain process started
+	StartTime metav1.Time `json:"startTime"`
 }
 
 // VIP defines VIP instance in the LoadBalancer with a pool and port
@@ -254,6 +292,11 @@ type ExternalLoadBalancerStatus struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	NumNodes int `json:"numnodes,omitempty"`
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	// DrainingMembers tracks pool members that are currently in the draining state.
+	// These members have been disabled and are waiting for their drain timeout to expire.
+	DrainingMembers []DrainingMember `json:"drainingMembers,omitempty"`
 }
 
 // +kubebuilder:object:root=true

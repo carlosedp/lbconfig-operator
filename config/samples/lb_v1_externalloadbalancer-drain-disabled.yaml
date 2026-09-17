@@ -1,0 +1,29 @@
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-drain-disabled
+  namespace: lbconfig-operator-system
+spec:
+  vip: "192.168.1.50"
+  nodelabels:
+    node-role.kubernetes.io/worker: ""
+  ports:
+    - 8080
+  monitor:
+    path: "/health"
+    port: 8080
+    monitortype: "http"
+  provider:
+    vendor: Citrix_ADC
+    host: "https://192.168.1.36"
+    port: 443
+    creds: netscaler-creds
+    validatecerts: false
+  # Drain disabled (default behavior) - pool members are deleted immediately
+  # This is the original behavior before the drain feature
+  # Use this if:
+  # - Your application handles connection drops gracefully
+  # - You need immediate member removal
+  # - Connections are very short-lived (< 1 second)
+  drain:
+    enabled: false

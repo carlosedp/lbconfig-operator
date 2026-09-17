@@ -450,6 +450,15 @@ func (p *HAProxyProvider) EditPoolMember(m *lbv1.PoolMember, pool *lbv1.Pool, st
 	return nil
 }
 
+// DisablePoolMember disables a pool member to prevent new connections while allowing existing connections to complete
+// Uses HAProxy's maintenance mode via the DataPlane API. Note: true "drain" state requires the Runtime API
+// which is not currently available in this provider. Maintenance mode is the closest available alternative.
+func (p *HAProxyProvider) DisablePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
+	// Use EditPoolMember to set the server to maintenance mode (disabled state)
+	// This is the closest we can get to graceful draining via the DataPlane API
+	return p.EditPoolMember(m, pool, "disable")
+}
+
 // DeletePoolMember deletes a member in the Load Balancer
 func (p *HAProxyProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool) error {
 
