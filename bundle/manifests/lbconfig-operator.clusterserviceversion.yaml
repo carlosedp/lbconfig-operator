@@ -65,7 +65,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/carlosedp/lbconfig-operator:v0.6.1-dev
-    createdAt: "2026-09-11T19:23:56Z"
+    createdAt: "2026-10-06T15:30:55Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
@@ -91,6 +91,18 @@ spec:
         version: lb.lbconfig.carlosedp.com/v1
       specDescriptors:
       - description: |-
+          CreateMonitor controls whether the operator creates the monitor used by the pools. Defaults to true.
+          Set to false to use an existing monitor in the Load Balancer, named in monitor.name.
+          A monitor the operator created earlier is deleted when this is set to false. (F5 BigIP and Citrix ADC only)
+        displayName: Create Monitor
+        path: createmonitor
+      - description: |-
+          CreateVIP controls whether the operator creates a virtual server for each port. Defaults to true.
+          Set to false to manage only the pools and their members and create the virtual servers outside the operator.
+          Virtual servers the operator created earlier are deleted when this is set to false.
+        displayName: Create VIP
+        path: createvip
+      - description: |-
           Drain configures graceful connection draining for pool members.
           When enabled, pool members are disabled before deletion to allow existing connections to complete.
         displayName: Drain
@@ -113,7 +125,9 @@ spec:
           "icmp".
         displayName: Monitor Type
         path: monitor.monitortype
-      - description: Name is the monitor name, it is set by the controller
+      - description: |-
+          Name is the monitor name, it is set by the controller. When createmonitor is false, it is the name of an
+          existing monitor in the Load Balancer that the pools use, eg. `my-monitor` or `/Common/my-monitor`.
         displayName: Name
         path: monitor.name
       - description: Path is the path URL to check for the pool members in the format
@@ -180,7 +194,9 @@ spec:
         path: drainingMembers
       - displayName: Labels
         path: labels
-      - displayName: Monitor
+      - description: Monitor is the monitor the operator created, unset when the pools
+          use an existing monitor
+        displayName: Monitor
         path: monitor
       - displayName: Nodes
         path: nodes
