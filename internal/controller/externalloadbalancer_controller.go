@@ -209,8 +209,8 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Get Nodes by role and label for infra router sharding or service exposure
 	// ----------------------------------------
-	if lb.Spec.Type == "" && lb.Spec.NodeLabels == nil {
-		err = fmt.Errorf("undefined loadbalancer type or no nodelabels defined")
+	err = validateInstance(lb)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -355,15 +355,17 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Handle Monitor
 	// ----------------------------------------
-	monitorName := "Monitor-" + lb.Name
-	lb.Spec.Monitor.Name = monitorName
-	monitor := lb.Spec.Monitor
-	err = backend.HandleMonitors(ctx, &monitor)
+	// The virtual servers and monitor the operator created in the previous reconciliation, removed below
+	// when their creation has been turned off
+	createdVIPs := lb.Status.VIPs
+	createdMonitor := lb.Status.Monitor
+
+	monitor, err := handleMonitor(ctx, backend, lb)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
-		return ctrl.Result{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
+		return ctrl.Result{}, err
 	}
 
 	// ----------------------------------------
@@ -410,24 +412,26 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	// ----------------------------------------
 	// Handle VIPs
 	// ----------------------------------------
-	vips := make([]lbv1.VIP, 0, len(lb.Spec.Ports))
-	for _, p := range lb.Spec.Ports {
-		vip := lbv1.VIP{
-			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
-			IP:   lb.Spec.Vip,
-			Pool: "Pool-" + lb.Name + "-" + strconv.Itoa(p),
-			Port: p,
-		}
+	vips, err := handleVIPs(ctx, backend, lb, createdVIPs)
+	if err != nil {
+		logger.Error(err, "unable to handle ExternalLoadBalancer VIP")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return ctrl.Result{}, err
+	}
 
-		err := backend.HandleVIP(ctx, &vip)
-		if err != nil {
-			logger.Error(err, "unable to handle ExternalLoadBalancer VIP")
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.End()
-			return ctrl.Result{}, err
-		}
-		vips = append(vips, vip)
+	// ----------------------------------------
+	// Remove the monitor the operator created when monitor creation has been turned off.
+	// The pools no longer use it since they were updated above.
+	// ----------------------------------------
+	statusMonitor, err := removeUnusedMonitor(ctx, backend, lb, &monitor, createdMonitor)
+	if err != nil {
+		logger.Error(err, "unable to remove ExternalLoadBalancer monitor")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		return ctrl.Result{}, err
 	}
 
 	// ----------------------------------------
@@ -458,7 +462,7 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 
 	lb.Status = lbv1.ExternalLoadBalancerStatus{
 		VIPs:            vips,
-		Monitor:         monitor,
+		Monitor:         statusMonitor,
 		Ports:           lb.Spec.Ports,
 		Nodes:           nodes,
 		Pools:           pools,
@@ -562,6 +566,66 @@ func (r *ExternalLoadBalancerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 			},
 		}).
 		Complete(r)
+}
+
+// handleMonitor creates or updates the monitor of the instance and returns the monitor its pools use
+func handleMonitor(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer) (lbv1.Monitor, error) {
+	monitor := lb.Spec.Monitor
+	if !lb.Spec.ShouldCreateMonitor() {
+		log.FromContext(ctx).Info("Monitor creation is disabled, pools use an existing monitor", "monitor", monitor.Name)
+		return monitor, nil
+	}
+
+	monitorName := "Monitor-" + lb.Name
+	lb.Spec.Monitor.Name = monitorName
+	monitor.Name = monitorName
+	err := backend.HandleMonitors(ctx, &monitor)
+	if err != nil {
+		return lbv1.Monitor{}, fmt.Errorf("unable to handle ExternalLoadBalancer monitors: %v", err)
+	}
+	return monitor, nil
+}
+
+// handleVIPs creates or updates the virtual server of each port, or removes the ones created earlier when
+// their creation is turned off, and returns the virtual servers the operator manages
+func handleVIPs(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer, createdVIPs []lbv1.VIP) ([]lbv1.VIP, error) {
+	vips := make([]lbv1.VIP, 0, len(lb.Spec.Ports))
+	if !lb.Spec.ShouldCreateVIP() {
+		log.FromContext(ctx).Info("VIP creation is disabled, managing only the pools")
+		return vips, backend.RemoveVIPs(ctx, createdVIPs)
+	}
+
+	for _, p := range lb.Spec.Ports {
+		vip := lbv1.VIP{
+			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
+			IP:   lb.Spec.Vip,
+			Pool: "Pool-" + lb.Name + "-" + strconv.Itoa(p),
+			Port: p,
+		}
+
+		err := backend.HandleVIP(ctx, &vip)
+		if err != nil {
+			return nil, err
+		}
+		vips = append(vips, vip)
+	}
+	return vips, nil
+}
+
+// removeUnusedMonitor deletes the monitor created earlier once monitor creation is turned off, and returns
+// the monitor the operator manages
+func removeUnusedMonitor(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer, monitor *lbv1.Monitor, createdMonitor *lbv1.Monitor) (*lbv1.Monitor, error) {
+	if lb.Spec.ShouldCreateMonitor() {
+		return monitor, nil
+	}
+	// The pools may have been pointed at the monitor the operator created, which must then be kept
+	if createdMonitor != nil && createdMonitor.Name != monitor.Name {
+		err := backend.RemoveMonitor(ctx, createdMonitor)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
 }
 
 func (r *ExternalLoadBalancerReconciler) finalizeLoadBalancer(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer) error {

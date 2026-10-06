@@ -514,6 +514,73 @@ func (b *BackendController) HandleVIP(ctx context.Context, v *lbv1.VIP) error {
 	return nil
 }
 
+// RemoveVIPs deletes the given virtual servers that still exist, used when their creation is turned off
+func (b *BackendController) RemoveVIPs(ctx context.Context, vips []lbv1.VIP) error {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "RemoveVIPs")
+	defer span.End()
+
+	for _, v := range vips {
+		vs, err := func(ctx context.Context) (*lbv1.VIP, error) {
+			_, span := otel.Tracer(name).Start(ctx, "Provider - GetVIP")
+			span.SetAttributes(attribute.String("vip.name", v.Name))
+			defer span.End()
+			return b.Provider.GetVIP(&v)
+		}(ctx)
+		if err != nil {
+			return err
+		}
+		if vs == nil {
+			continue
+		}
+
+		b.log.Info("Removing VIP since VIP creation is disabled", "name", v.Name)
+		err = func(ctx context.Context) error {
+			_, span := otel.Tracer(name).Start(ctx, "Provider - DeleteVIP")
+			span.SetAttributes(attribute.String("vip.name", v.Name))
+			defer span.End()
+			return b.Provider.DeleteVIP(&v)
+		}(ctx)
+		if err != nil {
+			return fmt.Errorf("error removing VIP %s: %v", v.Name, err)
+		}
+	}
+	return nil
+}
+
+// RemoveMonitor deletes the given monitor if it still exists, used when its creation is turned off
+func (b *BackendController) RemoveMonitor(ctx context.Context, monitor *lbv1.Monitor) error {
+	var span trace.Span
+	ctx, span = otel.Tracer(name).Start(ctx, "RemoveMonitor")
+	span.SetAttributes(attribute.String("monitor.name", monitor.Name))
+	defer span.End()
+
+	m, err := func(ctx context.Context) (*lbv1.Monitor, error) {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - GetMonitor")
+		span.SetAttributes(attribute.String("monitor.name", monitor.Name))
+		defer span.End()
+		return b.Provider.GetMonitor(monitor)
+	}(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting monitor: %s", err)
+	}
+	if m == nil {
+		return nil
+	}
+
+	b.log.Info("Removing monitor since monitor creation is disabled", "name", monitor.Name)
+	err = func(ctx context.Context) error {
+		_, span := otel.Tracer(name).Start(ctx, "Provider - DeleteMonitor")
+		span.SetAttributes(attribute.String("monitor.name", monitor.Name))
+		defer span.End()
+		return b.Provider.DeleteMonitor(monitor)
+	}(ctx)
+	if err != nil {
+		return fmt.Errorf("error removing monitor %s: %v", monitor.Name, err)
+	}
+	return nil
+}
+
 // HandleCleanup removes all elements when ExternalLoadBalancer is deleted
 func (b *BackendController) HandleCleanup(ctx context.Context, lb *lbv1.ExternalLoadBalancer) error {
 	var span trace.Span
@@ -574,12 +641,12 @@ func (b *BackendController) HandleCleanup(ctx context.Context, lb *lbv1.External
 
 	// Delete Monitor
 	b.log.Info("Cleaning Monitor", "Monitor", lb.Status.Monitor)
-	if lb.Status.Monitor != (lbv1.Monitor{}) {
+	if lb.Status.Monitor != nil && *lb.Status.Monitor != (lbv1.Monitor{}) {
 		err := func(ctx context.Context) error {
 			_, span := otel.Tracer(name).Start(ctx, "Provider - DeleteMonitor")
 			span.SetAttributes(attribute.String("lb.name", lb.Name), attribute.String("monitor.name", lb.Status.Monitor.Name))
 			defer span.End()
-			return b.Provider.DeleteMonitor(&lb.Status.Monitor)
+			return b.Provider.DeleteMonitor(lb.Status.Monitor)
 		}(ctx)
 		if err != nil {
 			return fmt.Errorf("error in monitor cleanup %s: %v", lb.Status.Monitor.Name, err)

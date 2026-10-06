@@ -185,6 +185,37 @@ func (s *f5Simulator) poolExists(name string) bool {
 	return ok
 }
 
+// poolMonitor returns the partition-qualified monitor of the pool, empty when the pool does not exist
+func (s *f5Simulator) poolMonitor(name string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if pool, ok := s.pools[name]; ok {
+		return pool.monitor
+	}
+	return ""
+}
+
+func (s *f5Simulator) virtualExists(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.virtuals[name]
+	return ok
+}
+
+func (s *f5Simulator) monitorExists(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.monitors[name]
+	return ok
+}
+
+// addMonitor creates a monitor the way one created outside the operator would exist
+func (s *f5Simulator) addMonitor(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.monitors[name] = []byte(`{"name":"` + name + `","defaultsFrom":"/Common/http","destination":"*.80","send":"GET /healthz"}`)
+}
+
 // eventTime returns when the action was first applied to the member
 func (s *f5Simulator) eventTime(action, member string) (time.Time, bool) {
 	s.mu.Lock()

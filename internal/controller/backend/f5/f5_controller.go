@@ -213,9 +213,10 @@ func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		return nil, nil
 	}
 
+	// Strip only the partition prefix, strings.Trim would also strip any of its characters from the name ends
 	retPool := &lbv1.Pool{
 		Name:    newPool.Name,
-		Monitor: strings.Trim(newPool.Monitor, p.partition),
+		Monitor: strings.TrimPrefix(strings.TrimSpace(newPool.Monitor), p.partition),
 	}
 
 	return retPool, nil

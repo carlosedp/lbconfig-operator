@@ -25,7 +25,9 @@ SOFTWARE.
 package controllers
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -140,4 +142,28 @@ func drainingMembersForPools(drainingMembers []lbv1.DrainingMember, pools []lbv1
 		}
 	}
 	return active
+}
+
+// validateInstance checks the instance configuration the CRD schema cannot validate
+func validateInstance(lb *lbv1.ExternalLoadBalancer) error {
+	if lb.Spec.Type == "" && lb.Spec.NodeLabels == nil {
+		return fmt.Errorf("undefined loadbalancer type or no nodelabels defined")
+	}
+	return validateMonitorConfig(lb)
+}
+
+// validateMonitorConfig checks that an instance not creating its monitor names an existing one its provider supports.
+// An instance being deleted is not validated so its load balancer configuration is still cleaned up.
+func validateMonitorConfig(lb *lbv1.ExternalLoadBalancer) error {
+	if lb.Spec.ShouldCreateMonitor() || lb.GetDeletionTimestamp() != nil {
+		return nil
+	}
+	// HAProxy configures the health check inside each backend, it has no monitor objects to reference
+	if strings.EqualFold(lb.Spec.Provider.Vendor, "HAProxy") {
+		return fmt.Errorf("createmonitor false is not supported by the HAProxy provider")
+	}
+	if lb.Spec.Monitor.Name == "" {
+		return fmt.Errorf("monitor.name must name an existing monitor when createmonitor is false")
+	}
+	return nil
 }
