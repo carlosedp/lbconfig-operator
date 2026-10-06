@@ -274,7 +274,7 @@ func liveDrainSpecs(dev liveDevice) {
 				Vip:        dev.vip,
 				NodeLabels: labels,
 				Ports:      []int{dev.port},
-				Monitor:    lbv1.Monitor{Path: "/healthz", Port: dev.port, MonitorType: "http"},
+				Monitor:    lbv1.Monitor{Path: "/healthz", Port: dev.port, MonitorType: MonitorType},
 				Provider: lbv1.Provider{
 					Vendor: dev.vendor,
 					Host:   api.Scheme + "://" + api.Hostname(),

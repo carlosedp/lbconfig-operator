@@ -64,7 +64,7 @@ func drainTestSpec(provider lbv1.Provider) lbv1.ExternalLoadBalancerSpec {
 		Vip:        "10.10.0.100",
 		NodeLabels: drainNodeLabels(),
 		Ports:      []int{80},
-		Monitor:    lbv1.Monitor{Path: "/healthz", Port: 80, MonitorType: "http"},
+		Monitor:    lbv1.Monitor{Path: "/healthz", Port: 80, MonitorType: MonitorType},
 		Provider:   provider,
 		Drain:      &lbv1.DrainConfig{Enabled: true, TimeoutSeconds: drainTimeoutSeconds},
 	}
