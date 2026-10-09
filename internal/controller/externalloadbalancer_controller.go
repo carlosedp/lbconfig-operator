@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -586,28 +587,42 @@ func handleMonitor(ctx context.Context, backend *controller.BackendController, l
 	return monitor, nil
 }
 
-// handleVIPs creates or updates the virtual server of each port, or removes the ones created earlier when
-// their creation is turned off, and returns the virtual servers the operator manages
-func handleVIPs(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer, createdVIPs []lbv1.VIP) ([]lbv1.VIP, error) {
+// operatorVIPs returns the virtual servers the operator creates for the instance ports
+func operatorVIPs(lb *lbv1.ExternalLoadBalancer) []lbv1.VIP {
 	vips := make([]lbv1.VIP, 0, len(lb.Spec.Ports))
-	if !lb.Spec.ShouldCreateVIP() {
-		log.FromContext(ctx).Info("VIP creation is disabled, managing only the pools")
-		return vips, backend.RemoveVIPs(ctx, createdVIPs)
-	}
-
 	for _, p := range lb.Spec.Ports {
-		vip := lbv1.VIP{
+		vips = append(vips, lbv1.VIP{
 			Name: "VIP-" + lb.Name + "-" + strconv.Itoa(p),
 			IP:   lb.Spec.Vip,
 			Pool: "Pool-" + lb.Name + "-" + strconv.Itoa(p),
 			Port: p,
-		}
+		})
+	}
+	return vips
+}
 
-		err := backend.HandleVIP(ctx, &vip)
+// handleVIPs creates or updates the virtual server of each port, or removes the ones created earlier when
+// their creation is turned off, and returns the virtual servers the operator manages
+func handleVIPs(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer, createdVIPs []lbv1.VIP) ([]lbv1.VIP, error) {
+	if !lb.Spec.ShouldCreateVIP() {
+		log.FromContext(ctx).Info("VIP creation is disabled, managing only the pools")
+		// The status misses virtual servers created by a reconciliation whose status update failed, so also
+		// remove the ones named after the current ports
+		remove := createdVIPs
+		for _, v := range operatorVIPs(lb) {
+			if !slices.ContainsFunc(remove, func(c lbv1.VIP) bool { return c.Name == v.Name }) {
+				remove = append(remove, v)
+			}
+		}
+		return []lbv1.VIP{}, backend.RemoveVIPs(ctx, remove)
+	}
+
+	vips := operatorVIPs(lb)
+	for i := range vips {
+		err := backend.HandleVIP(ctx, &vips[i])
 		if err != nil {
 			return nil, err
 		}
-		vips = append(vips, vip)
 	}
 	return vips, nil
 }
@@ -617,6 +632,10 @@ func handleVIPs(ctx context.Context, backend *controller.BackendController, lb *
 func removeUnusedMonitor(ctx context.Context, backend *controller.BackendController, lb *lbv1.ExternalLoadBalancer, monitor *lbv1.Monitor, createdMonitor *lbv1.Monitor) (*lbv1.Monitor, error) {
 	if lb.Spec.ShouldCreateMonitor() {
 		return monitor, nil
+	}
+	// The status misses the monitor created by a reconciliation whose status update failed
+	if createdMonitor == nil {
+		createdMonitor = &lbv1.Monitor{Name: "Monitor-" + lb.Name, MonitorType: lb.Spec.Monitor.MonitorType}
 	}
 	// The pools may have been pointed at the monitor the operator created, which must then be kept
 	if createdMonitor != nil && createdMonitor.Name != monitor.Name {

@@ -43,6 +43,7 @@ import (
 const (
 	optionalLBName         = "optional-f5"
 	optionalInvalidLBName  = "optional-f5-invalid"
+	optionalUntrackedName  = "optional-f5-untracked"
 	optionalCredsName      = "optional-f5-creds"
 	optionalPoolName       = "Pool-" + optionalLBName + "-80"
 	optionalVIPName        = "VIP-" + optionalLBName + "-80"
@@ -147,6 +148,7 @@ var _ = Describe("ExternalLoadBalancer optional VIP and monitor with a F5 BIG-IP
 	AfterAll(func() {
 		deleteInstance(lbKey)
 		deleteInstance(types.NamespacedName{Name: optionalInvalidLBName, Namespace: Namespace})
+		deleteInstance(types.NamespacedName{Name: optionalUntrackedName, Namespace: Namespace})
 		Expect(k8sClient.Delete(ctx, &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: optionalNodeName}})).To(Succeed())
 		Expect(k8sClient.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: optionalCredsName, Namespace: Namespace}})).To(Succeed())
 		sim.close()
@@ -195,6 +197,25 @@ var _ = Describe("ExternalLoadBalancer optional VIP and monitor with a F5 BIG-IP
 	It("Should keep the existing monitor when the instance is deleted", func() {
 		deleteInstance(lbKey)
 		Eventually(func() bool { return sim.poolExists(optionalPoolName) }, timeout, interval).Should(BeFalse())
+		Expect(sim.monitorExists(optionalSharedMonitor)).To(BeTrue())
+	})
+
+	It("Should remove its VIP and monitor when creation is off even if the status does not track them", func() {
+		// A reconciliation whose status update failed (eg. on a conflict) leaves them out of the status
+		untrackedVIP := "VIP-" + optionalUntrackedName + "-80"
+		untrackedMonitor := "Monitor-" + optionalUntrackedName
+		sim.addVirtual(untrackedVIP, "Pool-"+optionalUntrackedName+"-80")
+		sim.addMonitor(untrackedMonitor)
+		spec := optionalTestSpec(provider)
+		spec.CreateVIP = ptr.To(false)
+		spec.CreateMonitor = ptr.To(false)
+		spec.Monitor.Name = optionalSharedMonitor
+		Expect(k8sClient.Create(ctx, &lbv1.ExternalLoadBalancer{
+			ObjectMeta: metav1.ObjectMeta{Name: optionalUntrackedName, Namespace: Namespace},
+			Spec:       spec,
+		})).To(Succeed())
+		Eventually(func() bool { return sim.virtualExists(untrackedVIP) }, timeout, interval).Should(BeFalse())
+		Eventually(func() bool { return sim.monitorExists(untrackedMonitor) }, timeout, interval).Should(BeFalse())
 		Expect(sim.monitorExists(optionalSharedMonitor)).To(BeTrue())
 	})
 

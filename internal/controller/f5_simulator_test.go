@@ -212,6 +212,13 @@ func (s *f5Simulator) monitorExists(name string) bool {
 	return ok
 }
 
+// addVirtual creates a virtual server the way one left over from an earlier reconciliation would exist
+func (s *f5Simulator) addVirtual(name, pool string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.virtuals[name] = &simVirtual{Name: name, Destination: simPartitionPath + "10.20.0.100:80", Pool: pool}
+}
+
 // addMonitor creates a monitor the way one created outside the operator would exist
 func (s *f5Simulator) addMonitor(name string) {
 	s.mu.Lock()
