@@ -146,6 +146,8 @@ type httpdataStruct struct {
 	method string
 	data   string
 	post   map[string][]string
+	// requests holds the method and URL of every request
+	requests []string
 }
 
 var _ = Describe("When using a Netscaler backend", func() {
@@ -154,14 +156,21 @@ var _ = Describe("When using a Netscaler backend", func() {
 	var ctx = context.TODO()
 
 	BeforeEach(func() {
+		httpdata.requests = nil
 		server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// GinkgoWriter.Printf("Received a request for %s\n", r.URL.String())
 			httpdata.url = r.URL.String()
 			httpdata.method = r.Method
+			httpdata.requests = append(httpdata.requests, r.Method+" "+httpdata.url)
 			body, _ := io.ReadAll(r.Body)
 			httpdata.data = string(body)
 			for k, v := range r.Form {
 				httpdata.post[k] = v
+			}
+			// The pool monitors, the pool's own and one it used before
+			if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/nitro/v1/config/servicegroup_lbmonitor_binding/") {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"servicegroup_lbmonitor_binding":[{"monitor_name":"test-monitor"},{"monitor_name":"old-monitor"}]}`))
 			}
 
 		}))
@@ -311,18 +320,16 @@ var _ = Describe("When using a Netscaler backend", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("Should edit the pool", func() {
-			err = createdBackend.Provider.EditPool(pool)
-			Eventually(httpdata.url, timeout, interval).Should(Equal("/nitro/v1/config/servicegroup_lbmonitor_binding"))
-			Eventually(httpdata.method, timeout, interval).Should(Equal("POST"))
-			// <map[string]interface {} | len:1>: {
-			// 	"servicegroupname": <string>"test-pool",
-			// }
-			// Expect(httpdata["servicegroup_lbmonitor_binding"]).To(Equal(""))
-			Eventually(func() string {
-				return gjson.Get(httpdata.data, "servicegroup_lbmonitor_binding.servicegroupname").String()
-			}, timeout, interval).Should(Equal("test-pool"))
+		It("Should edit the pool and unbind the monitor it used before", func() {
+			editedPool := pool.DeepCopy()
+			editedPool.Monitor = "test-monitor"
+			err = createdBackend.Provider.EditPool(editedPool)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(httpdata.requests).To(ContainElements(
+				"POST /nitro/v1/config/servicegroup_lbmonitor_binding",
+				"DELETE /nitro/v1/config/servicegroup_lbmonitor_binding/test-pool?args=monitor_name:old-monitor",
+			))
+			Expect(httpdata.requests).NotTo(ContainElement(HavePrefix("DELETE /nitro/v1/config/servicegroup_lbmonitor_binding/test-pool?args=monitor_name:test-monitor")))
 		})
 
 		It("Should get pool members", func() {
