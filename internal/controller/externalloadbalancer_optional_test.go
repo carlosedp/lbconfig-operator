@@ -131,7 +131,7 @@ var _ = Describe("ExternalLoadBalancer optional VIP and monitor with a F5 BIG-IP
 		sim = newF5Simulator()
 		host, port, err := sim.hostPort()
 		Expect(err).NotTo(HaveOccurred())
-		provider = lbv1.Provider{Vendor: "F5_BigIP", Host: host, Port: port, Creds: optionalCredsName}
+		provider = lbv1.Provider{Vendor: simVendor, Host: host, Port: port, Creds: optionalCredsName}
 
 		Expect(k8sClient.Create(ctx, &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: optionalCredsName, Namespace: Namespace},

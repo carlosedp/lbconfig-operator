@@ -339,6 +339,30 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	// ----------------------------------------
+	// Add the finalizer before configuring the load balancer, so an instance deleted
+	// during its first reconciliation is still cleaned up from the load balancer
+	// ----------------------------------------
+	finalizers := func(ctx context.Context) []string {
+		_, span := otel.Tracer(name).Start(ctx, "GetFinalizers - Add Finalizer")
+		defer span.End()
+		return lb.GetFinalizers()
+	}(ctx)
+
+	if !contains(finalizers, ExternalLoadBalancerFinalizer) {
+		err = func(ctx context.Context) error {
+			_, span := otel.Tracer(name).Start(ctx, "addFinalizer")
+			defer span.End()
+			return r.addFinalizer(ctx, lb)
+		}(ctx)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.End()
+			return ctrl.Result{}, err
+		}
+	}
+
+	// ----------------------------------------
 	// Connect to Backend Provider
 	// ----------------------------------------
 	err = func(ctx context.Context) error {
@@ -484,27 +508,6 @@ func (r *ExternalLoadBalancerReconciler) Reconcile(ctx context.Context, req ctrl
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
 		return ctrl.Result{}, err
-	}
-
-	// Add finalizer for this CR
-	finalizers := func(ctx context.Context) []string {
-		_, span := otel.Tracer(name).Start(ctx, "GetFinalizers - Add Finalizer")
-		defer span.End()
-		return lb.GetFinalizers()
-	}(ctx)
-
-	if !contains(finalizers, ExternalLoadBalancerFinalizer) {
-		err = func(ctx context.Context) error {
-			_, span := otel.Tracer(name).Start(ctx, "addFinalizer")
-			defer span.End()
-			return r.addFinalizer(ctx, lb)
-		}(ctx)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			span.End()
-			return ctrl.Result{}, err
-		}
 	}
 
 	logger.Info("End of reconcile loop for ExternalLoadBalancer")

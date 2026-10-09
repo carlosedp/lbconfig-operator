@@ -158,7 +158,7 @@ var _ = Describe("ExternalLoadBalancer graceful connection draining with a F5 BI
 		Expect(k8sClient.Create(ctx, createReadyNode(drainNode2Name, drainNodeLabels(), drainNode2IP))).To(Succeed())
 		Expect(k8sClient.Create(ctx, &lbv1.ExternalLoadBalancer{
 			ObjectMeta: metav1.ObjectMeta{Name: drainLBName, Namespace: Namespace},
-			Spec:       drainTestSpec(lbv1.Provider{Vendor: "F5_BigIP", Host: host, Port: port, Creds: drainCredsName}),
+			Spec:       drainTestSpec(lbv1.Provider{Vendor: simVendor, Host: host, Port: port, Creds: drainCredsName}),
 		})).To(Succeed())
 	})
 

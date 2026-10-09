@@ -35,10 +35,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const (
+	simVendor        = "F5_BigIP"
 	simPartitionPath = "/Common/"
 	simPartitionURL  = "~Common~"
 
@@ -70,6 +72,12 @@ type f5Simulator struct {
 	nodes    map[string]bool
 	virtuals map[string]*simVirtual
 	events   []simEvent
+
+	// holdMu guards holdPools, which blocks the pool creation requests until it is closed
+	holdMu    sync.Mutex
+	holdPools chan struct{}
+	// poolCreateStarted reports that a pool creation request was received
+	poolCreateStarted atomic.Bool
 }
 
 type simPool struct {
@@ -271,7 +279,25 @@ func simName(segment string) (string, bool) {
 	return name, name != segment
 }
 
+// holdPoolCreation blocks the pool creation requests until the returned function is called
+func (s *f5Simulator) holdPoolCreation() (release func()) {
+	s.holdMu.Lock()
+	defer s.holdMu.Unlock()
+	s.holdPools = make(chan struct{})
+	return func() { close(s.holdPools) }
+}
+
 func (s *f5Simulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost && r.URL.Path == "/mgmt/tm/ltm/pool" {
+		s.poolCreateStarted.Store(true)
+		s.holdMu.Lock()
+		hold := s.holdPools
+		s.holdMu.Unlock()
+		if hold != nil {
+			<-hold
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
