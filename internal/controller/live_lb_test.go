@@ -59,6 +59,7 @@ const (
 	liveDrainSeconds = 20 // long enough for the status to report the drain before it ends, NetScaler saves its config slowly
 	liveTimeout      = 60 * time.Second
 	liveInterval     = 500 * time.Millisecond
+	liveMonitorPath  = "/healthz"
 )
 
 type liveNode struct {
@@ -102,6 +103,15 @@ func liveGet(api *url.URL, path string, header http.Header, v any) (int, error) 
 		return resp.StatusCode, nil
 	}
 	return resp.StatusCode, json.NewDecoder(resp.Body).Decode(v)
+}
+
+// liveCredsSecret returns the provider credentials secret for the device API
+func liveCredsSecret(name string, api *url.URL) *corev1.Secret {
+	password, _ := api.User.Password()
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: Namespace},
+		Data:       map[string][]byte{"username": []byte(api.User.Username()), "password": []byte(password)},
+	}
 }
 
 func liveBasicAuth(api *url.URL) http.Header {
@@ -260,12 +270,8 @@ func liveDrainSpecs(dev liveDevice) {
 		Expect(err).NotTo(HaveOccurred())
 		port, err := strconv.Atoi(api.Port())
 		Expect(err).NotTo(HaveOccurred())
-		password, _ := api.User.Password()
 
-		Expect(k8sClient.Create(ctx, &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: credsName, Namespace: Namespace},
-			Data:       map[string][]byte{"username": []byte(api.User.Username()), "password": []byte(password)},
-		})).To(Succeed())
+		Expect(k8sClient.Create(ctx, liveCredsSecret(credsName, api))).To(Succeed())
 		Expect(k8sClient.Create(ctx, createReadyNode(node1.name, labels, node1.ip))).To(Succeed())
 		Expect(k8sClient.Create(ctx, createReadyNode(node2.name, labels, node2.ip))).To(Succeed())
 		Expect(k8sClient.Create(ctx, &lbv1.ExternalLoadBalancer{
@@ -274,7 +280,7 @@ func liveDrainSpecs(dev liveDevice) {
 				Vip:        dev.vip,
 				NodeLabels: labels,
 				Ports:      []int{dev.port},
-				Monitor:    lbv1.Monitor{Path: "/healthz", Port: dev.port, MonitorType: MonitorType},
+				Monitor:    lbv1.Monitor{Path: liveMonitorPath, Port: dev.port, MonitorType: MonitorType},
 				Provider: lbv1.Provider{
 					Vendor: dev.vendor,
 					Host:   api.Scheme + "://" + api.Hostname(),
