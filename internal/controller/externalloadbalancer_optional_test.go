@@ -180,6 +180,18 @@ var _ = Describe("ExternalLoadBalancer optional VIP and monitor with a F5 BIG-IP
 		Expect(sim.virtualExists(optionalVIPName)).To(BeFalse())
 	})
 
+	It("Should not update the pool on every reconcile when the existing monitor is named with its partition", func() {
+		updates := sim.count(simPoolUpdated, optionalPoolName)
+		updateSpec(func(spec *lbv1.ExternalLoadBalancerSpec) {
+			spec.Monitor.Name = simPartitionPath + optionalSharedMonitor
+		})
+		// A spec change the pool does not depend on, to run another reconcile
+		updateSpec(func(spec *lbv1.ExternalLoadBalancerSpec) { spec.Monitor.Path = "/ready" })
+		Consistently(func() int { return sim.count(simPoolUpdated, optionalPoolName) }, 2*time.Second, interval).
+			Should(Equal(updates))
+		Expect(sim.poolMonitor(optionalPoolName)).To(Equal(simPartitionPath + optionalSharedMonitor))
+	})
+
 	It("Should keep the existing monitor when the instance is deleted", func() {
 		deleteInstance(lbKey)
 		Eventually(func() bool { return sim.poolExists(optionalPoolName) }, timeout, interval).Should(BeFalse())

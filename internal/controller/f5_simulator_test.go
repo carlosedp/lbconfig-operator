@@ -52,6 +52,9 @@ const (
 	simEnabled  = "enabled"
 	simDisabled = "disabled"
 	simDeleted  = "deleted"
+
+	// Pool changes recorded by the simulator
+	simPoolUpdated = "pool-updated"
 )
 
 // f5Simulator is a minimal in-memory F5 BIG-IP iControl REST API serving the calls done by the F5 provider.
@@ -340,6 +343,7 @@ func (s *f5Simulator) servePool(w http.ResponseWriter, method string, path []str
 			if req.Monitor != "" {
 				pool.monitor = simPartitionPath + strings.TrimPrefix(req.Monitor, simPartitionPath)
 			}
+			s.record(simPoolUpdated, name)
 		}
 		simReply(w, http.StatusOK, simPoolResponse{Name: name, FullPath: simPartitionPath + name, Monitor: pool.monitor})
 	case len(path) == 2 && path[1] == "members":
