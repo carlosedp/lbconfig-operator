@@ -1,0 +1,27 @@
+# Manage only the pools and their members. The virtual servers are created outside the operator
+# (eg. with Terraform) and point to the pools Pool-externalloadbalancer-pool-only-sample-80 and -443.
+apiVersion: lb.lbconfig.carlosedp.com/v1
+kind: ExternalLoadBalancer
+metadata:
+  name: externalloadbalancer-pool-only-sample
+  namespace: lbconfig-operator-system
+spec:
+  vip: "192.168.1.45"
+  type: "infra"
+  ports:
+    - 80
+    - 443
+  createvip: false
+  createmonitor: false
+  monitor:
+    name: "ingress-monitor" # Existing monitor in the F5 BigIP used by the pools
+    path: "/healthz"
+    port: 1936
+    monitortype: http
+  provider:
+    vendor: F5_BigIP
+    host: "https://192.168.1.35"
+    port: 443
+    creds: f5-creds
+    partition: "Common"
+    validatecerts: false

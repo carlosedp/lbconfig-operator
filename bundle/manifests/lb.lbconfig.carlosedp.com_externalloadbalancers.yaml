@@ -70,6 +70,20 @@ spec:
           spec:
             description: ExternalLoadBalancerSpec is the spec of a LoadBalancer instance.
             properties:
+              createmonitor:
+                default: true
+                description: |-
+                  CreateMonitor controls whether the operator creates the monitor used by the pools. Defaults to true.
+                  Set to false to use an existing monitor in the Load Balancer, named in monitor.name.
+                  A monitor the operator created earlier is deleted when this is set to false. (F5 BigIP and Citrix ADC only)
+                type: boolean
+              createvip:
+                default: true
+                description: |-
+                  CreateVIP controls whether the operator creates a virtual server for each port. Defaults to true.
+                  Set to false to manage only the pools and their members and create the virtual servers outside the operator.
+                  Virtual servers the operator created earlier are deleted when this is set to false.
+                type: boolean
               drain:
                 description: |-
                   Drain configures graceful connection draining for pool members.
@@ -104,7 +118,9 @@ spec:
                     - icmp
                     type: string
                   name:
-                    description: Name is the monitor name, it is set by the controller
+                    description: |-
+                      Name is the monitor name, it is set by the controller. When createmonitor is false, it is the name of an
+                      existing monitor in the Load Balancer that the pools use, eg. `my-monitor` or `/Common/my-monitor`.
                     type: string
                   path:
                     description: Path is the path URL to check for the pool members
@@ -272,7 +288,8 @@ spec:
                   type: string
                 type: object
               monitor:
-                description: Monitor defines a monitor object in the LoadBalancer.
+                description: Monitor is the monitor the operator created, unset when
+                  the pools use an existing monitor
                 properties:
                   monitortype:
                     description: |-
@@ -284,7 +301,9 @@ spec:
                     - icmp
                     type: string
                   name:
-                    description: Name is the monitor name, it is set by the controller
+                    description: |-
+                      Name is the monitor name, it is set by the controller. When createmonitor is false, it is the name of an
+                      existing monitor in the Load Balancer that the pools use, eg. `my-monitor` or `/Common/my-monitor`.
                     type: string
                   path:
                     description: Path is the path URL to check for the pool members
@@ -462,7 +481,6 @@ spec:
                   type: object
                 type: array
             required:
-            - monitor
             - ports
             - vips
             type: object

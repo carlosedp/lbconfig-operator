@@ -35,10 +35,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const (
+	simVendor        = "F5_BigIP"
 	simPartitionPath = "/Common/"
 	simPartitionURL  = "~Common~"
 
@@ -52,6 +54,9 @@ const (
 	simEnabled  = "enabled"
 	simDisabled = "disabled"
 	simDeleted  = "deleted"
+
+	// Pool changes recorded by the simulator
+	simPoolUpdated = "pool-updated"
 )
 
 // f5Simulator is a minimal in-memory F5 BIG-IP iControl REST API serving the calls done by the F5 provider.
@@ -67,6 +72,12 @@ type f5Simulator struct {
 	nodes    map[string]bool
 	virtuals map[string]*simVirtual
 	events   []simEvent
+
+	// holdMu guards holdPools, which blocks the pool creation requests until it is closed
+	holdMu    sync.Mutex
+	holdPools chan struct{}
+	// poolCreateStarted reports that a pool creation request was received
+	poolCreateStarted atomic.Bool
 }
 
 type simPool struct {
@@ -185,6 +196,44 @@ func (s *f5Simulator) poolExists(name string) bool {
 	return ok
 }
 
+// poolMonitor returns the partition-qualified monitor of the pool, empty when the pool does not exist
+func (s *f5Simulator) poolMonitor(name string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if pool, ok := s.pools[name]; ok {
+		return pool.monitor
+	}
+	return ""
+}
+
+func (s *f5Simulator) virtualExists(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.virtuals[name]
+	return ok
+}
+
+func (s *f5Simulator) monitorExists(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.monitors[name]
+	return ok
+}
+
+// addVirtual creates a virtual server the way one left over from an earlier reconciliation would exist
+func (s *f5Simulator) addVirtual(name, pool string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.virtuals[name] = &simVirtual{Name: name, Destination: simPartitionPath + "10.20.0.100:80", Pool: pool}
+}
+
+// addMonitor creates a monitor the way one created outside the operator would exist
+func (s *f5Simulator) addMonitor(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.monitors[name] = []byte(`{"name":"` + name + `","defaultsFrom":"/Common/http","destination":"*.80","send":"GET /healthz"}`)
+}
+
 // eventTime returns when the action was first applied to the member
 func (s *f5Simulator) eventTime(action, member string) (time.Time, bool) {
 	s.mu.Lock()
@@ -230,7 +279,25 @@ func simName(segment string) (string, bool) {
 	return name, name != segment
 }
 
+// holdPoolCreation blocks the pool creation requests until the returned function is called
+func (s *f5Simulator) holdPoolCreation() (release func()) {
+	s.holdMu.Lock()
+	defer s.holdMu.Unlock()
+	s.holdPools = make(chan struct{})
+	return func() { close(s.holdPools) }
+}
+
 func (s *f5Simulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost && r.URL.Path == "/mgmt/tm/ltm/pool" {
+		s.poolCreateStarted.Store(true)
+		s.holdMu.Lock()
+		hold := s.holdPools
+		s.holdMu.Unlock()
+		if hold != nil {
+			<-hold
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -309,6 +376,7 @@ func (s *f5Simulator) servePool(w http.ResponseWriter, method string, path []str
 			if req.Monitor != "" {
 				pool.monitor = simPartitionPath + strings.TrimPrefix(req.Monitor, simPartitionPath)
 			}
+			s.record(simPoolUpdated, name)
 		}
 		simReply(w, http.StatusOK, simPoolResponse{Name: name, FullPath: simPartitionPath + name, Monitor: pool.monitor})
 	case len(path) == 2 && path[1] == "members":

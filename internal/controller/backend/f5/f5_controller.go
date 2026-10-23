@@ -213,9 +213,15 @@ func (p *F5Provider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 		return nil, nil
 	}
 
+	// Return the monitor in the form the pool names it, so a monitor named with its partition (eg. an existing
+	// /Common/tcp) matches. Strip only the partition prefix, strings.Trim would also strip any of its characters.
+	monitor := strings.TrimSpace(newPool.Monitor)
+	if !strings.HasPrefix(pool.Monitor, "/") {
+		monitor = strings.TrimPrefix(monitor, p.partition)
+	}
 	retPool := &lbv1.Pool{
 		Name:    newPool.Name,
-		Monitor: strings.Trim(newPool.Monitor, p.partition),
+		Monitor: monitor,
 	}
 
 	return retPool, nil

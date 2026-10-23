@@ -41,8 +41,9 @@ import (
 
 // Define utility constants for object names and testing timeouts/durations and intervals.
 const (
-	SecretName = "backend-creds"
-	Namespace  = "default"
+	SecretName  = "backend-creds"
+	Namespace   = "default"
+	MonitorType = "http"
 
 	timeout  = time.Second * 10
 	duration = time.Second * 10
@@ -80,7 +81,7 @@ var loadBalancer = &lbv1.ExternalLoadBalancer{
 		Monitor: lbv1.Monitor{
 			Path:        "/",
 			Port:        80,
-			MonitorType: "http",
+			MonitorType: MonitorType,
 		},
 		Provider: lbv1.Provider{
 			Vendor: "Dummy",

@@ -119,6 +119,14 @@ const (
 	opDelete  = "DeletePoolMember"
 )
 
+// VIP and monitor operations that can be made to fail on the stateful mock provider
+const (
+	opGetVIP        = "GetVIP"
+	opDeleteVIP     = "DeleteVIP"
+	opGetMonitor    = "GetMonitor"
+	opDeleteMonitor = "DeleteMonitor"
+)
+
 // mockCall is a pool member operation executed on the stateful mock provider
 type mockCall struct {
 	op     string
@@ -137,6 +145,8 @@ type mockMember struct {
 // path where members are drained.
 type statefulProvider struct {
 	pools    map[string]map[string]*mockMember
+	vips     map[string]bool
+	monitors map[string]bool
 	calls    []mockCall
 	failures map[string]error
 }
@@ -155,6 +165,8 @@ func memberKey(m *lbv1.PoolMember) string {
 
 func (p *statefulProvider) reset() {
 	p.pools = map[string]map[string]*mockMember{}
+	p.vips = map[string]bool{}
+	p.monitors = map[string]bool{}
 	p.calls = nil
 	p.failures = map[string]error{}
 }
@@ -207,13 +219,27 @@ func (p *statefulProvider) Connect() error { return nil }
 
 func (p *statefulProvider) Close() error { return nil }
 
-func (p *statefulProvider) GetMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) { return m, nil }
+func (p *statefulProvider) GetMonitor(m *lbv1.Monitor) (*lbv1.Monitor, error) {
+	if err := p.failures[opGetMonitor]; err != nil {
+		return nil, err
+	}
+	if !p.monitors[m.Name] {
+		return nil, nil
+	}
+	return m, nil
+}
 
 func (p *statefulProvider) CreateMonitor(*lbv1.Monitor) error { return nil }
 
 func (p *statefulProvider) EditMonitor(*lbv1.Monitor) error { return nil }
 
-func (p *statefulProvider) DeleteMonitor(*lbv1.Monitor) error { return nil }
+func (p *statefulProvider) DeleteMonitor(m *lbv1.Monitor) error {
+	if err := p.failures[opDeleteMonitor]; err != nil {
+		return err
+	}
+	delete(p.monitors, m.Name)
+	return nil
+}
 
 func (p *statefulProvider) GetPool(pool *lbv1.Pool) (*lbv1.Pool, error) {
 	if _, ok := p.pools[pool.Name]; !ok {
@@ -282,13 +308,27 @@ func (p *statefulProvider) DeletePoolMember(m *lbv1.PoolMember, pool *lbv1.Pool)
 	return nil
 }
 
-func (p *statefulProvider) GetVIP(*lbv1.VIP) (*lbv1.VIP, error) { return nil, nil }
+func (p *statefulProvider) GetVIP(v *lbv1.VIP) (*lbv1.VIP, error) {
+	if err := p.failures[opGetVIP]; err != nil {
+		return nil, err
+	}
+	if !p.vips[v.Name] {
+		return nil, nil
+	}
+	return v, nil
+}
 
 func (p *statefulProvider) CreateVIP(*lbv1.VIP) error { return nil }
 
 func (p *statefulProvider) EditVIP(*lbv1.VIP) error { return nil }
 
-func (p *statefulProvider) DeleteVIP(*lbv1.VIP) error { return nil }
+func (p *statefulProvider) DeleteVIP(v *lbv1.VIP) error {
+	if err := p.failures[opDeleteVIP]; err != nil {
+		return err
+	}
+	delete(p.vips, v.Name)
+	return nil
+}
 
 // drainTestMember builds a pool member for a Kubernetes node
 func drainTestMember(nodeName, host string) lbv1.PoolMember {
@@ -731,6 +771,98 @@ var _ = Describe("Controllers/Backend/controller/backend_controller", func() {
 			Expect(err).To(MatchError(ContainSubstring("enable failed")))
 			Expect(drainingMembers).To(HaveLen(1))
 			Expect(mockProvider.enabled(node2)).To(BeFalse())
+		})
+	})
+
+	Context("When removing VIPs and monitors whose creation is turned off", func() {
+		var ctx context.Context
+		var backend *BackendController
+		vip1 := lbv1.VIP{Name: "VIP-optional-80", Pool: "Pool-optional-80", IP: loadBalancer.Spec.Vip, Port: 80}
+		vip2 := lbv1.VIP{Name: "VIP-optional-443", Pool: "Pool-optional-443", IP: loadBalancer.Spec.Vip, Port: 443}
+		operatorMonitor := &lbv1.Monitor{Name: "Monitor-optional", MonitorType: "http"}
+
+		BeforeEach(func() {
+			ctx = context.TODO()
+			mockProvider.reset()
+
+			var err error
+			backend, err = CreateBackend(ctx, &lbv1.Provider{Vendor: mockVendor, Host: dummyHostIP, Port: 443, Creds: loadBalancer.Spec.Provider.Creds}, "username", "password")
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should delete the VIPs that exist and skip the ones already gone", func() {
+			mockProvider.vips[vip1.Name] = true
+			mockProvider.vips["VIP-other-80"] = true
+
+			Expect(backend.RemoveVIPs(ctx, []lbv1.VIP{vip1, vip2})).To(Succeed())
+			Expect(mockProvider.vips).To(Equal(map[string]bool{"VIP-other-80": true}))
+		})
+
+		It("Should do nothing when there are no VIPs to remove", func() {
+			mockProvider.vips[vip1.Name] = true
+			Expect(backend.RemoveVIPs(ctx, nil)).To(Succeed())
+			Expect(mockProvider.vips).To(HaveKey(vip1.Name))
+		})
+
+		It("Should return the error when it can't get a VIP", func() {
+			mockProvider.vips[vip1.Name] = true
+			mockProvider.failures[opGetVIP] = fmt.Errorf("get failed")
+			Expect(backend.RemoveVIPs(ctx, []lbv1.VIP{vip1})).To(MatchError(ContainSubstring("get failed")))
+			Expect(mockProvider.vips).To(HaveKey(vip1.Name))
+		})
+
+		It("Should return the error when it can't delete a VIP", func() {
+			mockProvider.vips[vip1.Name] = true
+			mockProvider.failures[opDeleteVIP] = fmt.Errorf("delete failed")
+			err := backend.RemoveVIPs(ctx, []lbv1.VIP{vip1})
+			Expect(err).To(MatchError(ContainSubstring("error removing VIP " + vip1.Name)))
+			Expect(err).To(MatchError(ContainSubstring("delete failed")))
+		})
+
+		It("Should delete the monitor when it exists", func() {
+			mockProvider.monitors[operatorMonitor.Name] = true
+			mockProvider.monitors["tcp"] = true
+
+			Expect(backend.RemoveMonitor(ctx, operatorMonitor)).To(Succeed())
+			Expect(mockProvider.monitors).To(Equal(map[string]bool{"tcp": true}))
+		})
+
+		It("Should do nothing when the monitor is already gone", func() {
+			mockProvider.failures[opDeleteMonitor] = fmt.Errorf("delete must not be called")
+			Expect(backend.RemoveMonitor(ctx, operatorMonitor)).To(Succeed())
+		})
+
+		It("Should return the error when it can't get the monitor", func() {
+			mockProvider.monitors[operatorMonitor.Name] = true
+			mockProvider.failures[opGetMonitor] = fmt.Errorf("get failed")
+			Expect(backend.RemoveMonitor(ctx, operatorMonitor)).To(MatchError(ContainSubstring("error getting monitor: get failed")))
+			Expect(mockProvider.monitors).To(HaveKey(operatorMonitor.Name))
+		})
+
+		It("Should return the error when it can't delete the monitor", func() {
+			mockProvider.monitors[operatorMonitor.Name] = true
+			mockProvider.failures[opDeleteMonitor] = fmt.Errorf("delete failed")
+			err := backend.RemoveMonitor(ctx, operatorMonitor)
+			Expect(err).To(MatchError(ContainSubstring("error removing monitor " + operatorMonitor.Name)))
+			Expect(err).To(MatchError(ContainSubstring("delete failed")))
+		})
+
+		It("Should delete the operator's monitor on cleanup", func() {
+			mockProvider.monitors[operatorMonitor.Name] = true
+			mockProvider.vips[vip1.Name] = true
+			lb := &lbv1.ExternalLoadBalancer{Status: lbv1.ExternalLoadBalancerStatus{VIPs: []lbv1.VIP{vip1}, Monitor: operatorMonitor}}
+
+			Expect(backend.HandleCleanup(ctx, lb)).To(Succeed())
+			Expect(mockProvider.vips).To(BeEmpty())
+			Expect(mockProvider.monitors).To(BeEmpty())
+		})
+
+		It("Should keep the existing monitor on cleanup when the status has no monitor", func() {
+			mockProvider.monitors["tcp"] = true
+			lb := &lbv1.ExternalLoadBalancer{}
+
+			Expect(backend.HandleCleanup(ctx, lb)).To(Succeed())
+			Expect(mockProvider.monitors).To(HaveKey("tcp"))
 		})
 	})
 })

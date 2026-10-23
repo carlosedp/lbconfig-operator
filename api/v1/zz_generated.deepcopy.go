@@ -139,6 +139,16 @@ func (in *ExternalLoadBalancerSpec) DeepCopyInto(out *ExternalLoadBalancerSpec) 
 		copy(*out, *in)
 	}
 	out.Monitor = in.Monitor
+	if in.CreateVIP != nil {
+		in, out := &in.CreateVIP, &out.CreateVIP
+		*out = new(bool)
+		**out = **in
+	}
+	if in.CreateMonitor != nil {
+		in, out := &in.CreateMonitor, &out.CreateMonitor
+		*out = new(bool)
+		**out = **in
+	}
 	out.Provider = in.Provider
 	if in.Drain != nil {
 		in, out := &in.Drain, &out.Drain
@@ -170,7 +180,11 @@ func (in *ExternalLoadBalancerStatus) DeepCopyInto(out *ExternalLoadBalancerStat
 		*out = make([]int, len(*in))
 		copy(*out, *in)
 	}
-	out.Monitor = in.Monitor
+	if in.Monitor != nil {
+		in, out := &in.Monitor, &out.Monitor
+		*out = new(Monitor)
+		**out = **in
+	}
 	if in.Nodes != nil {
 		in, out := &in.Nodes, &out.Nodes
 		*out = make([]Node, len(*in))

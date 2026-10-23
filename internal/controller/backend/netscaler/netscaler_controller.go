@@ -307,6 +307,23 @@ func (p *NetscalerProvider) EditPool(pool *lbv1.Pool) error {
 	if err != nil {
 		return fmt.Errorf("error editing pool %s, adding monitor %s: %v", pool.Name, pool.Monitor, err)
 	}
+
+	// A bound monitor is added to the ones already bound, so unbind the monitor the pool used before (eg. the
+	// operator's own once the pool uses an existing monitor). NetScaler also refuses to delete a bound monitor.
+	bindings, err := p.client.FindResourceArray(service.Servicegroup_lbmonitor_binding.Type(), pool.Name)
+	if err != nil {
+		return fmt.Errorf("error editing pool %s, listing its monitors: %v", pool.Name, err)
+	}
+	for _, b := range bindings {
+		name, _ := b["monitor_name"].(string)
+		if name == "" || name == pool.Monitor {
+			continue
+		}
+		err = p.client.DeleteResourceWithArgs(service.Servicegroup_lbmonitor_binding.Type(), pool.Name, []string{"monitor_name:" + name})
+		if err != nil {
+			return fmt.Errorf("error editing pool %s, removing monitor %s: %v", pool.Name, name, err)
+		}
+	}
 	return nil
 }
 

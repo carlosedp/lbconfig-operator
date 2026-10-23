@@ -64,7 +64,7 @@ func drainTestSpec(provider lbv1.Provider) lbv1.ExternalLoadBalancerSpec {
 		Vip:        "10.10.0.100",
 		NodeLabels: drainNodeLabels(),
 		Ports:      []int{80},
-		Monitor:    lbv1.Monitor{Path: "/healthz", Port: 80, MonitorType: "http"},
+		Monitor:    lbv1.Monitor{Path: "/healthz", Port: 80, MonitorType: MonitorType},
 		Provider:   provider,
 		Drain:      &lbv1.DrainConfig{Enabled: true, TimeoutSeconds: drainTimeoutSeconds},
 	}
@@ -158,7 +158,7 @@ var _ = Describe("ExternalLoadBalancer graceful connection draining with a F5 BI
 		Expect(k8sClient.Create(ctx, createReadyNode(drainNode2Name, drainNodeLabels(), drainNode2IP))).To(Succeed())
 		Expect(k8sClient.Create(ctx, &lbv1.ExternalLoadBalancer{
 			ObjectMeta: metav1.ObjectMeta{Name: drainLBName, Namespace: Namespace},
-			Spec:       drainTestSpec(lbv1.Provider{Vendor: "F5_BigIP", Host: host, Port: port, Creds: drainCredsName}),
+			Spec:       drainTestSpec(lbv1.Provider{Vendor: simVendor, Host: host, Port: port, Creds: drainCredsName}),
 		})).To(Succeed())
 	})
 

@@ -118,3 +118,38 @@ var _ = Describe("ExternalLoadBalancer controller", func() {
 		})
 	})
 })
+
+var _ = Describe("Monitor configuration validation", func() {
+	instance := func(vendor string, createMonitor *bool, monitorName string) *lbv1.ExternalLoadBalancer {
+		return &lbv1.ExternalLoadBalancer{
+			Spec: lbv1.ExternalLoadBalancerSpec{
+				Monitor:       lbv1.Monitor{Name: monitorName},
+				Provider:      lbv1.Provider{Vendor: vendor},
+				CreateMonitor: createMonitor,
+			},
+		}
+	}
+	disabled := false
+
+	DescribeTable("Should validate the monitor configuration",
+		func(lb *lbv1.ExternalLoadBalancer, message string) {
+			err := validateMonitorConfig(lb)
+			if message == "" {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				Expect(err).To(MatchError(ContainSubstring(message)))
+			}
+		},
+		Entry("monitor created by default", instance("F5_BigIP", nil, ""), ""),
+		Entry("existing monitor named", instance("F5_BigIP", &disabled, "my-monitor"), ""),
+		Entry("existing monitor on Citrix ADC", instance("Citrix_ADC", &disabled, "my-monitor"), ""),
+		Entry("no existing monitor named", instance("F5_BigIP", &disabled, ""), "monitor.name must name an existing monitor"),
+		Entry("HAProxy without monitor creation", instance("HAProxy", &disabled, "my-monitor"), "not supported by the HAProxy provider"),
+	)
+
+	It("Should not validate an instance being deleted", func() {
+		lb := instance("F5_BigIP", &disabled, "")
+		lb.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		Expect(validateMonitorConfig(lb)).To(Succeed())
+	})
+})

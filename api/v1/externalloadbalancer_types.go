@@ -96,6 +96,22 @@ type ExternalLoadBalancerSpec struct {
 	// +kubebuilder:validation:Required
 	Monitor Monitor `json:"monitor"`
 
+	// CreateVIP controls whether the operator creates a virtual server for each port. Defaults to true.
+	// Set to false to manage only the pools and their members and create the virtual servers outside the operator.
+	// Virtual servers the operator created earlier are deleted when this is set to false.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	CreateVIP *bool `json:"createvip,omitempty"`
+
+	// CreateMonitor controls whether the operator creates the monitor used by the pools. Defaults to true.
+	// Set to false to use an existing monitor in the Load Balancer, named in monitor.name.
+	// A monitor the operator created earlier is deleted when this is set to false. (F5 BigIP and Citrix ADC only)
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	CreateMonitor *bool `json:"createmonitor,omitempty"`
+
 	// Provider is the LoadBalancer backend provider
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Required
@@ -108,9 +124,20 @@ type ExternalLoadBalancerSpec struct {
 	Drain *DrainConfig `json:"drain,omitempty"`
 }
 
+// ShouldCreateVIP reports whether the operator creates the virtual servers for this instance
+func (s *ExternalLoadBalancerSpec) ShouldCreateVIP() bool {
+	return s.CreateVIP == nil || *s.CreateVIP
+}
+
+// ShouldCreateMonitor reports whether the operator creates the monitor for this instance
+func (s *ExternalLoadBalancerSpec) ShouldCreateMonitor() bool {
+	return s.CreateMonitor == nil || *s.CreateMonitor
+}
+
 // Monitor defines a monitor object in the LoadBalancer.
 type Monitor struct {
-	// Name is the monitor name, it is set by the controller
+	// Name is the monitor name, it is set by the controller. When createmonitor is false, it is the name of an
+	// existing monitor in the Load Balancer that the pools use, eg. `my-monitor` or `/Common/my-monitor`.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +kubebuilder:validation:Optional
 	Name string `json:"name,omitempty"`
@@ -276,7 +303,8 @@ type ExternalLoadBalancerStatus struct {
 	Ports []int `json:"ports"`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +operator-sdk:csv:customresourcedefinitions:type=status
-	Monitor Monitor `json:"monitor"`
+	// Monitor is the monitor the operator created, unset when the pools use an existing monitor
+	Monitor *Monitor `json:"monitor,omitempty"`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Nodes []Node `json:"nodes,omitempty"`

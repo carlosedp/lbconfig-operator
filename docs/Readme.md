@@ -187,6 +187,27 @@ If a node comes back before its drain timeout expires (for example its label is 
 
 For detailed examples, configuration guidance, and troubleshooting, see the [Graceful Connection Draining documentation](../config/samples/DRAIN_EXAMPLES.md).
 
+#### Managing Only the Pools
+
+By default the operator creates a monitor, a pool and a virtual server (VIP) for each port. When the virtual server needs options the operator does not expose, such as SNAT or protocol profiles, turn off its creation and create the virtual server outside the operator (eg. with Terraform), pointing it to the pool the operator manages (`Pool-<instance name>-<port>`):
+
+```yaml
+spec:
+  createvip: false            # Do not create the virtual servers (default: true)
+  createmonitor: false        # Do not create the monitor (default: true)
+  monitor:
+    name: "my-monitor"        # Existing monitor the pools use when createmonitor is false
+    path: "/healthz"
+    port: 1936
+    monitortype: http
+  ...
+```
+
+- **`createvip: false`**: the operator manages only the pools and their members. Virtual servers it created earlier are deleted, so a virtual server created outside the operator can take over the VIP and port.
+- **`createmonitor: false`**: the pools use the existing monitor named in `monitor.name` (eg. `my-monitor` or `/Common/my-monitor`), which the operator never changes or deletes. A monitor the operator created earlier is deleted once the pools no longer use it. Supported by the F5 BigIP and Citrix ADC providers; HAProxy configures the health check inside each backend, so its monitor is always managed by the operator.
+
+See the [pool-only sample](../config/samples/lb_v1_externalloadbalancer-pool-only.yaml).
+
 Some fields inside `providers` are optional and depend on the used backend. Check the [API docs](https://pkg.go.dev/github.com/carlosedp/lbconfig-operator/api/v1?utm_source=gopls#Provider) which fields are backend-specific.
 
 CRD Fields:
@@ -208,6 +229,9 @@ spec:
     path: "/healthz"      # Monitor URL to be configured in the Load Balancer instance
     port: 6443            # Monitor port to be configured in the Load Balancer instance
     monitortype: "https"  # Monitor protocol to be configured in the Load Balancer instance
+    name: "my-monitor"    # Existing monitor the pools use, required when createmonitor is false (optional)
+  createvip: true         # Create the virtual servers, false to manage only the pools (default: true) (optional)
+  createmonitor: true     # Create the monitor, false to use the monitor in monitor.name (default: true) (optional)
   drain:                  # Optional graceful connection draining configuration (optional)
     enabled: true         # Enable graceful draining when removing pool members (default: false) (optional)
     timeoutSeconds: 30    # Time to wait before deleting members (default: 30, min: 1, max: 3600) (optional)
