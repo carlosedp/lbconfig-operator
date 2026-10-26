@@ -79,18 +79,30 @@ fi
 # Create KIND cluster
 echo "Creating KIND cluster '${KIND_CLUSTER_NAME}' with registry..."
 
+# Enable the containerd registry config dir. The registry.mirrors/registry.configs
+# settings are not supported by the containerd 2.x shipped in current KIND node images.
 cat <<EOF | ${KIND_BIN} create cluster --name "${KIND_CLUSTER_NAME}" --config=-
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${REG_PORT}"]
-    endpoint = ["http://${REG_IP}:5000"]
-  [plugins."io.containerd.grpc.v1.cri".registry.configs."${REG_IP}:5000".tls]
-    insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
 EOF
 
 echo "✅ KIND cluster created"
+
+# Alias localhost:${REG_PORT} to the registry container on every node, since
+# localhost inside a node is not the host
+REGISTRY_DIR="/etc/containerd/certs.d/localhost:${REG_PORT}"
+for node in $(${KIND_BIN} get nodes --name "${KIND_CLUSTER_NAME}"); do
+  ${CONTAINER_RUNTIME} exec "${node}" mkdir -p "${REGISTRY_DIR}"
+  cat <<EOF | ${CONTAINER_RUNTIME} exec -i "${node}" cp /dev/stdin "${REGISTRY_DIR}/hosts.toml"
+[host."http://${REG_IP}:5000"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true
+EOF
+done
 
 # Registry is already on KIND network, just update the saved info
 echo "Registry accessible at: ${REG_IP}:5000 in KIND network"
