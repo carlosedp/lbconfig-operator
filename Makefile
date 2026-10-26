@@ -77,12 +77,12 @@ OPM ?= $(LOCALBIN)/opm-$(OPM_VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 KUSTOMIZE_VERSION ?= v5.8.2
 CONTROLLER_TOOLS_VERSION ?= v0.22.0
-KIND_VERSION ?= v0.30.0
+KIND_VERSION ?= v0.33.0
 OPERATOR_SDK_VERSION ?= v1.42.3
 # Also used by the Lint GitHub workflow, keep it pinned to a version
 GOLANGCI_LINT_VERSION ?= v2.15.0
-OPM_VERSION ?= v1.61.0
-OLM_VERSION ?= 0.38.0
+OPM_VERSION ?= v1.74.0
+OLM_VERSION ?= 0.46.0
 
 # Minimal Kubernetes and OpenShift Versions
 MIN_KUBERNETES_VERSION ?= 1.30.0
