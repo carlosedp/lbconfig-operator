@@ -64,8 +64,8 @@ metadata:
     capabilities: Auto Pilot
     categories: Networking
     certified: "false"
-    containerImage: quay.io/carlosedp/lbconfig-operator:v0.7.0
-    createdAt: "2026-10-26T14:57:03Z"
+    containerImage: quay.io/carlosedp/lbconfig-operator:v0.7.1-dev
+    createdAt: "2026-10-26T15:05:18Z"
     description: Manage External Load Balancers allowing creation/update for VIPs
       and Servers dynamically via API.
     k8sMaxVersion: ""
@@ -74,7 +74,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/carlosedp/lbconfig-operator
     support: https://github.com/carlosedp/lbconfig-operator
-  name: lbconfig-operator.v0.7.0
+  name: lbconfig-operator.v0.7.1-dev
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -414,7 +414,7 @@ spec:
                 - --health-probe-bind-address=:8081
                 command:
                 - /manager
-                image: quay.io/carlosedp/lbconfig-operator:v0.7.0
+                image: quay.io/carlosedp/lbconfig-operator:v0.7.1-dev
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -514,4 +514,4 @@ spec:
     name: Carlos Eduardo de Paula
     url: https://github.com/carlosedp
   selector: {}
-  version: 0.7.0
+  version: 0.7.1-dev
