@@ -10,11 +10,15 @@ KIND_BIN="${KIND_BIN:-./bin/kind}"
 REG_NAME='kind-registry'
 REG_PORT='5001'
 
-# Detect container runtime (prefer podman, fallback to docker)
-if command -v podman &>/dev/null; then
-  CONTAINER_RUNTIME="podman"
+# Detect container runtime the same way KIND picks its node provider, so the
+# registry and the nodes share a runtime and network: KIND_EXPERIMENTAL_PROVIDER
+# if set, otherwise docker if available, otherwise podman
+if [ -n "${KIND_EXPERIMENTAL_PROVIDER:-}" ]; then
+  CONTAINER_RUNTIME="${KIND_EXPERIMENTAL_PROVIDER}"
 elif command -v docker &>/dev/null; then
   CONTAINER_RUNTIME="docker"
+elif command -v podman &>/dev/null; then
+  CONTAINER_RUNTIME="podman"
 else
   echo "❌ Neither podman nor docker found. Please install one."
   exit 1

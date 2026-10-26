@@ -326,8 +326,10 @@ scorecard-run: operator-sdk e2e-build testenv-setup testenv-load-images ## Runs 
 testenv-teardown: ## Teardown the test environment (KIND cluster and local registry)
 	@echo "Tearing down test environment..."
 	@$(KIND) delete cluster --name test-operator 2>/dev/null || echo "KIND cluster not found"
-	@$(BUILDER) stop kind-registry 2>/dev/null || echo "Registry container not running"
-	@$(BUILDER) rm -f kind-registry 2>/dev/null || echo "Registry container not found"
+	@# The registry runs on KIND's node provider, which may differ from BUILDER
+	@for rt in docker podman; do \
+		command -v $$rt >/dev/null 2>&1 && $$rt rm -f kind-registry >/dev/null 2>&1 && echo "Registry container removed ($$rt)"; \
+	done; true
 	@rm -f /tmp/kind-registry-info.env 2>/dev/null || true
 	@rm -f /tmp/bundle-backup.tar.gz 2>/dev/null || true
 	@echo "✅ Test environment cleaned up"
