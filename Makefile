@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.6.1-dev
+VERSION ?= 0.7.0
 # Previous Operator version
 PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
 
