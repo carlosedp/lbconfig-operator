@@ -93,6 +93,8 @@ func (p *F5Provider) Connect() error {
 	c, _ := url.Parse(p.host)
 	host := c.Host + ":" + fmt.Sprintf("%d", p.hostport)
 	p.f5 = bigip.NewSession(host, p.username, p.password, nil)
+	// go-bigip always disables certificate verification, honor validatecerts instead
+	p.f5.Transport.TLSClientConfig.InsecureSkipVerify = !p.validatecerts
 
 	return nil
 }
