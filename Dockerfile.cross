@@ -1,5 +1,6 @@
 # Build the manager binary
-FROM golang:1.25 as builder
+# Keep in sync with the go directive in go.mod, the image sets GOTOOLCHAIN=local
+FROM golang:1.26.10 AS builder
 ARG TARGETARCH
 ARG TARGETOS
 ARG VERSION
@@ -22,7 +23,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -installsuffix c
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+# Same pinned base image as Dockerfile (see issue #515)
+FROM gcr.io/distroless/static:nonroot@sha256:18f4cc26c9ffa7f20a359298be7deadac5c607c8e03a02b8119f1a5fc2f82c99
 WORKDIR /
 COPY --from=builder /workspace/manager /manager
 USER 65532:65532
