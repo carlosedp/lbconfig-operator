@@ -34,7 +34,7 @@ jobs:
       - name: Check if there are changes
         id: changes
         run: |
-          if [[ $(git diff --quiet -I'^    createdAt: ' bundle) ]]; then echo "changed=true" >> $GITHUB_OUTPUT; else echo "changed=false" >> $GITHUB_OUTPUT; fi
+          if ! git diff --quiet -I'^    createdAt: ' bundle; then echo "changed=true" >> $GITHUB_OUTPUT; else echo "changed=false" >> $GITHUB_OUTPUT; fi
 
       - name: Bundle files changed, failed run
         if: steps.changes.outputs.changed == 'true'

@@ -3,7 +3,7 @@
 
 echo "Running make lint before push..."
 
-# Run golangci-lint (same config and version as CI)
+# Run golangci-lint (same config and version as CI, pinned in the Makefile)
 if ! make lint; then
     echo "❌ make lint failed. Push aborted."
     echo "Fix the issues (try 'make lint-fix') or bypass with 'git push --no-verify'."
@@ -27,6 +27,9 @@ if ! git diff --quiet -I'^    createdAt: ' bundle/; then
     echo "  git push"
     exit 1
 fi
+
+# Only the createdAt timestamp changed, discard it to keep the working tree clean
+git checkout -- bundle/
 
 echo "✅ make bundle completed successfully, no bundle changes detected."
 exit 0

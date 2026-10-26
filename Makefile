@@ -1,7 +1,5 @@
 # Current Operator version
 VERSION ?= 0.7.1-dev
-# Previous Operator version
-PREV_VERSION ?= $(shell git describe --abbrev=0 --tags $(shell git rev-list --tags --skip=1 --max-count=1) | sed 's/^v//')
 
 # Operator repository
 REPO ?= quay.io/carlosedp
@@ -70,29 +68,31 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 KIND ?= $(LOCALBIN)/kind
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk-$(OPERATOR_SDK_VERSION)
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 GINKGO ?= $(LOCALBIN)/ginkgo
-OPM ?= $(LOCALBIN)/opm
+OPM ?= $(LOCALBIN)/opm-$(OPM_VERSION)
 
 # Tools version
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-KUSTOMIZE_VERSION ?= v5.8.0
-CONTROLLER_TOOLS_VERSION  ?= v0.19.0
+KUSTOMIZE_VERSION ?= v5.8.2
+CONTROLLER_TOOLS_VERSION ?= v0.22.0
 KIND_VERSION ?= v0.30.0
-OPERATOR_SDK_VERSION ?= v1.42.0
-GOLANGCI_LINT_VERSION ?= latest
-GINKGO_VERSION ?= v2.27.4
+OPERATOR_SDK_VERSION ?= v1.42.3
+# Also used by the Lint GitHub workflow, keep it pinned to a version
+GOLANGCI_LINT_VERSION ?= v2.15.0
 OPM_VERSION ?= v1.61.0
 OLM_VERSION ?= 0.38.0
 
 # Minimal Kubernetes and OpenShift Versions
-MIN_KUBERNETES_VERSION ?= 1.19.0
-MIN_OPENSHIFT_VERSION ?= 4.6
+MIN_KUBERNETES_VERSION ?= 1.30.0
+MIN_OPENSHIFT_VERSION ?= 4.16
 
 # Dynamically generated versions
 ENVTEST_VERSION := $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
 ENVTEST_K8S_VERSION := $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
+# The Ginkgo CLI must match the library version in go.mod
+GINKGO_VERSION := $(shell go list -m -f "{{ .Version }}" github.com/onsi/ginkgo/v2)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -472,7 +472,6 @@ endef
 .PHONY: opm
 opm: ## Download opm locally if necessary.
 ifeq (,$(wildcard $(OPM)))
-ifeq (,$(shell which opm 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
@@ -480,9 +479,6 @@ ifeq (,$(shell which opm 2>/dev/null))
 	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
-else
-OPM = $(shell which opm)
-endif
 endif
 
 .PHONY: operator-sdk
@@ -538,6 +534,9 @@ dist: check-versions bundle bundle-push catalog-push podman-crossbuild  ## Build
 
 .PHONY: release
 release: ## Create a release by tagging the current commit and pushing to GitHub
+	@case "$(VERSION)" in *-*) echo "❌ VERSION $(VERSION) is a pre-release, set the release version in the Makefile first."; exit 1;; esac
+	@if [ -n "$$(git status --porcelain)" ]; then echo "❌ Working tree is not clean, commit the release changes first."; exit 1; fi
+	@if ! grep -q "^  version: $(VERSION)$$" bundle/manifests/lbconfig-operator.clusterserviceversion.yaml; then echo "❌ Bundle is not at version $(VERSION), run 'make dist' first."; exit 1; fi
 	@echo "Creating git tag v$(VERSION) and pushing to origin..."
 	git tag -a v$(VERSION) -m "Release version $(VERSION)"
 	git push origin v$(VERSION)
@@ -550,6 +549,19 @@ release: ## Create a release by tagging the current commit and pushing to GitHub
 		gh release create v$(VERSION) --generate-notes; \
 	fi
 	@echo "✅ Release created successfully."
+
+.PHONY: operatorhub
+operatorhub: ## Copy a released bundle into an OperatorHub repo checkout (e.g., make operatorhub OPERATORHUB_DIR=../community-operators RELEASE=0.7.0)
+	@if [ -z "$(OPERATORHUB_DIR)" ] || [ -z "$(RELEASE)" ]; then echo "❌ Usage: make operatorhub OPERATORHUB_DIR=<repo checkout> RELEASE=<x.y.z>"; exit 1; fi
+	@git rev-parse -q --verify "refs/tags/v$(RELEASE)" >/dev/null || { echo "❌ Tag v$(RELEASE) not found."; exit 1; }
+	@DEST="$(OPERATORHUB_DIR)/operators/lbconfig-operator/$(RELEASE)" && \
+	if [ -e "$$DEST" ]; then echo "❌ $$DEST already exists."; exit 1; fi && \
+	mkdir -p "$$DEST" && \
+	git archive "v$(RELEASE)" bundle | tar -x --strip-components=1 -C "$$DEST" && \
+	CSV="$$DEST/manifests/lbconfig-operator.clusterserviceversion.yaml" && \
+	grep -q "^  version: $(RELEASE)$$" "$$CSV" || { echo "❌ CSV version in $$CSV doesn't match $(RELEASE)."; exit 1; } && \
+	echo "✅ Bundle v$(RELEASE) copied to $$DEST:" && ls "$$DEST" && \
+	echo "Next: in $(OPERATORHUB_DIR), commit with 'git commit -s -m \"operator lbconfig-operator ($(RELEASE))\"' and open a PR."
 
 .PHONY: bump-version
 bump-version: ## Bump the version for the next development cycle (e.g.,
