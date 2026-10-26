@@ -12,7 +12,7 @@ LABEL operators.operatorframework.io.metrics.mediatype.v1=metrics+v1
 LABEL operators.operatorframework.io.metrics.project_layout=go.kubebuilder.io/v4
 
 # OpenShift specific labels.
-LABEL com.redhat.openshift.versions=v4.6
+LABEL com.redhat.openshift.versions=v4.16
 
 # Labels for testing.
 LABEL operators.operatorframework.io.test.mediatype.v1=scorecard+v1

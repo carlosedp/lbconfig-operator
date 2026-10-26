@@ -53,19 +53,19 @@ CURRGO=$(grep "go" go.mod | head -1 | awk '{print $2}')
 echo "Golang version: $CURRGO -> $GOLANGVERSION"
 # CURRK8S=$(grep "ENVTEST_K8S_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "K8S_VERSION: $ENVTEST_K8S_VERSION"
-CURRKUST=$(grep "KUSTOMIZE_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURRKUST=$(grep "^KUSTOMIZE_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "KUSTOMIZE_VERSION: $CURRKUST -> $KUSTOMIZE_VERSION"
-CURRCT=$(grep "CONTROLLER_TOOLS_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURRCT=$(grep "^CONTROLLER_TOOLS_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "CONTROLLER_TOOLS_VERSION: $CURRCT -> $CONTROLLER_TOOLS_VERSION"
-CURRKIND=$(grep "KIND_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURRKIND=$(grep "^KIND_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "KIND_VERSION: $CURRKIND -> $KINDVERSION"
-CURROPSDK=$(grep "OPERATOR_SDK_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURROPSDK=$(grep "^OPERATOR_SDK_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "OPERATOR_SDK_VERSION: $CURROPSDK -> $OPSDKVERSION"
-CURRGOLANCI=$(grep "GOLANGCI_LINT_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURRGOLANCI=$(grep "^GOLANGCI_LINT_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "GOLANGCI_LINT_VERSION: $CURRGOLANCI -> $GOLANGCILINTVERSION"
-CURRGINKGO=$(grep "GINKGO_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
-echo "GINKGO_VERSION: $CURRGINKGO -> $GINKGOVERSION"
-CURROLM=$(grep "OLM_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURRGINKGO=$(go list -m -f '{{ .Version }}' github.com/onsi/ginkgo/v2)
+echo "GINKGO_VERSION (go.mod): $CURRGINKGO -> $GINKGOVERSION"
+CURROLM=$(grep "^OLM_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "OLM_VERSION: $CURROLM -> $OLMVER"
-CURROPM=$(grep "OPM_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
+CURROPM=$(grep "^OPM_VERSION" Makefile | awk -F= '{print $2}' | grep -v '^$' | head -1)
 echo "OPM_VERSION: $CURROPM -> $OPMVERSION"
