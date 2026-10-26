@@ -204,6 +204,34 @@ var _ = Describe("When using a f5 backend", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	Context("when validating the backend certificate", func() {
+		It("Should skip verification when validatecerts is false", func() {
+			provider := loadBalancer.Spec.Provider
+			provider.ValidateCerts = false
+			httpdata = httpdataStruct{}
+			createdBackend, err := CreateBackend(ctx, &provider, "username", "password")
+			Expect(err).NotTo(HaveOccurred())
+			err = createdBackend.Provider.Connect()
+			Expect(err).NotTo(HaveOccurred())
+			_, err = createdBackend.Provider.GetMonitor(monitor)
+			Expect(err).ToNot(MatchError(ContainSubstring("certificate")))
+			Expect(httpdata.url).To(Equal("/mgmt/tm/ltm/monitor/http/test-monitor"))
+		})
+
+		It("Should reject an untrusted certificate when validatecerts is true", func() {
+			provider := loadBalancer.Spec.Provider
+			provider.ValidateCerts = true
+			httpdata = httpdataStruct{}
+			createdBackend, err := CreateBackend(ctx, &provider, "username", "password")
+			Expect(err).NotTo(HaveOccurred())
+			err = createdBackend.Provider.Connect()
+			Expect(err).NotTo(HaveOccurred())
+			_, err = createdBackend.Provider.GetMonitor(monitor)
+			Expect(err).To(MatchError(ContainSubstring("certificate")))
+			Expect(httpdata.url).To(BeEmpty())
+		})
+	})
+
 	Context("when handling load balancer monitors", func() {
 		var createdBackend *BackendController
 		var err error
